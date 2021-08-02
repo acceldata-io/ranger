@@ -23,7 +23,7 @@
     </parent>
     <groupId>org.apache.ranger</groupId>
     <artifactId>ranger</artifactId>
-    <version>2.1.0</version>
+    <version>2.1.0.3.2.2.0-1</version>
     <description>Security for Enforcing Enterprise Policies</description>
     <packaging>pom</packaging>
     <name>ranger</name>
@@ -272,7 +272,7 @@
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-presto-plugin-shim</module>
-                <module>ranger-examples</module>
+                <!--<module>ranger-examples</module>-->
                 <module>ranger-tools</module>
                 <module>plugin-atlas</module>
                 <module>plugin-schema-registry</module>
@@ -565,7 +565,7 @@
                 <module>ranger-solr-plugin-shim</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
-                <module>ranger-examples</module>
+                <!--<module>ranger-examples</module>-->
                 <module>ranger-tools</module>
                 <module>plugin-atlas</module>
                 <module>plugin-schema-registry</module>
@@ -649,7 +649,7 @@
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-presto-plugin-shim</module>
-                <module>ranger-examples</module>
+                <!--<module>ranger-examples</module>-->
                 <module>ranger-tools</module>
                 <module>plugin-atlas</module>
                 <module>plugin-schema-registry</module>
