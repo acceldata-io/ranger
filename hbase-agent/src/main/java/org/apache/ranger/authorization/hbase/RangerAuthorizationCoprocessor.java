@@ -1335,6 +1335,11 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 	}
 
 	@Override
+	public void hasPermission(RpcController controller, AccessControlProtos.HasPermissionRequest request, RpcCallback<AccessControlProtos.HasPermissionResponse> done) {
+		LOG.debug("hasPermission(): ");
+	}
+
+	@Override
 	public void checkPermissions(RpcController controller, AccessControlProtos.CheckPermissionsRequest request, RpcCallback<AccessControlProtos.CheckPermissionsResponse> done) {
 		LOG.debug("checkPermissions(): ");
 	}
@@ -1396,8 +1401,8 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 					}
 				});
 				if (_userUtils.isSuperUser(user)) {
-					perms.add(new UserPermission(Bytes.toBytes(_userUtils.getUserAsString(user)),
-							AccessControlLists.ACL_TABLE_NAME, null, Action.values()));
+					perms.add(new UserPermission(_userUtils.getUserAsString(user),
+					                             Permission.newBuilder(AccessControlLists.ACL_TABLE_NAME).withActions(Action.values()).build()));
 				}
 			}
 			response = AccessControlUtil.buildGetUserPermissionsResponse(perms);
@@ -1439,11 +1444,11 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			if (!allowedPermissions.isEmpty()) {
 				UserPermission up = null;
 				if (isNamespace) {
-					up = new UserPermission(Bytes.toBytes(user), resource,
-							allowedPermissions.toArray(new Action[allowedPermissions.size()]));
+					up = new UserPermission(user,
+                                                                Permission.newBuilder(resource).withActions(allowedPermissions.toArray(new Action[allowedPermissions.size()])).build());
 				} else {
-					up = new UserPermission(Bytes.toBytes(user), TableName.valueOf(resource), null, null,
-							allowedPermissions.toArray(new Action[allowedPermissions.size()]));
+					up = new UserPermission(user,
+                                                                Permission.newBuilder(TableName.valueOf(resource)).withActions(allowedPermissions.toArray(new Action[allowedPermissions.size()])).build());
 				}
 				userPermissions.add(up);
 			}
@@ -1455,8 +1460,8 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		AccessControlProtos.Permission     perm = up == null ? null : up.getPermission();
 
 		UserPermission      userPerm  = up == null ? null : AccessControlUtil.toUserPermission(up);
-		Permission.Action[] actions   = userPerm == null ? null : userPerm.getActions();
-		String              userName  = userPerm == null ? null : Bytes.toString(userPerm.getUser());
+		Permission.Action[] actions   = userPerm == null ? null : userPerm.getPermission().getActions();
+		String              userName  = userPerm == null ? null : userPerm.getUser();
 		String              nameSpace = null;
 		String              tableName = null;
 		String              colFamily = null;
@@ -1480,13 +1485,15 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			break;
 
 			case Table:
-				tableName = Bytes.toString(userPerm.getTableName().getName());
-				colFamily = Bytes.toString(userPerm.getFamily());
-				qualifier = Bytes.toString(userPerm.getQualifier());
+				TablePermission tablePerm = (TablePermission)userPerm.getPermission();
+				tableName = Bytes.toString(tablePerm.getTableName().getName());
+				colFamily = Bytes.toString(tablePerm.getFamily());
+				qualifier = Bytes.toString(tablePerm.getQualifier());
 			break;
 
 			case Namespace:
-				nameSpace = userPerm.getNamespace();
+				NamespacePermission namepsacePermission = (NamespacePermission)userPerm.getPermission();
+				nameSpace = namepsacePermission.getNamespace();
 			break;
 		}
 		
@@ -1570,7 +1577,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		AccessControlProtos.Permission     perm = up == null ? null : up.getPermission();
 
 		UserPermission      userPerm  = up == null ? null : AccessControlUtil.toUserPermission(up);
-		String              userName  = userPerm == null ? null : Bytes.toString(userPerm.getUser());
+		String              userName  = userPerm == null ? null : userPerm.getUser();
 		String              nameSpace = null;
 		String              tableName = null;
 		String              colFamily = null;
@@ -1590,13 +1597,15 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			break;
 
 			case Table :
-				tableName = Bytes.toString(userPerm.getTableName().getName());
-				colFamily = Bytes.toString(userPerm.getFamily());
-				qualifier = Bytes.toString(userPerm.getQualifier());
+				TablePermission tablePerm = (TablePermission)userPerm.getPermission();
+				tableName = Bytes.toString(tablePerm.getTableName().getName());
+				colFamily = Bytes.toString(tablePerm.getFamily());
+				qualifier = Bytes.toString(tablePerm.getQualifier());
 			break;
 
 			case Namespace:
-				nameSpace = userPerm.getNamespace();
+				NamespacePermission namespacePermission = (NamespacePermission)userPerm.getPermission();
+				nameSpace = namespacePermission.getNamespace();
 			break;
 		}
 
