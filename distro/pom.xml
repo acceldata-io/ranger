@@ -24,7 +24,7 @@
     <parent>
         <groupId>org.apache.ranger</groupId>
         <artifactId>ranger</artifactId>
-        <version>2.3.0</version>
+        <version>2.3.0.3.2.2.0-1</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -54,12 +54,12 @@
                                     <descriptors>
                                         <descriptor>src/main/assembly/hdfs-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/hive-agent.xml</descriptor>
-                                        <descriptor>src/main/assembly/hbase-agent.xml</descriptor>
+                                        <!--<descriptor>src/main/assembly/hbase-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/knox-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/storm-agent.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>-->
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
+                                        <!--<descriptor>src/main/assembly/plugin-ozone.xml</descriptor>-->
                                         <descriptor>src/main/assembly/plugin-solr.xml</descriptor>
                                         <descriptor>src/main/assembly/admin-web.xml</descriptor>
                                         <descriptor>src/main/assembly/solr_audit_conf.xml</descriptor>
@@ -69,12 +69,12 @@
                                         <descriptor>src/main/assembly/kms.xml</descriptor>
                                         <descriptor>src/main/assembly/ranger-tools.xml</descriptor>
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
+                                        <!--<descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-presto.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-presto.xml</descriptor>-->
                                         <descriptor>src/main/assembly/sample-client.xml</descriptor>
                                     </descriptors>
                                 </configuration>
@@ -110,12 +110,12 @@
                                     <descriptors>
                                         <descriptor>src/main/assembly/hdfs-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/hive-agent.xml</descriptor>
-                                        <descriptor>src/main/assembly/hbase-agent.xml</descriptor>
+                                        <!--<descriptor>src/main/assembly/hbase-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/knox-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/storm-agent.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>-->
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
+                                        <!--<descriptor>src/main/assembly/plugin-ozone.xml</descriptor>-->
                                         <descriptor>src/main/assembly/plugin-solr.xml</descriptor>
                                         <descriptor>src/main/assembly/admin-web.xml</descriptor>
                                         <descriptor>src/main/assembly/solr_audit_conf.xml</descriptor>
@@ -125,13 +125,13 @@
                                         <descriptor>src/main/assembly/kms.xml</descriptor>
                                         <descriptor>src/main/assembly/ranger-tools.xml</descriptor>
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
+                                        <!--<descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-presto.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-trino.xml</descriptor>-->
                                         <descriptor>src/main/assembly/sample-client.xml</descriptor>
                                     </descriptors>
                                 </configuration>
@@ -696,11 +696,11 @@
                                         <descriptor>src/main/assembly/hdfs-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/hive-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/hbase-agent.xml</descriptor>
-                                        <descriptor>src/main/assembly/knox-agent.xml</descriptor>
-                                        <descriptor>src/main/assembly/storm-agent.xml</descriptor>
+                                        <!--<descriptor>src/main/assembly/knox-agent.xml</descriptor>-->
+                                        <!--<descriptor>src/main/assembly/storm-agent.xml</descriptor>-->
                                         <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
+                                        <!--<descriptor>src/main/assembly/plugin-ozone.xml</descriptor>-->
                                         <descriptor>src/main/assembly/plugin-solr.xml</descriptor>
                                         <descriptor>src/main/assembly/admin-web.xml</descriptor>
                                         <descriptor>src/main/assembly/solr_audit_conf.xml</descriptor>
@@ -712,10 +712,10 @@
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
+                                       <!-- <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-presto.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-presto.xml</descriptor>-->
                                     </descriptors>
                                 </configuration>
                             </execution>
@@ -727,11 +727,11 @@
     </profiles>
 
     <!--Add a dependency here to ensure this module is the final one built-->
-    <dependencies>
+    <!--<dependencies>
         <dependency>
             <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-elasticsearch-plugin-shim</artifactId>
             <version>${project.version}</version>
         </dependency>
-    </dependencies>
+    </dependencies>-->
 </project>
