@@ -47,6 +47,7 @@ import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.security.UserProvider;
 import org.apache.hadoop.hbase.security.access.*;
 import org.apache.hadoop.hbase.security.access.Permission.Action;
+import org.apache.hadoop.hbase.security.access.Permission.Builder;
 import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.ResponseConverter;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ClientProtos.CleanupBulkLoadRequest;
@@ -788,7 +789,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			Throwable var3 = null;
 
 			try {
-				if(!admin.tableExists(AccessControlLists.ACL_TABLE_NAME)) {
+				if(!admin.tableExists(PermissionStorage.ACL_TABLE_NAME)) {
 					createACLTable(admin);
 				}
 			} catch (Throwable var12) {
@@ -812,8 +813,8 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 	}
 
 	private static void createACLTable(Admin admin) throws IOException {
-		ColumnFamilyDescriptor cfd = ColumnFamilyDescriptorBuilder.newBuilder(AccessControlLists.ACL_LIST_FAMILY).setMaxVersions(1).setInMemory(true).setBlockCacheEnabled(true).setBlocksize(8192).setBloomFilterType(BloomType.NONE).setScope(0).build();
-		TableDescriptor td = TableDescriptorBuilder.newBuilder(AccessControlLists.ACL_TABLE_NAME).addColumnFamily(cfd).build();
+		ColumnFamilyDescriptor cfd = ColumnFamilyDescriptorBuilder.newBuilder(PermissionStorage.ACL_LIST_FAMILY).setMaxVersions(1).setInMemory(true).setBlockCacheEnabled(true).setBlocksize(8192).setBloomFilterType(BloomType.NONE).setScope(0).build();
+		TableDescriptor td = TableDescriptorBuilder.newBuilder(PermissionStorage.ACL_TABLE_NAME).addColumnFamily(cfd).build();
 		admin.createTable(td);
 	}
 
@@ -1403,7 +1404,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 				});
 				if (_userUtils.isSuperUser(user)) {
 					perms.add(new UserPermission(_userUtils.getUserAsString(user),
-					                             Permission.newBuilder(AccessControlLists.ACL_TABLE_NAME).withActions(Action.values()).build()));
+					                             Permission.newBuilder(PermissionStorage.ACL_TABLE_NAME).withActions(Action.values()).build()));
 				}
 			}
 			response = AccessControlUtil.buildGetUserPermissionsResponse(perms);
