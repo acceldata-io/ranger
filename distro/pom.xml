@@ -696,7 +696,7 @@
                                         <descriptor>src/main/assembly/hdfs-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/hive-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/hbase-agent.xml</descriptor>
-                                        <!--<descriptor>src/main/assembly/knox-agent.xml</descriptor>-->
+                                        <descriptor>src/main/assembly/knox-agent.xml</descriptor>
                                         <!--<descriptor>src/main/assembly/storm-agent.xml</descriptor>-->
                                         <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
