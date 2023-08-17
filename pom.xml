@@ -275,6 +275,8 @@
                 <module>hive-agent</module>
                 <module>plugin-yarn</module>
                 <module>security-admin</module>
+                <module>plugin-nifi</module>
+                <module>plugin-nifi-registry</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>
                 <module>ugsync-util</module>
