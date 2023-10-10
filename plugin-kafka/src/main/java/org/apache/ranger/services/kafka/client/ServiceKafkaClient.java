@@ -103,7 +103,11 @@ public class ServiceKafkaClient {
 			props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configs.get(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG));
 			props.put(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, configs.get(AdminClientConfig.SECURITY_PROTOCOL_CONFIG));
 			props.put(KEY_SASL_MECHANISM, configs.get(KEY_SASL_MECHANISM));
-			props.put(KEY_SASL_JAAS_CONFIG, getJAASConfig(configs));
+			String sasl_mechanism = configs.get(KEY_SASL_MECHANISM);
+			if (!sasl_mechanism.equalsIgnoreCase("PLAINTEXT"))
+			{
+				props.put(KEY_SASL_JAAS_CONFIG, getJAASConfig(configs));
+			}
 			props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, getIntProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, sessionTimeout));
 			props.put(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, getIntProperty(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, connectionTimeout));
 			adminClient = KafkaAdminClient.create(props);

@@ -81,21 +81,6 @@ public class ServiceKafkaConnectionMgr {
 			}
 		}
 
-		if (StringUtils.isEmpty(kafka_keytab)) {
-			if (StringUtils.isNotBlank(ret.toString())) {
-				ret.append(SEPARATOR).append(KEY_KAFKA_KEYTAB);
-			} else {
-				ret.append(KEY_KAFKA_KEYTAB);
-			}
-		}
-
-		if (StringUtils.isEmpty(kafka_principal)) {
-			if (StringUtils.isNotBlank(ret.toString())) {
-				ret.append(SEPARATOR).append(KEY_KAFKA_PRINCIPAL);
-			} else {
-				ret.append(KEY_KAFKA_PRINCIPAL);
-			}
-		}
 		return ret.toString();
 	}
 }
