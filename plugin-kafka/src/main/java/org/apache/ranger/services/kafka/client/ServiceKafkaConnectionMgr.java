@@ -58,8 +58,7 @@ public class ServiceKafkaConnectionMgr {
 		String bootstrap_servers = configs.get(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
 		String security_protocol = configs.get(AdminClientConfig.SECURITY_PROTOCOL_CONFIG);
 		String sasl_mechanism = configs.get(KEY_SASL_MECHANISM);
-		String kafka_keytab = configs.get(KEY_KAFKA_KEYTAB);
-		String kafka_principal = configs.get(KEY_KAFKA_PRINCIPAL);
+
 
 		if (StringUtils.isEmpty(bootstrap_servers)) {
 			ret.append(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG);
@@ -81,6 +80,26 @@ public class ServiceKafkaConnectionMgr {
 			}
 		}
 
+		/**
+		String kafka_keytab = configs.get(KEY_KAFKA_KEYTAB);
+		String kafka_principal = configs.get(KEY_KAFKA_PRINCIPAL);
+
+		if (StringUtils.isEmpty(kafka_keytab)) {
+			if (StringUtils.isNotBlank(ret.toString())) {
+				ret.append(SEPARATOR).append(KEY_KAFKA_KEYTAB);
+			} else {
+				ret.append(KEY_KAFKA_KEYTAB);
+			}
+		}
+
+		if (StringUtils.isEmpty(kafka_principal)) {
+			if (StringUtils.isNotBlank(ret.toString())) {
+				ret.append(SEPARATOR).append(KEY_KAFKA_PRINCIPAL);
+			} else {
+				ret.append(KEY_KAFKA_PRINCIPAL);
+			}
+		}
+		 */
 		return ret.toString();
 	}
 }
