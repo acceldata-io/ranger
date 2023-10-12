@@ -80,26 +80,57 @@ public class ServiceKafkaConnectionMgr {
 			}
 		}
 
-		/**
-		String kafka_keytab = configs.get(KEY_KAFKA_KEYTAB);
-		String kafka_principal = configs.get(KEY_KAFKA_PRINCIPAL);
+		if (!sasl_mechanism.equalsIgnoreCase("PLAINTEXT"))
+		{
+			/**
+			 * https://docs.confluent.io/platform/current/kafka/authentication_sasl/index.html states that SASL/GSSAPI is for organizations using Kerberos.
+			 */
+			if (sasl_mechanism.toUpperCase().startsWith("GSSAPI")) {
+				String kafka_keytab = configs.get(KEY_KAFKA_KEYTAB);
+				String kafka_principal = configs.get(KEY_KAFKA_PRINCIPAL);
 
-		if (StringUtils.isEmpty(kafka_keytab)) {
-			if (StringUtils.isNotBlank(ret.toString())) {
-				ret.append(SEPARATOR).append(KEY_KAFKA_KEYTAB);
-			} else {
-				ret.append(KEY_KAFKA_KEYTAB);
-			}
-		}
+				if (StringUtils.isEmpty(kafka_keytab)) {
+					if (StringUtils.isNotBlank(ret.toString())) {
+						ret.append(SEPARATOR).append(KEY_KAFKA_KEYTAB);
+					} else {
+						ret.append(KEY_KAFKA_KEYTAB);
+					}
+				}
 
-		if (StringUtils.isEmpty(kafka_principal)) {
-			if (StringUtils.isNotBlank(ret.toString())) {
-				ret.append(SEPARATOR).append(KEY_KAFKA_PRINCIPAL);
-			} else {
-				ret.append(KEY_KAFKA_PRINCIPAL);
+				if (StringUtils.isEmpty(kafka_principal)) {
+					if (StringUtils.isNotBlank(ret.toString())) {
+						ret.append(SEPARATOR).append(KEY_KAFKA_PRINCIPAL);
+					} else {
+						ret.append(KEY_KAFKA_PRINCIPAL);
+					}
+				}
 			}
+
+			/**
+			else
+			{
+				String username = configs.get("username");
+				String password = configs.get("password");
+
+				if (StringUtils.isEmpty(username)) {
+					if (StringUtils.isNotBlank(ret.toString())) {
+						ret.append(SEPARATOR).append(username);
+					} else {
+						ret.append(username);
+					}
+				}
+
+				if (StringUtils.isEmpty(password)) {
+					if (StringUtils.isNotBlank(ret.toString())) {
+						ret.append(SEPARATOR).append(password);
+					} else {
+						ret.append(password);
+					}
+				}
+
+			}
+			 */
 		}
-		 */
 		return ret.toString();
 	}
 }
