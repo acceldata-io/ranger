@@ -181,6 +181,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protobuf-java.version>3.19.3</protobuf-java.version>
         <gcp.protobuf-java.version>3.19.3</gcp.protobuf-java.version>
+        <ratis.version>3.0.1</ratis.version>
+        <ratis.thirdparty.version>1.0.5</ratis.thirdparty.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <scala.xml.version>1.0.4</scala.xml.version>
@@ -271,14 +273,15 @@
                 <module>kms</module>
                 <module>hbase-agent</module>
                 <module>hdfs-agent</module>
-                <module>knox-agent</module>
                 <module>hive-agent</module>
+                <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-ozone</module>
                 <module>security-admin</module>
-                <module>plugin-nifi</module>
-                <module>plugin-nifi-registry</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>
+                <module>plugin-nifi</module>
+                <module>plugin-nifi-registry</module>
                 <module>ugsync-util</module>
                 <module>ugsync</module>
                 <module>ugsync/ldapconfigchecktool/ldapconfigcheck</module>
@@ -291,12 +294,13 @@
                 <module>ranger-hdfs-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-hive-plugin-shim</module>
-                <module>ranger-yarn-plugin-shim</module>
                 <module>ranger-hbase-plugin-shim</module>
+                <module>ranger-knox-plugin-shim</module>
+                <module>ranger-yarn-plugin-shim</module>
+                <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
-                <module>ranger-knox-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
                 <!--
