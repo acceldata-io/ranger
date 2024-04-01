@@ -41,6 +41,14 @@
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
+                   <groupId>io.netty</groupId>
+                   <artifactId>netty-handler</artifactId>
+                </exclusion>
+                <exclusion>
+                   <groupId>io.netty</groupId>
+                   <artifactId>netty-transport-native-epoll</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>

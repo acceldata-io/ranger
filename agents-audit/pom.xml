@@ -52,6 +52,14 @@
                     <artifactId>guava</artifactId>
                 </exclusion>
                 <exclusion>
+                   <groupId>io.netty</groupId>
+                   <artifactId>netty-handler</artifactId>
+                </exclusion>
+                <exclusion>
+                   <groupId>io.netty</groupId>
+                   <artifactId>netty-transport-native-epoll</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
