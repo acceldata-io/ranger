@@ -219,12 +219,13 @@
                 </exclusion>
              </exclusions>
         </dependency>
-        <dependency>
+        <!-- Removing from test scope -->
+       <!-- <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
             <version>${commons.text.version}</version>
             <scope>test</scope>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
