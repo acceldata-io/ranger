@@ -257,10 +257,6 @@
                     <artifactId>netty</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-text</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
@@ -271,6 +267,10 @@
             <artifactId>hadoop-common</artifactId>
             <version>${hadoop.version}</version>
             <exclusions>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-text</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
