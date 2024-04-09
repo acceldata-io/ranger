@@ -18,22 +18,50 @@
           xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
     <id>schema-registry-plugin</id>
     <formats>
-        <format>jar</format>
+        <format>tar.gz</format>
     </formats>
-    <includeBaseDirectory>false</includeBaseDirectory>
+    <baseDirectory>${project.parent.name}-${project.version}-schema-registry-plugin</baseDirectory>
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <moduleSets>
+        <moduleSet>
+            <useAllReactorProjects>true</useAllReactorProjects>
+            <includes>
+                <include>org.apache.ranger:ranger-schema-registry-plugin</include>
+            </includes>
+            <binaries>
+                <outputDirectory></outputDirectory>
+                <includeDependencies>false</includeDependencies>
+                <unpack>false</unpack>
+                <directoryMode>755</directoryMode>
+                <fileMode>644</fileMode>
+            </binaries>
+        </moduleSet>
+    </moduleSets>
+    <fileSets>
+        <fileSet>
+            <directoryMode>755</directoryMode>
+            <fileMode>644</fileMode>
+            <outputDirectory></outputDirectory>
+            <directory>${project.parent.basedir}/schema-registry-plugin</directory>
+        </fileSet>
+        <fileSet>
+            <directoryMode>755</directoryMode>
+            <outputDirectory></outputDirectory>
+            <directory>${project.build.directory}</directory>
+            <includes>
+                <include>version</include>
+            </includes>
+            <fileMode>444</fileMode>
+        </fileSet>
 
-    <!-- put deps in the lib folder -->
-    <dependencySets>
-        <dependencySet>
-            <useProjectArtifact>true</useProjectArtifact>
-            <outputDirectory>/</outputDirectory>
-            <scope>runtime</scope>
-            <unpack>true</unpack>
-            <excludes>
-                <exclude>
-                    org.slf4j:*
-                </exclude>
-            </excludes>
-        </dependencySet>
-    </dependencySets>
+        <fileSet>
+            <outputDirectory></outputDirectory>
+            <directory>${project.parent.basedir}/</directory>
+            <includes>
+                <include>LICENSE.txt</include>
+                <include>NOTICE.txt</include>
+            </includes>
+            <fileMode>644</fileMode>
+        </fileSet>
+    </fileSets>
 </assembly>

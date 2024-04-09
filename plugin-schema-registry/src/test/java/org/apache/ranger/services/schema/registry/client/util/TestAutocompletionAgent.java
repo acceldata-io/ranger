@@ -56,4 +56,14 @@ public class TestAutocompletionAgent extends AutocompletionAgent {
 
         return res;
     }
+    @Override
+    public List<String> getVersionList(String versionLookup, List<String> groupList, List<String> schemaList,
+                                       List<String> versionList) {
+        List<String> res = new ArrayList<>(versionList);
+        res.add("1");
+        res.add("2");
+        res.add("3");
+
+        return res;
+    }
 }
