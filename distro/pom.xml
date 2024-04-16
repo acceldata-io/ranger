@@ -73,8 +73,8 @@
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-presto.xml</descriptor>-->
+                                        <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                         <descriptor>src/main/assembly/sample-client.xml</descriptor>
                                     </descriptors>
                                 </configuration>
@@ -129,9 +129,9 @@
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-presto.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-trino.xml</descriptor>-->
+                                        <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                         <descriptor>src/main/assembly/sample-client.xml</descriptor>
                                     </descriptors>
                                 </configuration>
@@ -712,10 +712,10 @@
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
-                                       <!-- <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-presto.xml</descriptor>-->
+                                        <!-- <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
+                                         <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
+                                         <descriptor>src/main/assembly/plugin-presto.xml</descriptor>-->
                                     </descriptors>
                                 </configuration>
                             </execution>

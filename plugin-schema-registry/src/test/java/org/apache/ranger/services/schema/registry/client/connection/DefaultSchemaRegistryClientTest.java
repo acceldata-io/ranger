@@ -23,6 +23,7 @@ import com.hortonworks.registries.schemaregistry.SchemaVersion;
 import com.hortonworks.registries.schemaregistry.webservice.LocalSchemaRegistryServer;
 import org.apache.commons.io.IOUtils;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.yaml.snakeyaml.Yaml;
 
@@ -41,7 +42,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 
-@org.junit.Ignore
+@Ignore("tests fail with java.lang.NoSuchMethodError: org.hibernate.validator.HibernateValidatorConfiguration.addValueExtractor")
 public class DefaultSchemaRegistryClientTest {
 
     private static final String V1_API_PATH = "api/v1";

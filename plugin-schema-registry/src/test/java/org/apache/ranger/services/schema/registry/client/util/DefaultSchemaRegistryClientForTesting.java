@@ -38,7 +38,10 @@ public class DefaultSchemaRegistryClientForTesting implements ISchemaRegistryCli
     public List<String> getSchemaBranches(String schemaMetadataName) {
         return new ArrayList<>();
     }
-
+    @Override
+    public List<String> getSchemaVersions(String schemaMetadataName) {
+        return new ArrayList<>();
+    }
     @Override
     public void checkConnection() throws Exception {
 
