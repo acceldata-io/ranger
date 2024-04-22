@@ -274,14 +274,16 @@
                 <module>kms</module>
                 <module>hbase-agent</module>
                 <module>hdfs-agent</module>
-                <module>knox-agent</module>
                 <module>hive-agent</module>
+                <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-ozone</module>
                 <module>security-admin</module>
-                <module>plugin-nifi</module>
-                <module>plugin-nifi-registry</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>
+                <module>plugin-nifi</module>
+                <module>plugin-nifi-registry</module>
+                <module>plugin-schema-registry</module>
                 <module>ugsync-util</module>
                 <module>ugsync</module>
                 <module>ugsync/ldapconfigchecktool/ldapconfigcheck</module>
@@ -294,12 +296,13 @@
                 <module>ranger-hdfs-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-hive-plugin-shim</module>
-                <module>ranger-yarn-plugin-shim</module>
                 <module>ranger-hbase-plugin-shim</module>
+                <module>ranger-knox-plugin-shim</module>
+                <module>ranger-yarn-plugin-shim</module>
+                <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
-                <module>ranger-knox-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
                 <!--
@@ -674,8 +677,8 @@
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
-                <!--<module>plugin-atlas</module>
                 <module>plugin-schema-registry</module>
+                <!--<module>plugin-atlas</module>
                 <module>plugin-sqoop</module>
                 <module>ranger-sqoop-plugin-shim</module>
                 <module>plugin-kylin</module>
@@ -759,8 +762,8 @@
                 <!--<module>ranger-presto-plugin-shim</module>-->
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
-                <!--<module>plugin-atlas</module>
                 <module>plugin-schema-registry</module>
+                <!--<module>plugin-atlas</module>
                 <module>plugin-sqoop</module>
                 <module>ranger-sqoop-plugin-shim</module>
                 <module>plugin-kylin</module>
