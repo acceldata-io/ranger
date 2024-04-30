@@ -127,7 +127,7 @@
                     <groupId>log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-               exclusion>
+                <exclusion>
                      <groupId>io.netty</groupId>
                      <artifactId>netty-all</artifactId>
                  </exclusion>
