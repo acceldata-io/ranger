@@ -47,6 +47,10 @@
                     <artifactId>jdk.tools</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
@@ -142,6 +146,18 @@
                     <groupId>org.apache.hadoop</groupId>
                     <artifactId>hadoop-common</artifactId>
                 </exclusion>
+                 <exclusion>
+                   <groupId>io.netty</groupId>
+                   <artifactId>netty-all</artifactId>
+               </exclusion>
+               <exclusion>
+                   <groupId>io.netty</groupId>
+                   <artifactId>netty</artifactId>
+               </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-text</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>*</artifactId>
@@ -152,6 +168,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
+        <!-- Removing from test scope -->
+       <!-- <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>${commons.text.version}</version>
+            <scope>test</scope>
+        </dependency> -->
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-zookeeper</artifactId>
@@ -227,6 +251,14 @@
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-all</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
@@ -238,6 +270,10 @@
             <version>${hadoop.version}</version>
             <exclusions>
                 <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-text</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
@@ -246,6 +282,11 @@
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>${commons.text.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -272,6 +313,14 @@
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-all</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>log4j</groupId>

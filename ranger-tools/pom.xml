@@ -62,7 +62,17 @@
 			<groupId>be.ceau</groupId>
 			<artifactId>chart</artifactId>
 			<version>2.2.0</version>
-		</dependency>        
+		</dependency>
+         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${fasterxml.jackson.version}</version>
+        </dependency>
+         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${fasterxml.jackson.databind.version}</version>
+        </dependency>        
     </dependencies>
     <build>
         <pluginManagement>
