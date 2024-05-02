@@ -23,24 +23,27 @@ import com.hortonworks.registries.schemaregistry.client.UrlSelector;
 import org.apache.ranger.services.schema.registry.client.connection.util.SecurityUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.client.JerseyClientBuilder;
+import com.hortonworks.registries.shaded.org.glassfish.jersey.client.ClientConfig;
+import com.hortonworks.registries.shaded.org.glassfish.jersey.client.ClientProperties;
+import com.hortonworks.registries.shaded.org.glassfish.jersey.client.JerseyClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;;
+import com.hortonworks.registries.shaded.javax.ws.rs.client.ClientBuilder;
+import com.hortonworks.registries.shaded.javax.ws.rs.client.WebTarget;
+import com.hortonworks.registries.shaded.javax.ws.rs.core.MediaType;
+import com.hortonworks.registries.shaded.javax.ws.rs.core.Response;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import com.hortonworks.registries.schemaregistry.client.SchemaRegistryClient.Configuration;
 
@@ -55,14 +58,17 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
     private static final String SCHEMA_REGISTRY_PATH = "/api/v1/schemaregistry";
     private static final String SCHEMAS_PATH = SCHEMA_REGISTRY_PATH + "/schemas/";
     private static final String SCHEMA_REGISTRY_VERSION_PATH = SCHEMA_REGISTRY_PATH + "/version";
-    private static final String SSL_ALGORITHM = "TLS";
-    private final javax.ws.rs.client.Client client;
+    private static final String SSL_ALGORITHM = "TLSv1.2";
+    private final com.hortonworks.registries.shaded.javax.ws.rs.client.Client client;
     private final Login login;
     private final UrlSelector urlSelector;
     private final Map<String, SchemaRegistryTargets> urlWithTargets;
     private final Configuration configuration;
 
     public DefaultSchemaRegistryClient(Map<String, ?> conf) {
+        if(LOG.isDebugEnabled()) {
+            LOG.debug("Initializing SchemaRegistry client inside the Ranger plugin");
+        }
         configuration = new Configuration(conf);
         login = SecurityUtils.initializeSecurityContext(conf);
         ClientConfig config = createClientConfig(conf);
@@ -142,23 +148,33 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
         }
     }
 
+    /** Send request to the remote service. */
+    private String sendWebRequest(WebTarget target) throws Exception {
+        Response response = login.doAction(() -> target.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class));
+
+        if(LOG.isDebugEnabled()) {
+            LOG.debug("response statusCode = " + response.getStatus());
+        }
+
+        if(response.getStatus() != Response.Status.OK.getStatusCode()) {
+            LOG.error("Connection failed. Response StatusCode = " + response.getStatus());
+            throw new Exception("Connection failed. StatusCode = " + response.getStatus());
+        }
+
+        return response.readEntity(String.class);
+    }
+
     @Override
     public List<String> getSchemaGroups() {
         if(LOG.isDebugEnabled()) {
             LOG.debug("==> DefaultSchemaRegistryClient.getSchemaGroups()");
         }
 
-        ArrayList<String> res = new ArrayList<>();
-        WebTarget webResource = currentSchemaRegistryTargets().schemasTarget;
+        List<String> res = new ArrayList<>();
         try {
-            Response response = login.doAction(() ->
-                    webResource.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class));
+            String jsonResponse = sendWebRequest(currentSchemaRegistryTargets().schemasTarget);
 
-            if(LOG.isDebugEnabled()) {
-                LOG.debug("DefaultSchemaRegistryClient.getSchemaGroups(): response statusCode = " + response.getStatus());
-            }
-
-            JSONArray mDataList = new JSONObject(response.readEntity(String.class)).getJSONArray("entities");
+            JSONArray mDataList = new JSONObject(jsonResponse).getJSONArray("entities");
             int len = mDataList.length();
             for(int i = 0; i < len; i++) {
                 JSONObject entity = mDataList.getJSONObject(i);
@@ -168,6 +184,8 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException("Unexpected error.", t);
         }
 
         if(LOG.isDebugEnabled()) {
@@ -180,42 +198,34 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
     }
 
     @Override
-    public List<String> getSchemaNames(List<String> schemaGroups) {
+    public List<String> getSchemaNames(List<String> schemaNames) {
         if(LOG.isDebugEnabled()) {
-            LOG.debug("==> DefaultSchemaRegistryClient.getSchemaNames( " + schemaGroups + " )");
+            LOG.debug("==> DefaultSchemaRegistryClient.getSchemaNames( " + schemaNames + " )");
         }
 
-        ArrayList<String> res = new ArrayList<>();
-        WebTarget webTarget = currentSchemaRegistryTargets().schemasTarget;
+        List<String> res = new ArrayList<>();
         try {
-            Response response = login.doAction(() ->
-                    webTarget.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class));
+            String jsonResponse = sendWebRequest(currentSchemaRegistryTargets().schemasTarget);
 
-            if(LOG.isDebugEnabled()) {
-                LOG.debug("DefaultSchemaRegistryClient.getSchemaNames(): response statusCode = " + response.getStatus());
-            }
-
-            JSONArray mDataList = new JSONObject(response.readEntity(String.class)).getJSONArray("entities");
+            JSONArray mDataList = new JSONObject(jsonResponse).getJSONArray("entities");
             int len = mDataList.length();
             for(int i = 0; i < len; i++) {
                 JSONObject entity = mDataList.getJSONObject(i);
                 JSONObject schemaMetadata = (JSONObject)entity.get("schemaMetadata");
-                String group = (String) schemaMetadata.get("schemaGroup");
-                for(String schemaGroup:  schemaGroups) {
-                    if(group.matches(schemaGroup)) {
-                        String name = (String) schemaMetadata.get("name");
-                        res.add(name);
-                    }
+                String existingSchemaName = (String) schemaMetadata.get("name");
+                for(String schemaName:  schemaNames) {
+                    applyIfPatternMatches(schemaName, existingSchemaName, name -> res.add(name));
                 }
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException("Unexpected error. ", t);
         }
 
         if(LOG.isDebugEnabled()) {
-            LOG.debug("<== DefaultSchemaRegistryClient.getSchemaNames( " + schemaGroups + " ): "
-                    + res.size()
-                    + " schemaNames found");
+            LOG.debug("<== DefaultSchemaRegistryClient.getSchemaNames( " + schemaNames + " ): "
+                      + res.size() + " schemaNames found");
         }
 
         return res;
@@ -227,36 +237,60 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
             LOG.debug("==> DefaultSchemaRegistryClient.getSchemaBranches( " + schemaMetadataName + " )");
         }
 
-        ArrayList<String> res = new ArrayList<>();
-        WebTarget target = currentSchemaRegistryTargets().schemasTarget.path(encode(schemaMetadataName) + "/branches");
+        List<String> res = new ArrayList<>();
         try {
-            Response response = login.doAction(() ->
-                    target.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class));
+            String jsonResponse = sendWebRequest(currentSchemaRegistryTargets().schemasTarget.path(encode(schemaMetadataName) + "/branches"));
 
-            if(LOG.isDebugEnabled()) {
-                LOG.debug("DefaultSchemaRegistryClient.getSchemaBranches(): response statusCode = " + response.getStatus());
-            }
-
-            JSONArray mDataList = new JSONObject(response.readEntity(String.class)).getJSONArray("entities");
+            JSONArray mDataList = new JSONObject(jsonResponse).getJSONArray("entities");
             int len = mDataList.length();
             for(int i = 0; i < len; i++) {
-                JSONObject entity = mDataList.getJSONObject(i);
-                JSONObject branchInfo = entity;
-                String smName = (String) branchInfo.get("schemaMetadataName");
-                if (smName.matches(schemaMetadataName)) {
-                    String bName = (String) branchInfo.get("name");
-                    res.add(bName);
-                }
-
+                JSONObject branchInfo = mDataList.getJSONObject(i);
+                String existingSchemaName = (String) branchInfo.get("schemaMetadataName");
+                String existingBranch = (String) branchInfo.get("name");
+                applyIfPatternMatches(schemaMetadataName, existingSchemaName, val -> res.add(existingBranch));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException("Unexpected error.", t);
         }
 
         if(LOG.isDebugEnabled()) {
             LOG.debug("<== DefaultSchemaRegistryClient.getSchemaBranches( " + schemaMetadataName + " ): "
-                    + res.size()
-                    + " branches found.");
+                      + res.size() + " branches found.");
+        }
+
+        return res;
+    }
+
+    @Override
+    public List<String> getSchemaVersions(String schemaMetadataName) {
+        if(LOG.isDebugEnabled()) {
+            LOG.debug("==> DefaultSchemaRegistryClient.getSchemaVersions( " + schemaMetadataName + " )");
+        }
+
+        List<String> res = new ArrayList<>();
+        try {
+            String jsonResponse = sendWebRequest(currentSchemaRegistryTargets().schemasTarget.path(encode(schemaMetadataName) + "/versions"));
+
+            JSONArray mDataList = new JSONObject(jsonResponse).getJSONArray("entities");
+            int len = mDataList.length();
+            for(int i = 0; i < len; i++) {
+                JSONObject branchInfo = mDataList.getJSONObject(i);
+                String existingSchemaName = (String) branchInfo.get("name");
+                Integer existingVersion = (Integer) branchInfo.get("version");
+
+                applyIfPatternMatches(schemaMetadataName, existingSchemaName, val -> res.add(String.valueOf(existingVersion)));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException("Unexpected error.", t);
+        }
+
+        if(LOG.isDebugEnabled()) {
+            LOG.debug("<== DefaultSchemaRegistryClient.getSchemaVersions( " + schemaMetadataName + " ): "
+                      + res.size() + " versions found.");
         }
 
         return res;
@@ -267,28 +301,44 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
         if(LOG.isDebugEnabled()) {
             LOG.debug("==> DefaultSchemaRegistryClient.checkConnection(): trying to connect to the SR server... ");
         }
+        String respStr = sendWebRequest(currentSchemaRegistryTargets().schemaRegistryVersion);
 
-        WebTarget webTarget = currentSchemaRegistryTargets().schemaRegistryVersion;
-        Response responce = login.doAction(() ->
-                webTarget.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class));
-        if(LOG.isDebugEnabled()) {
-            LOG.debug("DefaultSchemaRegistryClient.checkConnection(): response statusCode = " + responce.getStatus());
-        }
-        if(responce.getStatus() != Response.Status.OK.getStatusCode()) {
-            LOG.error("DefaultSchemaRegistryClient.checkConnection(): Connection failed. Response StatusCode = "
-                    + responce.getStatus());
-            throw new Exception("Connection failed. StatusCode = " + responce.getStatus());
-        }
-
-        String respStr = responce.readEntity(String.class);
         if (!(respStr.contains("version") && respStr.contains("revision"))) {
             LOG.error("DefaultSchemaRegistryClient.checkConnection(): Connection failed. Bad response body.");
             throw new Exception("Connection failed. Bad response body.");
         }
 
         if(LOG.isDebugEnabled()) {
-            LOG.debug("<== DefaultSchemaRegistryClient.checkConnection(): connection test successfull ");
+            LOG.debug("<== DefaultSchemaRegistryClient.checkConnection(): connection test successful ");
         }
+    }
+
+    /** Run the provided function if the value matches the pattern. This method swallows the exception if the pattern or value are invalid. */
+    private static void applyIfPatternMatches(String pattern, Object value, Function<String, Object> f) {
+        if (pattern == null || pattern.trim().isEmpty()) {
+            return;
+        }
+        if (pattern.trim().equals("*")) pattern = ".*";  // fix regex pattern
+        try {
+            if (value.toString().matches(pattern)) {
+                f.apply(value.toString());
+            }
+        } catch (Exception ex) {
+            LOG.warn("Invalid pattern: " + pattern);
+        }
+    }
+
+    /** Useful for debugging. */
+    private static String getClasspath() {
+        StringBuilder str = new StringBuilder();
+        ClassLoader cl = DefaultSchemaRegistryClient.class.getClassLoader();
+
+        str.append("Classpath for the SchemaRegistry-Ranger plugin");
+        for (URL url: ((URLClassLoader)cl).getURLs()){
+            str.append(':').append(url.getFile());
+        }
+
+        return str.toString();
     }
 
 }
