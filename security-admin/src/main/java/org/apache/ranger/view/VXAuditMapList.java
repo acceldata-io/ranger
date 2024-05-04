@@ -32,9 +32,10 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.apache.ranger.common.view.VList;
-import org.codehaus.jackson.annotate.JsonAutoDetect;
-import org.codehaus.jackson.annotate.JsonAutoDetect.Visibility;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 @JsonAutoDetect(getterVisibility=Visibility.NONE, setterVisibility=Visibility.NONE, fieldVisibility=Visibility.ANY)
 @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL )
@@ -56,6 +57,7 @@ public class VXAuditMapList extends VList {
     /**
      * @return the vXAuditMaps
      */
+    @JsonProperty("vXAuditMaps")
     public List<VXAuditMap> getVXAuditMaps() {
 	return vXAuditMaps;
     }
@@ -64,6 +66,7 @@ public class VXAuditMapList extends VList {
      * @param vXAuditMaps
      *            the vXAuditMaps to set
      */
+    @JsonProperty("vXAuditMaps")
     public void setVXAuditMaps(List<VXAuditMap> vXAuditMaps) {
 	this.vXAuditMaps = vXAuditMaps;
     }

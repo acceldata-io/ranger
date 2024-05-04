@@ -32,9 +32,10 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.apache.ranger.common.view.VList;
-import org.codehaus.jackson.annotate.JsonAutoDetect;
-import org.codehaus.jackson.annotate.JsonAutoDetect.Visibility;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 @JsonAutoDetect(getterVisibility=Visibility.NONE, setterVisibility=Visibility.NONE, fieldVisibility=Visibility.ANY)
 @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL )
@@ -56,6 +57,7 @@ public class VXGroupList extends VList {
     /**
      * @return the vXGroups
      */
+    @JsonProperty("vXGroups")
     public List<VXGroup> getVXGroups() {
 	return vXGroups;
     }
@@ -64,6 +66,7 @@ public class VXGroupList extends VList {
      * @param vXGroups
      *            the vXGroups to set
      */
+    @JsonProperty("vXGroups")
     public void setVXGroups(List<VXGroup> vXGroups) {
 	this.vXGroups = vXGroups;
     }
