@@ -66,6 +66,10 @@
             <artifactId>hive-service</artifactId>
             <version>${hive.version}</version>
             <exclusions>
+                <exclusion>
+                <groupId>javax.servlet.jsp</groupId>
+                <artifactId>javax.servlet.jsp-api</artifactId>
+                </exclusion>
                <exclusion>
                     <groupId>io.netty</groupId>
                     <artifactId>netty-all</artifactId>
