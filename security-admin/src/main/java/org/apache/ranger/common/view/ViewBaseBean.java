@@ -23,7 +23,7 @@ import javax.xml.bind.annotation.XmlTransient;
 
 import org.apache.ranger.common.RangerCommonEnums;
 import org.apache.ranger.entity.XXDBBase;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.codehaus.jackson.annotate.JsonIgnore;
 
 public class ViewBaseBean implements java.io.Serializable {
     private static final long serialVersionUID = 1L;

@@ -19,8 +19,6 @@
 
 package org.apache.ranger.elasticsearch;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.ranger.common.*;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.elasticsearch.action.get.MultiGetItemResponse;

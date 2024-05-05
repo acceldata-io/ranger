@@ -42,10 +42,10 @@ import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyResource;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerRowFilterPolicyItem;
 import org.apache.ranger.plugin.model.RangerValiditySchedule;
 import org.apache.ranger.plugin.util.JsonUtilsV2;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
+import org.codehaus.jackson.JsonParseException;
+import org.codehaus.jackson.map.JsonMappingException;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,7 +59,7 @@ public class RangerPolicyService extends RangerPolicyServiceBase<XXPolicy, Range
 
 	@Autowired
 	JSONUtil jsonUtil;
-
+	
 	public static final String POLICY_RESOURCE_CLASS_FIELD_NAME = "resources";
 	public static final String POLICY_ITEM_CLASS_FIELD_NAME = "policyItems";
 	public static final String POLICY_NAME_CLASS_FIELD_NAME = "name";
@@ -104,7 +104,7 @@ public class RangerPolicyService extends RangerPolicyServiceBase<XXPolicy, Range
 		trxLogAttrs.put("zoneName", new VTrxLogAttr("zoneName", "Zone Name", false));
                 trxLogAttrs.put("isDenyAllElse", new VTrxLogAttr("isDenyAllElse", "Deny All Other Accesses", false));
 	}
-
+	
 	public RangerPolicyService() {
 		super();
 		actionCreate = "create";
@@ -123,32 +123,32 @@ public class RangerPolicyService extends RangerPolicyServiceBase<XXPolicy, Range
 	protected RangerPolicy mapEntityToViewBean(RangerPolicy vObj, XXPolicy xObj) {
 		return super.mapEntityToViewBean(vObj, xObj);
 	}
-
+	
 	@Override
 	protected void validateForCreate(RangerPolicy vObj) {
 		// TODO Auto-generated method stub
-
+		
 	}
 
 	@Override
 	protected void validateForUpdate(RangerPolicy vObj, XXPolicy entityObj) {
 		// TODO Auto-generated method stub
-
+		
 	}
-
+	
 	@Override
 	protected RangerPolicy populateViewBean(XXPolicy xPolicy) {
 		RangerPolicyRetriever retriever = new RangerPolicyRetriever(daoMgr);
 
 		RangerPolicy vPolicy = retriever.getPolicy(xPolicy);
-
+		
 		return vPolicy;
 	}
-
+	
 	public RangerPolicy getPopulatedViewObject(XXPolicy xPolicy) {
 		return this.populateViewBean(xPolicy);
 	}
-
+	
 	public List<XXTrxLog> getTransactionLog(RangerPolicy vPolicy, int action) {
 		return getTransactionLog(vPolicy, null, null, action);
 	}
@@ -161,7 +161,7 @@ public class RangerPolicyService extends RangerPolicyServiceBase<XXPolicy, Range
 		Field[] fields = vObj.getClass().getDeclaredFields();
 
 		try {
-
+			
 			Field nameField = vObj.getClass().getDeclaredField("name");
 			nameField.setAccessible(true);
 			String objectName = "" + nameField.get(vObj);
@@ -191,7 +191,7 @@ public class RangerPolicyService extends RangerPolicyServiceBase<XXPolicy, Range
 		} catch (NoSuchFieldException noSuchField) {
 			logger.error("Transaction log failure.", noSuchField);
 		}
-
+		
 		return trxLogList;
 	}
 
@@ -583,13 +583,13 @@ public class RangerPolicyService extends RangerPolicyServiceBase<XXPolicy, Range
 			List<RangerPolicyItem> oldObj = mapper.readValue(oldValue,
 					new TypeReference<List<RangerPolicyItem>>() {
 					});
-
+			
 			int oldListSize = oldObj.size();
 			int listSize = obj.size();
 			if(oldListSize != listSize) {
 				return false;
 			}
-
+			
 			for(RangerPolicyItem polItem : obj) {
 				if(!oldObj.contains(polItem)) {
 					return false;
@@ -630,11 +630,11 @@ public class RangerPolicyService extends RangerPolicyServiceBase<XXPolicy, Range
 			Map<String, RangerPolicyResource> oldObj = mapper.readValue(oldValue,
 					new TypeReference<Map<String, RangerPolicyResource>>() {
 					});
-
+			
 			if (obj.size() != oldObj.size()) {
 				return false;
 			}
-
+			
 			for (Map.Entry<String, RangerPolicyResource> entry : obj.entrySet()) {
 				if (!entry.getValue().equals(oldObj.get(entry.getKey()))) {
 					return false;

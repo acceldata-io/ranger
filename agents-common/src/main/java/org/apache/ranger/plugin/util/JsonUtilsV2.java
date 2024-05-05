@@ -19,8 +19,8 @@
 
 package org.apache.ranger.plugin.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 
 import java.io.Serializable;
 import java.util.HashMap;

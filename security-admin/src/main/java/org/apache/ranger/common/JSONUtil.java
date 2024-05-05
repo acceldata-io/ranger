@@ -30,8 +30,8 @@ import java.util.Map;
 
 import org.apache.ranger.common.view.ViewBaseBean;
 import org.apache.ranger.plugin.util.JsonUtilsV2;
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import org.codehaus.jackson.JsonGenerationException;
+import org.codehaus.jackson.map.JsonMappingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -49,7 +49,7 @@ public class JSONUtil {
 		}
 
 		File file = File.createTempFile(fileName, ".json");
-		JsonUtilsV2.getMapper().writerWithDefaultPrettyPrinter().writeValue(file, viewBean);
+		JsonUtilsV2.getMapper().defaultPrettyPrintingWriter().writeValue(file, viewBean);
 
 		return file;
 	}

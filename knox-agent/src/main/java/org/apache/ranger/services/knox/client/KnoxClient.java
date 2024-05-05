@@ -30,7 +30,7 @@ import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.client.HadoopException;
 import org.apache.ranger.plugin.util.JsonUtilsV2;
 import org.apache.ranger.plugin.util.PasswordUtils;
-import com.fasterxml.jackson.databind.JsonNode;
+import org.codehaus.jackson.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,13 +47,13 @@ public class KnoxClient {
 	private String knoxUrl;
 	private String userName;
 	private String password;
-
+	
 	/*
    Sample curl calls to Knox to discover topologies
          curl -ivk -u <user-name>:<user-password> https://localhost:8443/gateway/admin/api/v1/topologies
          curl -ivk -u <user-name>:<user-password> https://localhost:8443/gateway/admin/api/v1/topologies/admin
 	*/
-
+	
 	public KnoxClient(String knoxUrl, String userName, String password) {
 		LOG.debug("Constructed KnoxClient with knoxUrl: " + knoxUrl +
 				", userName: " + userName);
@@ -63,7 +63,7 @@ public class KnoxClient {
 	}
 
 	public List<String> getTopologyList(String topologyNameMatching,List<String> knoxTopologyList) {
-
+		
 		// sample URI: https://hdp.example.com:8443/gateway/admin/api/v1/topologies
 		LOG.debug("Getting Knox topology list for topologyNameMatching : " +
 				topologyNameMatching);
@@ -92,7 +92,7 @@ public class KnoxClient {
 
 			try {
 				client = Client.create();
-
+				
 				client.addFilter(new HTTPBasicAuthFilter(userName, decryptedPwd));
 				WebResource webResource = client.resource(knoxUrl);
 				response = webResource.accept(EXPECTED_MIME_TYPE)
@@ -109,12 +109,12 @@ public class KnoxClient {
 						if (topologyNode == null) {
 							return topologyList;
 						}
-						Iterator<JsonNode> elements = topologyNode.elements();
+						Iterator<JsonNode> elements = topologyNode.getElements();
 						while (elements.hasNext()) {
 							JsonNode element = elements.next();
 							JsonNode nameElement = element.get("name");
 							if (nameElement != null) {
-								String topologyName = nameElement.textValue();
+								String topologyName = nameElement.getValueAsText();
 								LOG.debug("Found Knox topologyName: " + topologyName);
 								if (knoxTopologyList != null && topologyName != null && knoxTopologyList.contains(topologyNameMatching)) {
 									continue;
@@ -165,9 +165,9 @@ public class KnoxClient {
 		return topologyList;
 	}
 
-
+	
 	public List<String> getServiceList(List<String> knoxTopologyList, String serviceNameMatching, List<String> knoxServiceList) {
-
+		
 		// sample URI: .../admin/api/v1/topologies/<topologyName>
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("==> KnoxClient.getServiceList() Service Name: " + serviceNameMatching );
@@ -218,12 +218,12 @@ public class KnoxClient {
 							if (topologyNode != null) {
 								JsonNode servicesNode = topologyNode.get("service");
 								if (servicesNode != null) {
-									Iterator<JsonNode> services = servicesNode.elements();
+									Iterator<JsonNode> services = servicesNode.getElements();
 									while (services.hasNext()) {
 										JsonNode service = services.next();
 										JsonNode serviceElement = service.get("role");
 										if (serviceElement != null) {
-											String serviceName = serviceElement.textValue();
+											String serviceName = serviceElement.getValueAsText();
 											LOG.debug("Knox serviceName: " + serviceName);
 											if (serviceName == null || (knoxServiceList != null && knoxServiceList.contains(serviceName))){
 												continue;
@@ -297,7 +297,7 @@ public class KnoxClient {
 			}
 		}
 	}
-
+	
 	public static Map<String, Object> connectionTest(String serviceName,
 										  		Map<String, String> configs) {
 
@@ -313,7 +313,7 @@ public class KnoxClient {
 		if (strList != null && (strList.size() != 0)) {
 			connectivityStatus = true;
 		}
-
+		
 		if (connectivityStatus) {
 			String successMsg = "ConnectionTest Successful";
 			BaseClient.generateResponseDataMap(connectivityStatus, successMsg, successMsg,
@@ -323,7 +323,7 @@ public class KnoxClient {
 			BaseClient.generateResponseDataMap(connectivityStatus, failureMsg, failureMsg + errMsg,
 					null, null, responseData);
 		}
-
+		
 		return responseData;
 	}
 

@@ -22,10 +22,10 @@ import java.util.List;
 
 import org.apache.ranger.authorization.utils.StringUtil;
 import org.apache.ranger.plugin.util.JsonUtilsV2;
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.codehaus.jackson.annotate.JsonAutoDetect;
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonAutoDetect.Visibility;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +86,7 @@ public class RESTResponse implements java.io.Serializable {
 	public void setMessageList(List<Message> messageList) {
 		this.messageList = messageList;
 	}
-
+	
 	public String getMessage() {
 		return StringUtil.isEmpty(msgDesc) ? ("HTTP " + httpStatusCode) : msgDesc;
 	}
@@ -188,7 +188,7 @@ public class RESTResponse implements java.io.Serializable {
 					LOG.debug("toJson() failed", e);
 				}
 			}
-
+			
 			return "";
 		}
 
@@ -200,7 +200,7 @@ public class RESTResponse implements java.io.Serializable {
 					LOG.debug("fromJson('" + jsonString + "') failed", e);
 				}
 			}
-
+			
 			return null;
 		}
 

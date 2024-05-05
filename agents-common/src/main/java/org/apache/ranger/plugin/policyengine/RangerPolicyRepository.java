@@ -197,7 +197,7 @@ public class RangerPolicyRepository {
         } else {
             this.policies = servicePolicies.getSecurityZones().get(zoneName).getPolicies();
         }
-        this.policyVersion = servicePolicies.getPolicyVersion();
+        this.policyVersion = servicePolicies.getPolicyVersion() != null ? servicePolicies.getPolicyVersion() : -1;
 
         String auditMode = servicePolicies.getAuditMode();
 
