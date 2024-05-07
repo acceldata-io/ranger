@@ -144,6 +144,17 @@
             <artifactId>dnsjava</artifactId>
             <version>${dnsjava.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.sun.jersey</groupId>
+            <artifactId>jersey-bundle</artifactId>
+            <version>${jersey-bundle.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-core-asl</artifactId>
+            <version>${jersey-core-asl.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <testResources>
