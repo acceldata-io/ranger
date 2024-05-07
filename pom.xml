@@ -143,6 +143,7 @@
         <jersey-bundle.version>1.19.3</jersey-bundle.version>
         <jersey-client.version>2.6</jersey-client.version>
         <jersey-core.version>1.19.3</jersey-core.version>
+        <jersey-core-asl.version>1.9.13</jersey-core-asl.version>
         <jersey-server.version>1.19.3</jersey-server.version>
         <jersey-spring.version>1.19.3</jersey-spring.version>
         <jaxb-impl.version>2.3.3</jaxb-impl.version>
@@ -205,8 +206,8 @@
         <zookeeper.version>3.5.10.3.3.0.0-SNAPSHOT</zookeeper.version>
         <codehaus.woodstox.stax2api.version>4.2.1</codehaus.woodstox.stax2api.version>
         <fasterxml.woodstox.version>5.4.0</fasterxml.woodstox.version>
-        <fasterxml.jackson.version>2.13.2</fasterxml.jackson.version>
-        <fasterxml.jackson.databind.version>2.13.2.2</fasterxml.jackson.databind.version>
+        <fasterxml.jackson.version>2.12.7</fasterxml.jackson.version>
+        <fasterxml.jackson.databind.version>2.12.7.1</fasterxml.jackson.databind.version>
         <kstruct.gethostname4j.version>0.0.2</kstruct.gethostname4j.version>
         <jna.version>5.2.0</jna.version>
         <jna-platform.version>5.2.0</jna-platform.version>
