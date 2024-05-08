@@ -89,7 +89,6 @@
                     <include>org.apache.hadoop:hadoop-hdfs:jar:${hadoop.version}</include>
                     <include>com.fasterxml.jackson.core:jackson-core</include>
                     <include>com.fasterxml.jackson.core:jackson-annotations</include>
-                    <include>com.fasterxml.jackson.core:jackson-databind</include>
                     <include>org.apache.kerby:kerb-core:jar:${kerby.version}</include>
                     <include>org.apache.kerby:kerb-util:jar:${kerby.version}</include>
                     <include>org.apache.kerby:kerb-crypto:jar:${kerby.version}</include>
