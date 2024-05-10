@@ -87,8 +87,6 @@
                     <include>org.apache.httpcomponents:httpclient:jar:${kms.httpcomponents.httpclient.version}</include>
                     <include>org.noggit:noggit:jar:${noggit.version}</include>
                     <include>org.apache.hadoop:hadoop-hdfs:jar:${hadoop.version}</include>
-                    <include>com.fasterxml.jackson.core:jackson-core</include>
-                    <include>com.fasterxml.jackson.core:jackson-annotations</include>
                     <include>org.apache.kerby:kerb-core:jar:${kerby.version}</include>
                     <include>org.apache.kerby:kerb-util:jar:${kerby.version}</include>
                     <include>org.apache.kerby:kerb-crypto:jar:${kerby.version}</include>
@@ -105,7 +103,6 @@
                     <include>com.squareup.retrofit2:retrofit</include>
                     <include>com.squareup.retrofit2:adapter-rxjava</include>
                     <include>com.squareup.okhttp3:okhttp-urlconnection</include>
-                    <include>com.fasterxml.jackson.datatype:jackson-datatype-joda</include>
                     <include>joda-time:okhttp-urlconnection</include>
                     <include>joda-time:joda-time</include>
                     <include>com.nimbusds:oauth2-oidc-sdk</include>
