@@ -69,6 +69,7 @@
 					<include>org.noggit:noggit:jar:${noggit.version}</include>
 					<include>com.fasterxml.jackson.module:jackson-module-jaxb-annotations</include>
 					<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider</include>
+					<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-base</include>
 					<include>com.fasterxml.jackson.core:jackson-databind</include>
 					<include>com.fasterxml.jackson.core:jackson-core</include>
 					<include>org.apache.solr:solr-solrj:jar:${solr.version}</include>
