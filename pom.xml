@@ -121,7 +121,7 @@
         <gson.version>2.9.0</gson.version>
         <guice.version>4.0</guice.version>
         <hadoop-shaded-guava.version>1.1.1</hadoop-shaded-guava.version>
-        <hadoop.version>3.3.4</hadoop.version>
+        <hadoop.version>3.3.6.3.3.6.0-1</hadoop.version>
         <ozone.version>1.4.0</ozone.version>
         <hamcrest.version>2.2</hamcrest.version>
         <hbase.version>2.6.0</hbase.version>
@@ -281,23 +281,20 @@
                 <module>hdfs-agent</module>
                 <module>hive-agent</module>
                 <module>knox-agent</module>
-                <module>storm-agent</module>
                 <module>plugin-yarn</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>
-                <module>plugin-nestedstructure</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
-                <module>plugin-presto</module>
-                <module>plugin-kudu</module>
                 <module>ugsync-util</module>
                 <module>ugsync</module>
                 <module>ugsync/ldapconfigchecktool/ldapconfigcheck</module>
                 <module>unixauthclient</module>
                 <module>unixauthservice</module>
                 <module>ranger-util</module>
+                <module>ranger-metrics</module>
                 <module>plugin-kms</module>
                 <module>tagsync</module>
                 <module>ranger-hdfs-plugin-shim</module>
@@ -307,27 +304,18 @@
                 <module>ranger-knox-plugin-shim</module>
                 <module>ranger-yarn-plugin-shim</module>
                 <module>ranger-ozone-plugin-shim</module>
-                <module>ranger-storm-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
-                <module>ranger-presto-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
-                <module>plugin-atlas</module>
                 <module>plugin-schema-registry</module>
-                <module>plugin-sqoop</module>
-                <module>ranger-sqoop-plugin-shim</module>
-                <module>plugin-kylin</module>
-                <module>ranger-kylin-plugin-shim</module>
-                <module>plugin-elasticsearch</module>
-                <module>ranger-elasticsearch-plugin-shim</module>
-                <module>plugin-trino</module>
                 <!--
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
                 -->
+                <module>unixauthpam</module>
+                <module>unixauthnative</module>
                 <module>distro</module>
             </modules>
         </profile>
@@ -414,8 +402,6 @@
                 <module>credentialbuilder</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
-                <module>storm-agent</module>
-                <module>ranger-storm-plugin-shim</module>
             </modules>
         </profile>
         <profile>
@@ -498,8 +484,6 @@
                 <module>credentialbuilder</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
-                <module>plugin-atlas</module>
-                <module>ranger-atlas-plugin-shim</module>
             </modules>
         </profile>
         <profile>
@@ -512,8 +496,6 @@
                 <module>credentialbuilder</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
-                <module>plugin-sqoop</module>
-                <module>ranger-sqoop-plugin-shim</module>
             </modules>
         </profile>
         <profile>
@@ -526,8 +508,6 @@
                 <module>credentialbuilder</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
-                <module>plugin-kylin</module>
-                <module>ranger-kylin-plugin-shim</module>
             </modules>
         </profile>
         <profile>
@@ -554,8 +534,6 @@
                 <module>credentialbuilder</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
-                <module>plugin-presto</module>
-                <module>ranger-presto-plugin-shim</module>
             </modules>
         </profile>
         <profile>
@@ -580,7 +558,6 @@
                 <module>agents-installer</module>
                 <module>credentialbuilder</module>
                 <module>ranger-util</module>
-                <module>plugin-nestedstructure</module>
             </modules>
         </profile>
         <profile>
@@ -605,7 +582,6 @@
                 <module>hdfs-agent</module>
                 <module>hive-agent</module>
                 <module>knox-agent</module>
-                <module>storm-agent</module>
                 <module>plugin-yarn</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
@@ -613,7 +589,6 @@
                 <module>plugin-solr</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
-                <module>plugin-kudu</module>
                 <module>ugsync-util</module>
                 <module>ugsync</module>
                 <module>ugsync/ldapconfigchecktool/ldapconfigcheck</module>
@@ -630,26 +605,14 @@
                 <module>ranger-knox-plugin-shim</module>
                 <module>ranger-yarn-plugin-shim</module>
                 <module>ranger-ozone-plugin-shim</module>
-                <module>ranger-storm-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
-                <module>plugin-atlas</module>
                 <module>plugin-schema-registry</module>
-                <module>plugin-sqoop</module>
-                <module>ranger-sqoop-plugin-shim</module>
-                <module>plugin-kylin</module>
-                <module>ranger-kylin-plugin-shim</module>
-                <module>plugin-presto</module>
-                <module>ranger-presto-plugin-shim</module>
-                <module>plugin-elasticsearch</module>
-                <module>ranger-elasticsearch-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-metrics</module>
-                <module>plugin-trino</module>
                 <!--
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
@@ -694,7 +657,6 @@
                 <module>hdfs-agent</module>
                 <module>hive-agent</module>
                 <module>knox-agent</module>
-                <module>storm-agent</module>
                 <module>plugin-yarn</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
@@ -702,7 +664,6 @@
                 <module>plugin-solr</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
-                <module>plugin-presto</module>
                 <module>ugsync-util</module>
                 <module>ugsync</module>
                 <module>ugsync/ldapconfigchecktool/ldapconfigcheck</module>
@@ -718,23 +679,12 @@
                 <module>ranger-knox-plugin-shim</module>
                 <module>ranger-yarn-plugin-shim</module>
                 <module>ranger-ozone-plugin-shim</module>
-                <module>ranger-storm-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
-                <module>ranger-presto-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
-                <module>plugin-atlas</module>
                 <module>plugin-schema-registry</module>
-                <module>plugin-sqoop</module>
-                <module>ranger-sqoop-plugin-shim</module>
-                <module>plugin-kylin</module>
-                <module>ranger-kylin-plugin-shim</module>
-                <module>plugin-elasticsearch</module>
-                <module>ranger-elasticsearch-plugin-shim</module>
-                <module>plugin-trino</module>
             </modules>
             <build>
                 <plugins>
