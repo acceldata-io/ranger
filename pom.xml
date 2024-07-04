@@ -728,10 +728,15 @@
     </profiles>
     <distributionManagement>
         <repository>
-            <id>${distMgmtStagingId}</id>
-            <name>${distMgmtStagingName}</name>
-            <url>${distMgmtStagingUrl}</url>
+            <id>nexus-releases</id>
+            <name>Releases</name>
+            <url>https://repo1.acceldata.dev/repository/odp-release/</url>
         </repository>
+        <snapshotRepository>
+            <id>nexus-snapshots</id>
+            <name>Snapshot</name>
+            <url>https://repo1.acceldata.dev/repository/odp-snapshot/</url>
+        </snapshotRepository>
     </distributionManagement>
     <repositories>
         <repository>
