@@ -80,8 +80,7 @@ public class OzoneConnectionMgr {
                     }
                     repoConnectStatusMap.put(serviceName, true);
                 } else {
-                    LOG.error("Connection Config not defined for asset :"
-                            + serviceName, new Throwable());
+                    LOG.error("Connection Config not defined for asset :" + serviceName, new Throwable());
                 }
             } else {
                 try {
