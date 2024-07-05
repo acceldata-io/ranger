@@ -191,4 +191,47 @@ public class AutocompletionAgentTest {
         res = autocompletionAgent.getSchemaMetadataList("tesSome", schemaList, new ArrayList<>());
         assertEquals(0, res.size());
     }
+
+    @Test
+    public void getVersionList() {
+        ISchemaRegistryClient client = new DefaultSchemaRegistryClientForTesting(){
+
+            @Override
+            public List<String> getSchemaVersions(String schemaMetadataName) {
+                if(!schemaMetadataName.equals("Schema1")) {
+                    return new ArrayList<>();
+                }
+                List<String> versions = new ArrayList<>();
+                versions.add("1");
+                versions.add("2");
+                return versions;
+            }
+
+            public List<String> getSchemaNames(List<String> schemaGroup) {
+                if(!schemaGroup.contains("Group1")) {
+                    return new ArrayList<>();
+                }
+                List<String> schemas = new ArrayList<>();
+                schemas.add("Schema1");
+                return schemas;
+            }
+        };
+
+        AutocompletionAgent autocompletionAgent =
+                new AutocompletionAgent("schema-registry", client);
+
+        List<String> schemaList = new ArrayList<>();
+        schemaList.add("Schema1");
+        schemaList.add("Schema2");
+        List<String> groups = new ArrayList<>();
+        groups.add("Group1");
+        List<String> res = autocompletionAgent.getVersionList("1", groups, schemaList, new ArrayList<>());
+        List<String> expected = new ArrayList<>();
+        expected.add("1");
+        assertEquals(1, res.size());
+        assertThat(res, is(expected));
+
+        res = autocompletionAgent.getSchemaMetadataList("tesSome", schemaList, new ArrayList<>());
+        assertEquals(0, res.size());
+    }
 }

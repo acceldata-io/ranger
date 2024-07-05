@@ -538,6 +538,11 @@
         <fileMode>644</fileMode>
         <includes>
           <include>org.apache.ranger:ranger-schema-registry-plugin</include>
+          <include>com.hortonworks.registries:schema-registry-client:jar:${schema.registry.version}</include>
+          <include>com.hortonworks.registries:schema-registry-common:jar:${schema.registry.version}</include>
+          <include>com.hortonworks.registries:registry-common-client:jar:${schema.registry.version}</include>
+          <include>com.hortonworks.registries:common-auth:jar:${schema.registry.version}</include>
+          <include>com.hortonworks.registries:jersey-shaded:jar</include>
         </includes>
       </binaries>
     </moduleSet>

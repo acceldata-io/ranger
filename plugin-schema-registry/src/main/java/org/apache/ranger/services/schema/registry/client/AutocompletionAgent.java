@@ -78,6 +78,10 @@ public class AutocompletionAgent {
 
     public List<String> getSchemaGroupList(String lookupGroupName, List<String> groupList) {
         List<String> res = groupList;
+        if (isBlank(lookupGroupName)) {
+            return res;
+        }
+
         Collection<String> schemaGroups = client.getSchemaGroups();
         schemaGroups.forEach(gName -> {
             if (!res.contains(gName) && gName.contains(lookupGroupName)) {
@@ -92,6 +96,9 @@ public class AutocompletionAgent {
                                               List<String> schemaGroupList,
                                               List<String> schemaMetadataList) {
         List<String> res = schemaMetadataList;
+        if (isBlank(lookupSchemaMetadataName)) {
+            return res;
+        }
 
         Collection<String> schemas = client.getSchemaNames(schemaGroupList);
         schemas.forEach(sName -> {
@@ -108,14 +115,40 @@ public class AutocompletionAgent {
                                       List<String> schemaList,
                                       List<String> branchList) {
         List<String> res = branchList;
+        if (isBlank(lookupBranchName)) {
+            return res;
+        }
+
         List<String> expandedSchemaList = schemaList.stream().flatMap(
                 schemaName -> expandSchemaMetadataNameRegex(groupList, schemaName).stream())
                 .collect(Collectors.toList());
         expandedSchemaList.forEach(schemaMetadataName -> {
             Collection<String> branches = client.getSchemaBranches(schemaMetadataName);
             branches.forEach(bName -> {
-                if (!res.contains(bName) && bName.contains(lookupBranchName)) {
+                if (!res.contains(bName) && (bName.contains(lookupBranchName) || bName.toLowerCase().contains(lookupBranchName))) {
                     res.add(bName);
+                }
+            });
+        });
+
+        return res;
+    }
+
+    public List<String> getVersionList(String versionLookup, List<String> groupList, List<String> schemaList,
+                                       List<String> versionList) {
+        List<String> res = versionList;
+        if (isBlank(versionLookup)) {
+            return res;
+        }
+
+        List<String> expandedSchemaList = schemaList.stream().flatMap(
+                        schemaName -> expandSchemaMetadataNameRegex(groupList, schemaName).stream())
+                .collect(Collectors.toList());
+        expandedSchemaList.forEach(schemaMetadataName -> {
+            Collection<String> versions = client.getSchemaVersions(schemaMetadataName);
+            versions.forEach(version -> {
+                if (!res.contains(version) && version.startsWith(versionLookup)) {
+                    res.add(version);
                 }
             });
         });
@@ -125,15 +158,27 @@ public class AutocompletionAgent {
 
     List<String> expandSchemaMetadataNameRegex(List<String> schemaGroupList, String lookupSchemaMetadataName) {
         List<String> res = new ArrayList<>();
+        if (isBlank(lookupSchemaMetadataName)) {
+            return res;
+        }
+
+        if (lookupSchemaMetadataName.trim().equals("*")) {
+            lookupSchemaMetadataName = ".*";
+        }
+        final String pattern = lookupSchemaMetadataName;
 
         Collection<String> schemas = client.getSchemaNames(schemaGroupList);
         schemas.forEach(sName -> {
-            if (sName.matches(lookupSchemaMetadataName)) {
+            if (sName.matches(pattern)) {
                 res.add(sName);
             }
         });
 
         return res;
+    }
+
+    private static boolean isBlank(String str) {
+        return (str == null || str.trim().isEmpty());
     }
 
     @Override
