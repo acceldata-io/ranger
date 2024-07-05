@@ -158,42 +158,41 @@ public class ServiceKafkaClient {
     }
 
     private List<String> getTopicList(List<String> ignoreTopicList) throws Exception {
-        List<String> ret               = new ArrayList<>();
-        int          sessionTimeout    = 5000;
-        int          connectionTimeout = 10000;
-        AdminClient  adminClient       = null;
+        List<String> ret = new ArrayList<String>();
+
+        int sessionTimeout = 5000;
+        int connectionTimeout = 10000;
+        AdminClient adminClient = null;
 
         try {
             Properties props = new Properties();
-
             props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configs.get(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG));
             props.put(AdminClientConfig.SECURITY_PROTOCOL_CONFIG, configs.get(AdminClientConfig.SECURITY_PROTOCOL_CONFIG));
             props.put(KEY_SASL_MECHANISM, configs.get(KEY_SASL_MECHANISM));
-            props.put(KEY_SASL_JAAS_CONFIG, getJAASConfig(configs));
+            String saslMechanism = configs.get(KEY_SASL_MECHANISM);
+            if (!saslMechanism.equalsIgnoreCase("PLAINTEXT")) {
+                props.put(KEY_SASL_JAAS_CONFIG, getJAASConfig(configs));
+            }
             props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, getIntProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, sessionTimeout));
             props.put(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, getIntProperty(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, connectionTimeout));
-
             adminClient = KafkaAdminClient.create(props);
-
             ListTopicsResult listTopicsResult = adminClient.listTopics();
-
             if (listTopicsResult != null) {
                 Collection<TopicListing> topicListings = listTopicsResult.listings().get();
-
                 for (TopicListing topicListing : topicListings) {
                     String topicName = topicListing.name();
-
                     if (ignoreTopicList == null || !ignoreTopicList.contains(topicName)) {
                         ret.add(topicName);
                     }
                 }
             }
+        } catch (Exception e) {
+            throw e;
         } finally {
             if (adminClient != null) {
                 adminClient.close();
             }
         }
-
         return ret;
     }
 
