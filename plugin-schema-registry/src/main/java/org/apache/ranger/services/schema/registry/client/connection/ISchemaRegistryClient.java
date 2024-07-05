@@ -26,5 +26,7 @@ public interface ISchemaRegistryClient {
 
     List<String> getSchemaBranches(String schemaMetadataName);
 
+    List<String> getSchemaVersions(String schemaMetadataName);
+
     void checkConnection() throws Exception;
 }

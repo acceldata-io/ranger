@@ -164,9 +164,8 @@ public class SecurityUtils {
         boolean kerberosOn     = isKerberosEnabled(conf);
 
         if (kerberosOn && saslJaasConfig != null) {
-            KerberosLogin kerberosLogin = new KerberosLogin(KERBEROS_SYNCHRONIZATION_TIMEOUT_MS);
-
             try {
+                KerberosLogin kerberosLogin = new KerberosLogin(KERBEROS_SYNCHRONIZATION_TIMEOUT_MS);
                 kerberosLogin.configure(new HashMap<>(), REGISTY_CLIENT_JAAS_SECTION, new JaasConfiguration(REGISTY_CLIENT_JAAS_SECTION, saslJaasConfig));
                 kerberosLogin.login();
 

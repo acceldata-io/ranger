@@ -43,14 +43,17 @@ public class SchemaRegistryResourceMgrTest {
         List<String> groups   = new ArrayList<>();
         List<String> schemas  = new ArrayList<>();
         List<String> branches = new ArrayList<>();
+        List<String> versions = new ArrayList<>();
 
         groups.add("Group1");
         schemas.add("Schema1");
         branches.add("Branch1");
+        versions.add("0.1");
 
         lookupContext.getResources().put("schema-group", groups);
         lookupContext.getResources().put("schema-metadata", schemas);
         lookupContext.getResources().put("schema-branch", branches);
+        lookupContext.getResources().put("schema-version", versions);
 
         lookupContext.setResourceName("schema-group");
         lookupContext.setUserInput("test");
@@ -82,15 +85,28 @@ public class SchemaRegistryResourceMgrTest {
         lookupContext.setUserInput("*");
         res      = SchemaRegistryResourceMgr.getSchemaRegistryResources(serviceName, configs, lookupContext, client);
         expected = new ArrayList<>();
-        expected.add("*");
+        expected.add("0.1");
+        expected.add("1");
+        expected.add("2");
+        expected.add("3");
         assertThat(res, is(expected));
 
         lookupContext.setResourceName("serde");
         res = SchemaRegistryResourceMgr.getSchemaRegistryResources(serviceName, configs, lookupContext, client);
+        expected = new ArrayList<>();
+        expected.add("*");
         assertThat(res, is(expected));
 
         lookupContext.setResourceName("registry-service");
         res = SchemaRegistryResourceMgr.getSchemaRegistryResources(serviceName, configs, lookupContext, client);
+        expected = new ArrayList<>();
+        expected.add("*");
+        assertThat(res, is(expected));
+
+        lookupContext.setResourceName("export-import");
+        res = SchemaRegistryResourceMgr.getSchemaRegistryResources(serviceName, configs, lookupContext, client);
+        expected = new ArrayList<>();
+        expected.add("*");
         assertThat(res, is(expected));
     }
 }

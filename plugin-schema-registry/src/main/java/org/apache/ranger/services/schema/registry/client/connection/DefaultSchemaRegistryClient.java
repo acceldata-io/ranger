@@ -40,6 +40,8 @@ import javax.net.ssl.SSLContext;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
@@ -65,6 +67,10 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
     private final Configuration                      configuration;
 
     public DefaultSchemaRegistryClient(Map<String, ?> conf) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Initializing SchemaRegistry client inside the Ranger plugin");
+        }
+
         configuration               = new Configuration(conf);
         login                       = SecurityUtils.initializeSecurityContext(conf);
 
@@ -117,6 +123,8 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException("Unexpected error.", t);
         }
 
         LOG.debug("<== DefaultSchemaRegistryClient.getSchemaGroups(): {} schemaGroups found", res.size());
@@ -154,6 +162,8 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException("Unexpected error. ", t);
         }
 
         LOG.debug("<== DefaultSchemaRegistryClient.getSchemaNames( {} ): {} schemaNames found", schemaGroups, res.size());
@@ -188,9 +198,47 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException("Unexpected error.", t);
         }
 
         LOG.debug("<== DefaultSchemaRegistryClient.getSchemaBranches( {} ): {} branches found.", schemaMetadataName, res.size());
+
+        return res;
+    }
+
+    @Override
+    public List<String> getSchemaVersions(String schemaMetadataName) {
+        LOG.debug("==> DefaultSchemaRegistryClient.getSchemaVersions( {} )", schemaMetadataName);
+
+        ArrayList<String> res    = new ArrayList<>();
+        WebTarget         target = currentSchemaRegistryTargets().schemasTarget.path(encode(schemaMetadataName) + "/versions");
+
+        try {
+            Response response = login.doAction(() -> target.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class));
+
+            LOG.debug("DefaultSchemaRegistryClient.getSchemaVersions(): response statusCode = {}", response.getStatus());
+
+            JSONArray mDataList = new JSONObject(response.readEntity(String.class)).getJSONArray("entities");
+            int       len       = mDataList.length();
+
+            for (int i = 0; i < len; i++) {
+                JSONObject versionInfo = mDataList.getJSONObject(i);
+                String     smName      = (String) versionInfo.get("name");
+
+                if (smName.matches(schemaMetadataName)) {
+                    Integer version = (Integer) versionInfo.get("version");
+
+                    res.add(String.valueOf(version));
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } catch (Throwable t) {
+            throw new RuntimeException("Unexpected error.", t);
+        }
+
+        LOG.debug("<== DefaultSchemaRegistryClient.getSchemaVersions( {} ): {} versions found.", schemaMetadataName, res.size());
 
         return res;
     }
@@ -278,6 +326,19 @@ public class DefaultSchemaRegistryClient implements ISchemaRegistryClient {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /** Useful for debugging. */
+    private static String getClasspath() {
+        StringBuilder str = new StringBuilder();
+        ClassLoader cl = DefaultSchemaRegistryClient.class.getClassLoader();
+
+        str.append("Classpath for the SchemaRegistry-Ranger plugin");
+        for (URL url : ((URLClassLoader) cl).getURLs()) {
+            str.append(':').append(url.getFile());
+        }
+
+        return str.toString();
     }
 
     private static class SchemaRegistryTargets {
