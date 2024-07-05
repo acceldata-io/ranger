@@ -18,9 +18,8 @@
  */
 package org.apache.ranger.authorization.hbase;
 
-import java.io.IOException;
-import java.util.*;
-
+import com.google.protobuf.RpcCallback;
+import com.google.protobuf.RpcController;
 import com.google.protobuf.Service;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -34,28 +33,22 @@ import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.master.RegionPlan;
 import org.apache.hadoop.hbase.net.Address;
 import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.CheckPermissionsRequest;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.CheckPermissionsResponse;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.GetUserPermissionsRequest;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.GetUserPermissionsResponse;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.GrantRequest;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.GrantResponse;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.RevokeRequest;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.RevokeResponse;
+import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos.*;
 import org.apache.hadoop.hbase.quotas.GlobalQuotaSettings;
 import org.apache.hadoop.hbase.regionserver.*;
+import org.apache.hadoop.hbase.regionserver.Region.Operation;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionLifeCycleTracker;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
 import org.apache.hadoop.hbase.regionserver.querymatcher.DeleteTracker;
-import org.apache.hadoop.hbase.regionserver.Region.Operation;
 import org.apache.hadoop.hbase.replication.ReplicationEndpoint;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.wal.WALEdit;
 import org.apache.ranger.plugin.classloader.RangerPluginClassLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.protobuf.RpcCallback;
-import com.google.protobuf.RpcController;
+
+import java.io.IOException;
+import java.util.*;
 
 public class RangerAuthorizationCoprocessor implements RegionCoprocessor, MasterCoprocessor, RegionServerCoprocessor, MasterObserver, RegionObserver, RegionServerObserver, EndpointObserver, BulkLoadObserver, AccessControlProtos.AccessControlService.Interface {
 
@@ -278,14 +271,14 @@ public class RangerAuthorizationCoprocessor implements RegionCoprocessor, Master
 	}
 
 	@Override
-	public void preBalance(ObserverContext<MasterCoprocessorEnvironment> c)	throws IOException {
+	public void preBalance(ObserverContext<MasterCoprocessorEnvironment> c, BalanceRequest request)	throws IOException {
 		if(LOG.isDebugEnabled()) {
 			LOG.debug("==> RangerAuthorizationCoprocessor.preBalance()");
 		}
 
 		try {
 			activatePluginClassLoader();
-			implMasterObserver.preBalance(c);
+			implMasterObserver.preBalance(c, request);
 		} finally {
 			deactivatePluginClassLoader();
 		}
@@ -2386,14 +2379,14 @@ public class RangerAuthorizationCoprocessor implements RegionCoprocessor, Master
 	}
 
 	@Override
-	public void postBalance(ObserverContext<MasterCoprocessorEnvironment> ctx, List<RegionPlan> plans) throws IOException {
+	public void postBalance(ObserverContext<MasterCoprocessorEnvironment> ctx, BalanceRequest request, List<RegionPlan> plans) throws IOException {
 		if(LOG.isDebugEnabled()) {
 			LOG.debug("==> RangerAuthorizationCoprocessor.postBalance()");
 		}
 
 		try {
 			activatePluginClassLoader();
-			implMasterObserver.postBalance(ctx, plans);
+			implMasterObserver.postBalance(ctx, request, plans);
 		} finally {
 			deactivatePluginClassLoader();
 		}
@@ -2875,8 +2868,8 @@ public class RangerAuthorizationCoprocessor implements RegionCoprocessor, Master
 	public void postMoveTables(final ObserverContext<MasterCoprocessorEnvironment> ctx, Set<TableName> tables, String targetGroup) throws IOException {}
 	public void preRemoveRSGroup(final ObserverContext<MasterCoprocessorEnvironment> ctx, String name) throws IOException {}
 	public void postRemoveRSGroup(final ObserverContext<MasterCoprocessorEnvironment> ctx, String name) throws IOException {}
-	public void preBalanceRSGroup(final ObserverContext<MasterCoprocessorEnvironment> ctx, String groupName) throws IOException {}
-	public void postBalanceRSGroup(final ObserverContext<MasterCoprocessorEnvironment> ctx, String groupName, boolean balancerRan) throws IOException {}
+	public void preBalanceRSGroup(final ObserverContext<MasterCoprocessorEnvironment> ctx, BalanceRequest request, String groupName) throws IOException {}
+	public void postBalanceRSGroup(final ObserverContext<MasterCoprocessorEnvironment> ctx, String groupName, BalanceRequest request, BalanceResponse response) throws IOException {}
 	public void preAddRSGroup(ObserverContext<MasterCoprocessorEnvironment> ctx, String name) throws IOException {}
 	public void postAddRSGroup(ObserverContext<MasterCoprocessorEnvironment> ctx, String name) throws IOException {}
 

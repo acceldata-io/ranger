@@ -123,7 +123,7 @@
         <hadoop.version>3.3.6</hadoop.version>
         <ozone.version>1.4.0</ozone.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <hbase.version>2.4.6</hbase.version>
+        <hbase.version>2.5.8</hbase.version>
         <hive.version>4.0.0</hive.version>
         <hive.storage-api.version>2.7.2</hive.storage-api.version>
         <orc.version>1.5.8</orc.version>
