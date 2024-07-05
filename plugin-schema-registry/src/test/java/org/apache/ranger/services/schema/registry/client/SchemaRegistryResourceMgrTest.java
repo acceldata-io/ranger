@@ -41,14 +41,16 @@ public class SchemaRegistryResourceMgrTest {
 
         ResourceLookupContext lookupContext = new ResourceLookupContext();
         lookupContext.setResources(new HashMap<>());
-        List<String> groups = new ArrayList<>(), schemas = new ArrayList<>(), branches = new ArrayList<>();
+        List<String> groups = new ArrayList<>(), schemas = new ArrayList<>(), branches = new ArrayList<>(), versions = new ArrayList<>();
         groups.add("Group1");
         schemas.add("Schema1");
         branches.add("Branch1");
+        versions.add("0.1");
 
         lookupContext.getResources().put("schema-group", groups);
         lookupContext.getResources().put("schema-metadata", schemas);
         lookupContext.getResources().put("schema-branch", branches);
+        lookupContext.getResources().put("schema-version", versions);
 
         lookupContext.setResourceName("schema-group");
         lookupContext.setUserInput("test");
@@ -87,7 +89,10 @@ public class SchemaRegistryResourceMgrTest {
                 lookupContext,
                 client);
         expected = new ArrayList<>();
-        expected.add("*");
+        expected.add("0.1");
+        expected.add("1");
+        expected.add("2");
+        expected.add("3");
         assertThat(res, is(expected));
 
         lookupContext.setResourceName("serde");
@@ -95,6 +100,8 @@ public class SchemaRegistryResourceMgrTest {
                 configs,
                 lookupContext,
                 client);
+        expected = new ArrayList<>();
+        expected.add("*");
         assertThat(res, is(expected));
 
         lookupContext.setResourceName("registry-service");
@@ -102,6 +109,17 @@ public class SchemaRegistryResourceMgrTest {
                 configs,
                 lookupContext,
                 client);
+        expected = new ArrayList<>();
+        expected.add("*");
+        assertThat(res, is(expected));
+
+        lookupContext.setResourceName("export-import");
+        res = SchemaRegistryResourceMgr.getSchemaRegistryResources(serviceName,
+                configs,
+                lookupContext,
+                client);
+        expected = new ArrayList<>();
+        expected.add("*");
         assertThat(res, is(expected));
 
     }

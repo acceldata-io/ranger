@@ -38,6 +38,7 @@ public class SchemaRegistryResourceMgr {
     private static final String SCHEMA_METADATA = "schema-metadata";
     private static final String SCHEMA_BRANCH = "schema-branch";
     private static final String SCHEMA_VERSION = "schema-version";
+    private static final String EXPORT_IMPORT = "export-import";
 
     private static final List<String> asteriskList = Collections.singletonList("*");
 
@@ -49,75 +50,53 @@ public class SchemaRegistryResourceMgr {
                                                           ResourceLookupContext context,
                                                           AutocompletionAgent registryClient) throws Exception {
 
-        String userInput = context.getUserInput();
-        String resource = context.getResourceName();
-        Map<String, List<String>> resourceMap = context.getResources();
+        final String userInput = context.getUserInput();
+        final String resource = context.getResourceName();
+        final Map<String, List<String>> resourceMap = context.getResources();
         List<String> resultList = null;
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> SchemaRegistryResourceMgr.getSchemaRegistryResources()  UserInput: \"" + userInput + "\" resource : " + resource + " resourceMap: " + resourceMap);
         }
 
-        if (userInput != null
-                && !userInput.isEmpty()
-                && serviceName != null
-                && resource != null
-                && resourceMap != null
-                && !resourceMap.isEmpty()) {
-            if (registryClient != null) {
-                Callable<List<String>> callableObj = null;
-                try {
-                    switch (resource.trim().toLowerCase()) {
-                        case SCHEMA_GROUP: {
-                            List<String> schemaGroupList = resourceMap.get(SCHEMA_GROUP);
-                            // get the SchemaGroupList for given Input
-                            final String finalSchemaGroupName = userInput;
-                            callableObj = ()
-                                    -> registryClient.getSchemaGroupList(finalSchemaGroupName, schemaGroupList);
-                            break;
-                        }
-                        case SCHEMA_METADATA: {
-                            List<String> schemaGroupList = resourceMap.get(SCHEMA_GROUP);
-                            List<String> schemaMeatadataList = resourceMap.get(SCHEMA_METADATA);
-                            // get the SchemaMetadataList for the given Input
-                            final String finalSchemaName = userInput;
-                            callableObj = ()
-                                    -> registryClient.getSchemaMetadataList(finalSchemaName,
-                                    schemaGroupList,
-                                    schemaMeatadataList);
-                            break;
-                        }
-                        case SCHEMA_BRANCH: {
-                            List<String> schemaGroupList = resourceMap.get(SCHEMA_GROUP);
-                            List<String> schemaMeatadataList = resourceMap.get(SCHEMA_METADATA);
-                            List<String> branchList = resourceMap.get(SCHEMA_BRANCH);
-                            // get the SchemaBranchList for given Input
-                            final String finalBranchName = userInput;
-                            callableObj = ()
-                                    -> registryClient.getBranchList(finalBranchName,
-                                    schemaGroupList,
-                                    schemaMeatadataList,
-                                    branchList);
-                            break;
-                        }
-                        case SCHEMA_VERSION: case SERDE: case REGISTRY_SERVICE: {
-                            return asteriskList;
-                        }
-                        default:
-                            break;
+        if (userInput != null && !userInput.isEmpty() && serviceName != null && resource != null
+            && registryClient != null && resourceMap != null && !resourceMap.isEmpty()) {
+            final Callable<List<String>> serviceInvocation;
+            try {
+                switch (resource.trim().toLowerCase()) {
+                    case SCHEMA_GROUP: {
+                        serviceInvocation = getSchemaGroupList(registryClient, userInput, resourceMap);
+                        break;
                     }
-                } catch (Exception e) {
-                    LOG.error("Unable to get Schema Registry resources.", e);
-                    throw e;
-                }
-                if (callableObj != null) {
-                    synchronized (registryClient) {
-                        resultList = TimedEventUtil.timedTask(callableObj, LOOKUP_TIMEOUT_SEC,
-                                TimeUnit.SECONDS);
+                    case SCHEMA_METADATA: {
+                        serviceInvocation = getSchemaMetadataList(registryClient, userInput, resourceMap);
+                        break;
                     }
-                } else {
-                    LOG.error("Could not initiate at timedTask");
+                    case SCHEMA_BRANCH: {
+                        serviceInvocation = getBranchList(registryClient, userInput, resourceMap);
+                        break;
+                    }
+                    case SCHEMA_VERSION:
+                        serviceInvocation = getVersionList(registryClient, userInput, resourceMap);
+                        break;
+                    case SERDE: case REGISTRY_SERVICE: case EXPORT_IMPORT: {
+                        return asteriskList;
+                    }
+                    default:
+                        serviceInvocation = null;
+                        break;
                 }
+            } catch (Exception e) {
+                LOG.error("Unable to get Schema Registry resources.", e);
+                throw e;
+            }
+            if (serviceInvocation != null) {
+                synchronized (registryClient) {
+                    resultList = TimedEventUtil.timedTask(serviceInvocation, LOOKUP_TIMEOUT_SEC,
+                            TimeUnit.SECONDS);
+                }
+            } else {
+                LOG.error("Could not initiate at timedTask");
             }
         }
 
@@ -130,5 +109,38 @@ public class SchemaRegistryResourceMgr {
         }
 
         return resultList;
+    }
+
+    private static Callable<List<String>> getSchemaGroupList(AutocompletionAgent registryClient, String userInput, Map<String, List<String>> resourceMap) {
+        List<String> schemaGroupList = resourceMap.get(SCHEMA_GROUP);
+        // get the SchemaGroupList for given Input
+        final String finalSchemaGroupName = userInput;
+        return () -> registryClient.getSchemaGroupList(finalSchemaGroupName, schemaGroupList);
+    }
+
+    private static Callable<List<String>> getSchemaMetadataList(AutocompletionAgent registryClient, String userInput, Map<String, List<String>> resourceMap) {
+        List<String> schemaGroupList = resourceMap.get(SCHEMA_GROUP);
+        List<String> schemaMeatadataList = resourceMap.get(SCHEMA_METADATA);
+        // get the SchemaMetadataList for the given Input
+        final String finalSchemaName = userInput;
+        return () -> registryClient.getSchemaMetadataList(finalSchemaName, schemaGroupList, schemaMeatadataList);
+}
+
+    private static Callable<List<String>> getBranchList(AutocompletionAgent registryClient, String userInput, Map<String, List<String>> resourceMap) {
+        List<String> schemaGroupList = resourceMap.get(SCHEMA_GROUP);
+        List<String> schemaMeatadataList = resourceMap.get(SCHEMA_METADATA);
+        List<String> branchList = resourceMap.get(SCHEMA_BRANCH);
+        // get the SchemaBranchList for given Input
+        final String finalBranchName = userInput;
+        return () -> registryClient.getBranchList(finalBranchName, schemaGroupList, schemaMeatadataList, branchList);
+    }
+
+    private static Callable<List<String>> getVersionList(AutocompletionAgent registryClient, String userInput, Map<String, List<String>> resourceMap) {
+        List<String> schemaGroupList = resourceMap.get(SCHEMA_GROUP);
+        List<String> schemaMeatadataList = resourceMap.get(SCHEMA_METADATA);
+        List<String> versionList = resourceMap.get(SCHEMA_VERSION);
+        // get the list of SchemaVersionInfo for given Input
+        final String finalVersion = userInput;
+        return () -> registryClient.getVersionList(finalVersion, schemaGroupList, schemaMeatadataList, versionList);
     }
 }

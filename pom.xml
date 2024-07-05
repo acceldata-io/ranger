@@ -164,6 +164,8 @@
         <junit.jupiter.version>5.10.0</junit.jupiter.version>
         <kafka.version>2.8.2</kafka.version>
         <kerby.version>2.0.3</kerby.version>
+        <schema.registry.version>1.0.0</schema.registry.version>
+        <junit.version>4.13.1</junit.version>
         <knox.gateway.version>2.0.0</knox.gateway.version>
         <kylin.version>4.0.4</kylin.version>
         <libpam4j.version>1.10</libpam4j.version>
@@ -756,6 +758,17 @@
             </releases>
             <snapshots>
                 <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>acceldata repo</id>
+            <name>acceldata repo</name>
+            <url>https://repo1.acceldata.dev/repository/odp-central/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
             </snapshots>
         </repository>
         <!--
