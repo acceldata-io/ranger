@@ -75,6 +75,8 @@
           <include>org.apache.lucene:lucene-core</include>
           <include>joda-time:joda-time</include>
           <include>com.carrotsearch:hppc</include>
+          <include>com.sun.jersey:jersey-bundle</include>
+          <include>org.codehaus.jackson:jackson-core-asl</include>
         </includes>
       </binaries>
     </moduleSet>
