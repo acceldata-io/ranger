@@ -94,7 +94,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 	private Map<InternalScanner, String> scannerOwners = new MapMaker().weakKeys().makeMap();
 	/** if we should check EXEC permissions */
 	private boolean shouldCheckExecPermission;
-	
+
 	/*
 	 * These are package level only for testability and aren't meant to be exposed outside via getters/setters or made available to derived classes.
 	 */
@@ -102,7 +102,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 	final HbaseUserUtils _userUtils = _factory.getUserUtils();
 	final HbaseAuthUtils _authUtils = _factory.getAuthUtils();
 	private static volatile RangerHBasePlugin hbasePlugin = null;
-	
+
 	// Utilities Methods
 	protected byte[] getTableName(RegionCoprocessorEnvironment e) {
 		Region region = e.getRegion();
@@ -139,7 +139,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 				return true;
 			}
 		}
-			
+
 		return false;
 	}
 	protected boolean isAccessForMetaTables(RegionCoprocessorEnvironment env) {
@@ -205,7 +205,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		return user;
 	}
 
-	
+
 	private String getRemoteAddress() {
 		InetAddress remoteAddr = null;
 		try {
@@ -234,7 +234,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
      String owner = scannerOwners.get(s);
      if (owner != null && !owner.equals(requestUserName)) {
        throw new AccessDeniedException("User '"+ requestUserName +"' is not the scanner owner!");
-     }	
+     }
 	}
 	/**
 	 * @param families
@@ -275,7 +275,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		}
 		return result;
 	}
-	
+
 	static class ColumnFamilyAccessResult {
 		final boolean _everythingIsAccessible;
 		final boolean _somethingIsAccessible;
@@ -298,7 +298,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			// cached values of access results
 			_filter = filter;
 		}
-		
+
 		@Override
 		public String toString() {
 			return MoreObjects.toStringHelper(getClass())
@@ -310,10 +310,10 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 					.add("denialReason", _denialReason)
 					.add("filter", _filter)
 					.toString();
-			
+
 		}
 	}
-	
+
 	ColumnFamilyAccessResult evaluateAccess(ObserverContext<?> ctx, String operation, Action action, final RegionCoprocessorEnvironment env,
 											final Map<byte[], ? extends Collection<?>> familyMap, String commandStr) throws AccessDeniedException {
 
@@ -387,7 +387,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		} else {
 			LOG.debug("evaluateAccess: Families collection not null.  Skipping table-level check, will do finer level check");
 		}
-		
+
 		boolean everythingIsAccessible = true;
 		boolean somethingIsAccessible = false;
 		/*
@@ -567,7 +567,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			}
 		}
 	}
-	
+
 	Filter combineFilters(Filter filter, Filter existingFilter) {
 		Filter combinedFilter = filter;
 		if (existingFilter != null) {
@@ -601,7 +601,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			RangerPerfTracer.log(perf);
 		}
 	}
-	
+
 	/**
 	 * This could run s
 	 * @param operation
@@ -620,7 +620,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			String message = String.format(format, "Entering", operation, otherInformation, access, table, columnFamily, column);
 			LOG.debug(message);
 		}
-		
+
 		final String format =  "authorizeAccess: %s: Operation[%s], Info[%s], access[%s], table[%s], columnFamily[%s], column[%s], allowed[%s], reason[%s]";
 		if (canSkipAccessCheck(user, operation, access, table)) {
 			if (LOG.isDebugEnabled()) {
@@ -630,7 +630,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			return;
 		}
 
-		
+
 		HbaseAuditHandler auditHandler = _factory.getAuditHandler();
 		AuthorizationSession session = new AuthorizationSession(hbasePlugin)
 			.operation(operation)
@@ -644,20 +644,20 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 			.column(column)
 			.buildRequest()
 			.authorize();
-		
+
 		if (LOG.isDebugEnabled()) {
 			boolean allowed = session.isAuthorized();
 			String reason = session.getDenialReason();
 			String message = String.format(format, "Exiting", operation, otherInformation, access, table, columnFamily, column, allowed, reason);
 			LOG.debug(message);
 		}
-		
+
 		session.publishResults();
 	}
-	
+
 	boolean canSkipAccessCheck(User user, final String operation, String access, final String table)
 			throws AccessDeniedException {
-		
+
 		boolean result = false;
 		if (user == null) {
 			String message = "Unexpeceted: User is null: access denied, not audited!";
@@ -669,10 +669,10 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		} else {
 			LOG.debug("Can't skip access checks");
 		}
-		
+
 		return result;
 	}
-	
+
 	boolean canSkipAccessCheck(User user, final String operation, String access, final RegionCoprocessorEnvironment regionServerEnv) throws AccessDeniedException {
 
 		// read access to metadata tables is always allowed and isn't audited.
@@ -698,7 +698,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		}
 		return false;
 	}
-	
+
 	boolean isAccessForMetadataRead(String access, String table) {
 		if (_authUtils.isReadAccess(access) && isSpecialTable(table)) {
 			LOG.debug("isAccessForMetadataRead: Metadata tables read: access allowed!");
@@ -721,7 +721,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 
 		authorizeAccess(ctx, request, null, action, table, null, null);
 	}
-	
+
 	protected void requirePermission(ObserverContext<?> ctx, String request, byte[] aTableName, byte[] aColumnFamily, byte[] aQualifier, Permission.Action action) throws AccessDeniedException {
 
 		String table = Bytes.toString(aTableName);
@@ -730,7 +730,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 
 		authorizeAccess(ctx, request, null, action, table, columnFamily, column);
 	}
-	
+
 	protected void requirePermission(ObserverContext<?> ctx, String request, Permission.Action perm, RegionCoprocessorEnvironment env, Collection<byte[]> families) throws IOException {
 		HashMap<byte[], Set<byte[]>> familyMap = new HashMap<byte[], Set<byte[]>>();
 
@@ -919,7 +919,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 	@Override
 	public Result preIncrement(ObserverContext<RegionCoprocessorEnvironment> c, Increment increment) throws IOException {
 		requirePermission(c, "increment", TablePermission.Action.WRITE, c.getEnvironment(), increment.getFamilyCellMap().keySet());
-		
+
 		return null;
 	}
 
@@ -1113,7 +1113,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		if(plugin == null) {
 			synchronized(RangerAuthorizationCoprocessor.class) {
 				plugin = hbasePlugin;
-				
+
 				if(plugin == null) {
 					plugin = new RangerHBasePlugin(appType);
 
@@ -1125,7 +1125,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 				}
 			}
 		}
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Start of Coprocessor: [" + coprocessorType + "]");
 		}
@@ -1135,7 +1135,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 	public void prePut(ObserverContext<RegionCoprocessorEnvironment> c, Put put, WALEdit edit, Durability durability) throws IOException {
 		requirePermission(c, "put", TablePermission.Action.WRITE, c.getEnvironment(), put.getFamilyCellMap());
 	}
-	
+
 	@Override
 	public void preGetOp(final ObserverContext<RegionCoprocessorEnvironment> rEnv, final Get get, final List<Cell> result) throws IOException {
 		if (LOG.isDebugEnabled()) {
@@ -1206,7 +1206,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		}
 
 		checkGetTableInfoAccess(ctx, "getTableDescriptors", descriptors, regex, _authUtils.getAccess(Action.CREATE));
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(String.format("<== postGetTableDescriptors(count(tableNamesList)=%s, count(descriptors)=%s, regex=%s)", tableNamesList == null ? 0 : tableNamesList.size(),
 					descriptors == null ? 0 : descriptors.size(), regex));
@@ -1261,7 +1261,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 
 		if(UpdateRangerPoliciesOnGrantRevoke) {
 			GrantRevokeRequest grData = null;
-	
+
 			try {
 				grData = createGrantData(request);
 
@@ -1497,7 +1497,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 				nameSpace = namepsacePermission.getNamespace();
 			break;
 		}
-		
+
 		if(StringUtil.isEmpty(nameSpace) && StringUtil.isEmpty(tableName) && StringUtil.isEmpty(colFamily) && StringUtil.isEmpty(qualifier)) {
 			throw new Exception("grant(): namespace/table/columnFamily/columnQualifier not specified");
 		}
@@ -1649,7 +1649,7 @@ public class RangerAuthorizationCoprocessor implements AccessControlService.Inte
 		ret.setForwardedAddresses(null);//TODO: Need to check with Knox proxy how they handle forwarded add.
 		ret.setRemoteIPAddress(getRemoteAddress());
 		ret.setRequestData(up.toString());
-		
+
 		if(userName.startsWith(GROUP_PREFIX)) {
 			ret.getGroups().add(userName.substring(GROUP_PREFIX.length()));
 		} else {
