@@ -178,6 +178,11 @@
                     <include>com.tencentcloudapi:tencentcloud-sdk-java</include>
                     <include>com.squareup.okhttp:logging-interceptor</include>
                     <include>com.squareup.okhttp:okhttp</include>
+                    <include>org.apache.zookeeper:zookeeper-jute:jar:${zookeeper.version}</include>
+                    <include>org.apache.kerby:kerb-core</include>
+                    <include>org.apache.kerby:kerb-util</include>
+                    <include>org.apache.kerby:kerb-crypto</include>
+                    <include>org.apache.kerby:kerby-asn1</include>
                         </includes>
                     </dependencySet>
                 </dependencySets>
