@@ -26,8 +26,8 @@ classpathmunge () {
         fi
 }
 classpathmunge /etc/kafka/conf
-classpathmunge '/usr/hdp/current/hadoop-hdfs-client/*'
-classpathmunge '/usr/hdp/current/hadoop-hdfs-client/lib/*'
+classpathmunge '/usr/odp/current/hadoop-hdfs-client/*'
+classpathmunge '/usr/odp/current/hadoop-hdfs-client/lib/*'
 classpathmunge '/etc/hadoop/conf'
 export CLASSPATH
 unset classpathmunge
