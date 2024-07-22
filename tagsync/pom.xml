@@ -268,7 +268,7 @@
             <artifactId>scala-library</artifactId>
             <version>${scala.version}</version>
         </dependency>
-        <dependency>
+        <!--dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>${atlas.jackson.version}</version>
@@ -282,7 +282,7 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>${atlas.jackson.version}</version>
-        </dependency>
+        </dependency-->
 
     </dependencies>
 </project>
