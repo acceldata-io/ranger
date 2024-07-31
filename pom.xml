@@ -186,6 +186,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protobuf-java.version>3.19.3</protobuf-java.version>
         <gcp.protobuf-java.version>3.19.3</gcp.protobuf-java.version>
+        <ratis.version>3.0.1</ratis.version>
+        <ratis.thirdparty.version>1.0.5</ratis.thirdparty.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <scala.xml.version>1.0.4</scala.xml.version>
@@ -208,10 +210,10 @@
         <codehaus.woodstox.stax2api.version>4.2.1</codehaus.woodstox.stax2api.version>
         <fasterxml.woodstox.version>5.4.0</fasterxml.woodstox.version>
         <fasterxml.jackson.version>2.12.7</fasterxml.jackson.version>
-        <fasterxml.jackson.databind.version>2.12.7.1</fasterxml.jackson.databind.version>
+        <fasterxml.jackson.databind.version>2.12.7</fasterxml.jackson.databind.version>
         <kstruct.gethostname4j.version>1.0.0</kstruct.gethostname4j.version>
         <jna.version>5.7.0</jna.version>
-        <jna-platform.version>5.7.0</jna-platform.version>
+        <jna-platform.version>5.2.0</jna-platform.version>
         <!-- presto plugin deps -->
         <presto.airlift.version>0.192</presto.airlift.version>
         <presto.bval-jsr.version>2.0.0</presto.bval-jsr.version>
@@ -293,8 +295,8 @@
                 <module>unixauthnative</module>
                 <module>ranger-util</module>
                 <module>plugin-kms</module>
-		<module>tagsync</module>
-		<module>plugin-elasticsearch</module>
+		            <module>tagsync</module>
+                <module>plugin-elasticsearch</module>
                 <module>ranger-hdfs-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-hive-plugin-shim</module>
@@ -304,8 +306,8 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
-		<module>ranger-kms-plugin-shim</module>
-		<module>ranger-elasticsearch-plugin-shim</module>
+		            <module>ranger-kms-plugin-shim</module>
+		            <module>ranger-elasticsearch-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
                 <!--
