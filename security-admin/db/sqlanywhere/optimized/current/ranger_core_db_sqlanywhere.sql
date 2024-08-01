@@ -36,6 +36,8 @@ BEGIN
 END
 
 GO
+DROP VIEW IF EXISTS 'vx_principal';
+GO
 call dbo.removeForeignKeysAndTable('x_rms_mapping_provider')
 GO
 call dbo.removeForeignKeysAndTable('x_rms_resource_mapping')
@@ -531,6 +533,7 @@ CREATE TABLE dbo.x_security_zone(
 	version bigint DEFAULT NULL NULL,
 	name varchar(255) NOT NULL,
 	jsonData text DEFAULT NULL NULL,
+	gz_jsonData long binary DEFAULT NULL NULL,
 	description varchar(1024) DEFAULT NULL NULL,
 	CONSTRAINT x_security_zone_PK_id PRIMARY KEY CLUSTERED(id),
 	CONSTRAINT x_security_zone_UK_name UNIQUE NONCLUSTERED(name)
@@ -646,6 +649,7 @@ create table dbo.x_access_type_def (
 	name varchar(1024) DEFAULT NULL NULL,
 	label varchar(1024) DEFAULT NULL NULL,
 	rb_key_label varchar(1024) DEFAULT NULL NULL,
+	category smallint DEFAULT NULL NULL,
 	sort_order int DEFAULT 0 NULL,
 	datamask_options VARCHAR(1024) DEFAULT NULL NULL,
 	rowfilter_options VARCHAR(1024) DEFAULT NULL NULL,
@@ -2090,6 +2094,12 @@ last_known_version BIGINT NOT NULL,
 PRIMARY KEY (id),
 CONSTRAINT x_rms_mapping_provider_UK_name UNIQUE(name)
 );
+GO
+
+CREATE VIEW dbo.vx_principal as
+  (SELECT u.user_name AS principal_name, 0 AS principal_type, u.status status, u.is_visible is_visible, u.other_attributes other_attributes, u.create_time create_time, u.update_time update_time, u.added_by_id added_by_id, u.upd_by_id upd_by_id FROM x_user u) UNION
+  (SELECT g.group_name principal_name, 1 AS principal_type, g.status status, g.is_visible is_visible, g.other_attributes other_attributes, g.create_time create_time, g.update_time update_time, g.added_by_id added_by_id, g.upd_by_id upd_by_id FROM x_group g) UNION
+  (SELECT r.name principal_name, 2 AS principal_name, 1 status, 1 is_visible, null other_attributes, r.create_time create_time, r.update_time update_time, r.added_by_id added_by_id, r.upd_by_id upd_by_id FROM x_role r);
 GO
 
 insert into x_portal_user (create_time,update_time,first_name,last_name,pub_scr_name,login_id,password,email,status) values (GETDATE(),GETDATE(),'Admin','','Admin','admin','ceb4f32325eda6142bd65215f4c0f371','',1)

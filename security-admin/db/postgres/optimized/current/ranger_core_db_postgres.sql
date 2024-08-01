@@ -13,6 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+DROP VIEW IF EXISTS vx_principal;
 DROP TABLE IF EXISTS x_rms_mapping_provider CASCADE;
 DROP TABLE IF EXISTS x_rms_resource_mapping CASCADE;
 DROP TABLE IF EXISTS x_rms_notification CASCADE;

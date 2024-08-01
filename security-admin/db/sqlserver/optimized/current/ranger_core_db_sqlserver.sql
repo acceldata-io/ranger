@@ -13,6 +13,10 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+IF (OBJECT_ID('vx_principal') IS NOT NULL)
+BEGIN
+    DROP VIEW [dbo].[vx_principal]
+END
 IF (OBJECT_ID('x_user_FK_upd_by_id') IS NOT NULL)
 BEGIN
     ALTER TABLE [dbo].[x_user] DROP CONSTRAINT x_user_FK_upd_by_id
@@ -1542,6 +1546,7 @@ CREATE TABLE [dbo].[x_security_zone](
 	[version] [bigint] DEFAULT NULL NULL,
 	[name] [varchar](255) NOT NULL,
 	[jsonData] [nvarchar](max) DEFAULT NULL NULL,
+	[gz_jsondata] [varbinary](max) DEFAULT NULL NULL,
 	[description] [varchar](1024) DEFAULT NULL NULL,
 	PRIMARY KEY CLUSTERED
 (
@@ -1698,6 +1703,7 @@ CREATE TABLE [dbo].[x_access_type_def] (
         [name] [varchar](1024) DEFAULT NULL NULL,
         [label] [varchar](1024) DEFAULT NULL NULL,
         [rb_key_label] [varchar](1024) DEFAULT NULL NULL,
+        [category] [smallint] DEFAULT NULL NULL,
         [sort_order] [int] DEFAULT 0 NULL,
         [datamask_options] [varchar](1024) DEFAULT NULL NULL,
         [rowfilter_options] [varchar](1024) DEFAULT NULL NULL,
@@ -4433,6 +4439,15 @@ CREATE NONCLUSTERED INDEX [x_gds_ppm_policy_id] ON [x_gds_project_policy_map]
    [policy_id] ASC
 )
 WITH (SORT_IN_TEMPDB = OFF,DROP_EXISTING = OFF,IGNORE_DUP_KEY = OFF,ONLINE = OFF) ON [PRIMARY]
+GO
+
+SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+SET ANSI_PADDING ON
+CREATE VIEW [dbo].[vx_principal] as
+  (SELECT u.user_name AS principal_name, 0 AS principal_type, u.status status, u.is_visible is_visible, u.other_attributes other_attributes, u.create_time create_time, u.update_time update_time, u.added_by_id added_by_id, u.upd_by_id upd_by_id FROM x_user u) UNION
+  (SELECT g.group_name principal_name, 1 AS principal_type, g.status status, g.is_visible is_visible, g.other_attributes other_attributes, g.create_time create_time, g.update_time update_time, g.added_by_id added_by_id, g.upd_by_id upd_by_id FROM x_group g) UNION
+  (SELECT r.name principal_name, 2 AS principal_name, 1 status, 1 is_visible, null other_attributes, r.create_time create_time, r.update_time update_time, r.added_by_id added_by_id, r.upd_by_id upd_by_id FROM x_role r)
 GO
 
 insert into x_portal_user (CREATE_TIME,UPDATE_TIME,FIRST_NAME,LAST_NAME,PUB_SCR_NAME,LOGIN_ID,PASSWORD,EMAIL,STATUS) values (CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'Admin','','Admin','admin','ceb4f32325eda6142bd65215f4c0f371','',1);
