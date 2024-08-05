@@ -23,8 +23,8 @@
     <packaging>jar</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <hbase.jetty.version>9.3.27.v20190418</hbase.jetty.version>
-        <hadoop.version>3.1.1</hadoop.version>
+        <hbase.jetty.version>9.4.43.v20210629</hbase.jetty.version>
+        <hadoop.version>3.3.6.3.3.6.0-1</hadoop.version>
     </properties>
     <parent>
         <groupId>org.apache.ranger</groupId>

@@ -80,7 +80,7 @@
                     <include>com.google.code.findbugs:jsr305</include>
                     <include>io.netty:netty-all</include>
                     <include>com.thoughtworks.paranamer:paranamer</include>
-                    <include>org.xerial.snappy:snappy-java</include>
+                    <include>org.xerial.snappy:snappy-java:1.1.10.4</include>
                     <include>xmlenc:xmlenc</include>
                     <include>org.tukaani:xz</include>
                     <include>org.apache.httpcomponents:httpmime:jar:${httpcomponents.httpmime.version}</include>
