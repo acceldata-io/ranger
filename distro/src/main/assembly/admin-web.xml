@@ -80,6 +80,7 @@
           <include>org.apache.hive:hive-metastore:jar:${hive.version}</include>
           <include>org.apache.thrift:libfb303:jar:${libfb303.version}</include>
           <include>org.apache.thrift:libthrift:jar:${libthrift.version}</include>
+          <include>com.google.guava:guava:jar:${guava.version}</include>
         </includes>
       </binaries>
     </moduleSet>
