@@ -28,6 +28,8 @@ public class ServiceKafkaConnectionMgr {
 	private static final String KEY_SASL_MECHANISM	= "sasl.mechanism";
 	private static final String KEY_KAFKA_KEYTAB    = "kafka.keytab";
 	private static final String KEY_KAFKA_PRINCIPAL = "kafka.principal";
+	private static final String KEY_KAFKA_KEYTAB    = "kafka.keytab";
+	private static final String KEY_KAFKA_PRINCIPAL = "kafka.principal";
 
 	static public ServiceKafkaClient getKafkaClient(String serviceName,
 													Map<String, String> configs) throws Exception {
