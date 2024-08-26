@@ -176,6 +176,11 @@
             <version>${javax.persistence.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.glassfish.jaxb</groupId>
+            <artifactId>jaxb-runtime</artifactId>
+            <version>${jaxb.api.version}</version>
+        </dependency>
+        <dependency>
             <groupId>net.htmlparser.jericho</groupId>
             <artifactId>jericho-html</artifactId>
             <version>${jericho.html.version}</version>

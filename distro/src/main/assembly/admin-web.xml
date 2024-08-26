@@ -16,7 +16,7 @@
   limitations under the License.
 -->
 <assembly>
-  <id>admin</id> 
+  <id>admin</id>
   <formats>
      <format>tar.gz</format>
   </formats>
@@ -195,12 +195,14 @@
           <include>org.apache.ratis:ratis-client:jar:${ratis.version}</include>
           <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
           <include>org.bouncycastle:bcpkix-jdk15on:jar:${org.bouncycastle.bcpkix-jdk15on}</include>
+          <include>org.bouncycastle:bcprov-jdk15on:jar:${org.bouncycastle.bcpkix-jdk15on}</include>
           <include>commons-net:commons-net:jar:${commons.net.version}</include>
           <include>io.jaegertracing:jaeger-core:jar:1.6.0</include>
           <include>io.opentracing:opentracing-api:jar:0.33.0</include>
           <include>io.opentracing:opentracing-noop:jar:0.33.0</include>
           <include>io.opentracing:opentracing-util:jar:0.33.0</include>
           <include>io.opentracing.contrib:opentracing-tracerresolver:jar:0.1.8</include>
+          <include>com.google.guava:guava:jar:${guava.version}</include>
           <include>com.google.protobuf:protobuf-java:jar:${protobuf-java.version}</include>
         </includes>
       </binaries>
@@ -351,7 +353,7 @@
         </includes>
       </binaries>
     </moduleSet>
-            
+
     <moduleSet>
       <useAllReactorProjects>true</useAllReactorProjects>
       <includes>
