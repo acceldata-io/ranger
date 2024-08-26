@@ -165,7 +165,7 @@
         <junit.jupiter.version>5.10.0</junit.jupiter.version>
         <kafka.version>2.8.2</kafka.version>
         <kerby.version>2.0.3</kerby.version>
-        <schema.registry.version>1.0.1</schema.registry.version>
+        <schema.registry.version>1.0.0.3.3.6.0-1</schema.registry.version>
         <junit.version>4.13.1</junit.version>
         <knox.gateway.version>2.0.0</knox.gateway.version>
         <kylin.version>4.0.4</kylin.version>
