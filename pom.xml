@@ -845,7 +845,12 @@
                         <artifactId>*</artifactId>
                     </exclusion>
                 </exclusions>
-            </dependency>
+	</dependency>
+	  <dependency>
+    <groupId>org.apache.hadoop.thirdparty</groupId>
+    <artifactId>hadoop-shaded-guava</artifactId>
+    <version>1.1.1</version>
+</dependency>
             <dependency>
                 <groupId>org.apache.hadoop</groupId>
                 <artifactId>hadoop-mapreduce-client-core</artifactId>
@@ -907,7 +912,12 @@
                 <groupId>org.glassfish.jaxb</groupId>
                 <artifactId>jaxb-runtime</artifactId>
                 <version>${jaxb.api.version}</version>
-            </dependency>
+	</dependency>
+	<dependency>
+    <groupId>com.sun.xml.bind</groupId>
+    <artifactId>jaxb-impl</artifactId>
+    <version>2.3.3</version>
+</dependency>
             <dependency>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
