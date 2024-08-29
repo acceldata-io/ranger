@@ -53,7 +53,8 @@
                     <include>org.apache.curator:curator-framework</include>
                     <include>org.apache.curator:curator-client</include>
                     <include>org.apache.curator:curator-test</include>
-                    <include>asm:asm-all</include>
+		    <include>asm:asm-all</include>
+		    <include>com.sun.jersey:jersey-bundle:jar:1.19.4</include>
                     <include>org.apache.httpcomponents:httpclient</include>
                     <include>javax.activation:activation</include>
                     <include>org.apache.directory.server:apacheds-i18n</include>
@@ -223,7 +224,9 @@
                     <include>com.kstruct:gethostname4j:jar:${kstruct.gethostname4j.version}</include>
                     <include>net.java.dev.jna:jna:jar:${jna.version}</include>
                     <include>net.java.dev.jna:jna-platform:jar:${jna-platform.version}</include>
-                    <include>org.apache.ranger:credentialbuilder</include>
+		    <include>org.apache.ranger:credentialbuilder</include>
+		    <include>com.sun.xml.bind:jaxb-impl:jar:2.3.3</include>
+		    <include>javax.xml.bind:jaxb-api:jar:2.3.1</include>
                     <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
                     <include>org.apache.commons:commons-lang3</include>
                     <include>org.apache.commons:commons-configuration2</include>
@@ -235,14 +238,14 @@
                     <include>ch.qos.logback:logback-classic:jar:${logback.version}</include>
                     <include>ch.qos.logback:logback-core:jar:${logback.version}</include>
                     <include>com.google.code.gson:gson</include>
-                    <include>com.sun.jersey:jersey-bundle</include>
+                    <include>com.sun.jersey:jersey-bundle:jar:1.19.4</include>
                     <include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.version}</include>
                     <include>com.fasterxml.jackson.core:jackson-core:jar:${fasterxml.jackson.version}</include>
                     <include>com.fasterxml.jackson.core:jackson-databind:jar:${fasterxml.jackson.version}</include>
                     <include>org.codehaus.woodstox:stax2-api</include>
                     <include>com.fasterxml.woodstox:woodstox-core</include>
                     <include>org.apache.commons:commons-text:jar:${commons.text.version}</include>
-                    <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
+                    <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:1.1.1</include>
                 </includes>
             </binaries>
         </moduleSet>
@@ -396,10 +399,11 @@
                     <include>org.apache.hadoop:hadoop-common</include>
                     <include>org.apache.hadoop:hadoop-auth</include>
                     <include>org.codehaus.woodstox:stax2-api</include>
+                    <include>com.sun.xml.bind:jaxb-impl:jar:2.3.3</include>
                     <include>com.fasterxml.woodstox:woodstox-core</include>
                     <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
                     <include>org.apache.commons:commons-lang3</include>
-                    <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
+                    <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:1.1.1</include>
                 </includes>
             </binaries>
         </moduleSet>
