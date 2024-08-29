@@ -110,6 +110,9 @@
             <include>io.opentelemetry:opentelemetry-context:jar:${io.opentelemetry.version}</include>
             <include>io.opentelemetry:opentelemetry-semconv:jar:${io.opentelemetry-semconv.version}</include>
             <include>io.dropwizard.metrics:metrics-core</include>
+            <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
+            <include>org.apache.commons:commons-lang3:jar:${commons.lang3.version}</include>
+            <include>org.apache.hadoop:hadoop-client-runtime</include>
         </includes>
       </binaries>
     </moduleSet>
@@ -189,6 +192,7 @@
           <include>org.apache.ozone:hdds-interface-client:jar:${ozone.version}</include>
           <include>org.apache.ozone:ozone-interface-client:jar:${ozone.version}</include>
           <include>org.apache.ozone:ozone-filesystem-hadoop3:jar:${ozone.version}</include>
+          <include>org.apache.ozone:ozone-filesystem-hadoop3-client:jar:${ozone.version}</include>
           <include>org.apache.ratis:ratis-common:jar:${ratis.version}</include>
           <include>org.apache.ratis:ratis-proto:jar:${ratis.version}</include>
           <include>org.apache.ratis:ratis-thirdparty-misc:jar:${ratis-thirdparty.version}</include>
@@ -350,6 +354,7 @@
         <fileMode>644</fileMode>
         <includes>
           <include>org.apache.ranger:ranger-kafka-plugin</include>
+          <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
         </includes>
       </binaries>
     </moduleSet>
