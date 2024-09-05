@@ -285,6 +285,7 @@
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
                 <module>plugin-schema-registry</module>
+                <module>plugin-kudu</module>
                 <module>ugsync-util</module>
                 <module>ugsync</module>
                 <module>ugsync/ldapconfigchecktool/ldapconfigcheck</module>
@@ -359,6 +360,7 @@
                 <module>ranger-knox-plugin-shim</module>
                 <module>ranger-yarn-plugin-shim</module>
                 <module>ranger-ozone-plugin-shim</module>
+                <module>ranger-kudu-plugin-shim</module>
                 <module>ranger-storm-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
@@ -497,6 +499,20 @@
                 <module>ranger-util</module>
                 <module>plugin-ozone</module>
                 <module>ranger-ozone-plugin-shim</module>
+            </modules>
+        </profile>
+                <profile>
+            <id>ranger-kudu-plugin</id>
+            <modules>
+                <module>agents-audit</module>
+                <module>agents-common</module>
+                <module>agents-cred</module>
+                <module>agents-installer</module>
+                <module>credentialbuilder</module>
+                <module>ranger-plugin-classloader</module>
+                <module>ranger-util</module>
+                <module>plugin-kudu</module>
+                <module>ranger-kudu-plugin-shim</module>
             </modules>
         </profile>
         <profile>
@@ -653,8 +669,8 @@
                 <module>plugin-ozone</module>
                 <module>plugin-kafka</module>
                 <!--<module>plugin-nifi</module>
-                <module>plugin-nifi-registry</module>
-                <module>plugin-kudu</module>-->
+                <module>plugin-nifi-registry</module>-->
+                <module>plugin-kudu</module>
                 <module>ugsync-util</module>
                 <module>ugsync</module>
                 <module>ugsync/ldapconfigchecktool/ldapconfigcheck</module>
