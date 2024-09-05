@@ -125,14 +125,14 @@
         <hadoop.version>3.3.6.3.3.6.0-1</hadoop.version>
         <ozone.version>1.4.0.3.3.6.0-1</ozone.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <hbase.version>2.6.0</hbase.version>
+        <hbase.version>2.5.8.3.3.6.0-1</hbase.version>
         <hive.version>4.0.0.3.3.6.0-1</hive.version>
         <hive.storage-api.version>2.7.2</hive.storage-api.version>
         <orc.version>1.5.8</orc.version>
         <aircompressor.version>0.10</aircompressor.version>
-        <hbase-shaded-protobuf>4.1.7</hbase-shaded-protobuf>
-        <hbase-shaded-netty>4.1.7</hbase-shaded-netty>
-        <hbase-shaded-miscellaneous>4.1.7</hbase-shaded-miscellaneous>
+        <hbase-shaded-protobuf>4.1.5</hbase-shaded-protobuf>
+        <hbase-shaded-netty>4.1.5</hbase-shaded-netty>
+        <hbase-shaded-miscellaneous>4.1.5</hbase-shaded-miscellaneous>
         <libthrift.version>0.16.0</libthrift.version>
         <htrace-core.version>4.1.0-incubating</htrace-core.version>
         <httpcomponents.httpclient.version>4.5.13</httpcomponents.httpclient.version>
@@ -212,7 +212,7 @@
         <tomcat.embed.version>8.5.94</tomcat.embed.version>
         <testng.version>7.5.1</testng.version>
         <velocity.version>2.3</velocity.version>
-        <zookeeper.version>3.9.2</zookeeper.version>
+        <zookeeper.version>3.8.4.3.3.6.0-1</zookeeper.version>
         <codehaus.woodstox.stax2api.version>4.2.1</codehaus.woodstox.stax2api.version>
         <fasterxml.woodstox.version>5.4.0</fasterxml.woodstox.version>
         <fasterxml.jackson.version>2.17.2</fasterxml.jackson.version>
