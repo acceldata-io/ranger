@@ -653,6 +653,7 @@ class BaseDB(object):
 						elif os_name == "WINDOWS":
 							path = os.path.join("%s","WEB-INF","classes","conf;%s","WEB-INF","classes","lib","*;%s","WEB-INF",";%s","META-INF",";%s","WEB-INF","lib","*;%s","WEB-INF","classes",";%s","WEB-INF","classes","META-INF;%s" )%(app_home ,app_home ,app_home, app_home, app_home, app_home ,app_home ,self.SQL_CONNECTOR_JAR)
 						get_java_cmd = "%s -Dlogdir=%s -Dlogback.configurationFile=%s -Duser=%s -Dhostname=%s -cp %s org.apache.ranger.patch.cliutil.%s %s %s %s -default"%(self.JAVA_BIN,ranger_log_dir,logback_conf_file,os_user,client_host,path,className,'"'+userName+'"','"'+oldPassword+'"','"'+newPassword+'"')
+						log ("[I] get_java_cmd "+ get_java_cmd, "info")
 						if is_unix:
 							status = subprocess.call(shlex.split(get_java_cmd))
 						elif os_name == "WINDOWS":
