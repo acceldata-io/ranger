@@ -583,7 +583,6 @@ class BaseDB(object):
 								log("[E] applying java patch "+ className +" failed", "error")
 								sys.exit(1)
 
-
 	def change_admin_default_password(self, xa_db_host, db_user, db_password, db_name,userName,oldPassword,newPassword):
 		CT=self.commandTerminator
 		version = ""
