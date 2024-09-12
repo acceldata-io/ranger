@@ -34,6 +34,5 @@ CREATE TABLE `x_trx_log_v2` (
   PRIMARY KEY (`id`),
   KEY `x_trx_log_v2_FK_added_by_id` (`added_by_id`),
   KEY `x_trx_log_v2_cr_time` (`create_time`),
-  KEY `x_trx_log_v2_trx_id` (`trx_id`(100)),
-  KEY `x_trx_log_v2_change_info` (`change_info`(100))
-) DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+  KEY `x_trx_log_v2_trx_id` (`trx_id`)
+) DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
