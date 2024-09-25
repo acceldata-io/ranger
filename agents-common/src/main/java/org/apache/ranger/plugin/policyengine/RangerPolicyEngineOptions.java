@@ -32,7 +32,7 @@ public class RangerPolicyEngineOptions {
 	public boolean disablePolicyRefresher = false;
 	public boolean disableTagRetriever = false;
 	public boolean disableUserStoreRetriever = false;
-	public boolean disableGdsInfoRetriever = false;
+	public boolean disableGdsInfoRetriever = true;
 	public boolean cacheAuditResults = true;
 	public boolean evaluateDelegateAdminOnly = false;
 	public boolean enableTagEnricherWithLocalRefresher = false;
@@ -85,7 +85,7 @@ public class RangerPolicyEngineOptions {
 		disablePolicyRefresher = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.policy.refresher", false);
 		disableTagRetriever = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.tag.retriever", false);
 		disableUserStoreRetriever = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.userstore.retriever", false);
-		disableGdsInfoRetriever = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.gdsinfo.retriever", false);
+		disableGdsInfoRetriever = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.gdsinfo.retriever", true);
 
 		cacheAuditResults = conf.getBoolean(propertyPrefix + ".policyengine.option.cache.audit.results", true);
 
@@ -146,7 +146,7 @@ public class RangerPolicyEngineOptions {
 		disablePolicyRefresher = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.policy.refresher", true);
 		disableTagRetriever = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.tag.retriever", false);
 		disableUserStoreRetriever = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.userstore.retriever", false);
-		disableGdsInfoRetriever = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.gdsinfo.retriever", false);
+		disableGdsInfoRetriever = conf.getBoolean(propertyPrefix + ".policyengine.option.disable.gdsinfo.retriever", true);
 		optimizeTrieForRetrieval = conf.getBoolean(propertyPrefix + ".policyengine.option.optimize.trie.for.retrieval", false);
 
 		cacheAuditResults = false;
