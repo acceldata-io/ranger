@@ -225,6 +225,9 @@ public class UnixUserGroupBuilder implements UserGroupSource {
 
 
 	private void buildUserGroupInfo() throws Throwable {
+
+		LOG.info("========> UnixUserGroupBuilder.buildUserGroupInfo() ");
+
 		groupId2groupNameMap = new HashMap<String, String>();
 		sourceUsers = new HashMap<>();
 		sourceGroups = new HashMap<>();
@@ -235,13 +238,17 @@ public class UnixUserGroupBuilder implements UserGroupSource {
 		if (OS.startsWith("Mac")) {
 			buildUnixGroupList(MAC_GET_ALL_GROUPS_CMD, MAC_GET_GROUP_CMD, false);
 			buildUnixUserList(MAC_GET_ALL_USERS_CMD);
+			LOG.info("MAC_GET_ALL_GROUPS_CMD : " + MAC_GET_ALL_GROUPS_CMD);
 		} else {
 			if (!OS.startsWith("Linux")) {
 				LOG.warn("Platform not recognized assuming Linux compatible");
 			}
 			buildUnixGroupList(LINUX_GET_ALL_GROUPS_CMD, LINUX_GET_GROUP_CMD, true);
 			buildUnixUserList(LINUX_GET_ALL_USERS_CMD);
+
+			LOG.info("LINUX_GET_ALL_GROUPS_CMD " + LINUX_GET_ALL_GROUPS_CMD);
 		}
+
 
 		Iterator<String> groupUserTableIterator = groupUserTable.rowKeySet().iterator();
 		while (groupUserTableIterator.hasNext()) {
@@ -250,6 +257,7 @@ public class UnixUserGroupBuilder implements UserGroupSource {
 			Set<String> userSet = new HashSet<String>();
 			for(String userName : groupUsersMap.keySet()){
 				//String transformUserName = userNameTransform(entry.getKey());
+				LOG.info("userName from groupUsersMap : " + userName);
 				if (sourceUsers.containsKey(userName)) {
 					userSet.add(userName);
 				}
@@ -320,6 +328,7 @@ public class UnixUserGroupBuilder implements UserGroupSource {
 					userName = tokens[0];
 					userId = tokens[2];
 					groupId = tokens[3];
+					LOG.info("buildUnixUserList.userName : "+userName+", buildUnixUserList.userId :"+userId+", buildUnixUserList.groupId :"+groupId);
 				}
 				catch(ArrayIndexOutOfBoundsException aiobe) {
 					LOG.warn("Ignoring line - [" + line + "]: Unable to parse line for getting user information", aiobe);
@@ -452,6 +461,8 @@ public class UnixUserGroupBuilder implements UserGroupSource {
 		String groupId = tokens[2];
 		String groupMembers = null;
 
+		LOG.info("parseMembers.groupName : " + groupName, ",parseMembers.groupId : "+ groupId);
+
 		if (tokens.length > 3)
 			groupMembers = tokens[3];
 
@@ -473,9 +484,11 @@ public class UnixUserGroupBuilder implements UserGroupSource {
 		if (groupMembers != null && !groupMembers.trim().isEmpty()) {
 			for (String user : groupMembers.split(",")) {
 				groupUserTable.put(groupName, user, groupId);
+				LOG.info("groupUserTable.put("+groupName+", "+user+", "+groupId+")");
 			}
 		} else {
 			sourceGroupUsers.put(groupName, new HashSet<String>());
+			LOG.info("sourceGroupUsers "+groupName+", "+sourceGroupUsers.get(groupName));
 		}
 	}
 
@@ -487,11 +500,13 @@ public class UnixUserGroupBuilder implements UserGroupSource {
 
 		try {
 			if (!useNss) {
+				LOG.info("buildUnixGroupList().unixGroupFile : "+ unixGroupFile);
 				File file = new File(unixGroupFile);
 				groupFileModifiedAt = file.lastModified();
 				FileInputStream fis = new FileInputStream(file);
 				reader = new BufferedReader(new InputStreamReader(fis, StandardCharsets.UTF_8));
 			} else {
+				LOG.info("buildUnixGroupList().allGroupsCmd : "+ allGroupsCmd);
 				Process process = Runtime.getRuntime().exec(
 						new String[]{"bash", "-c", allGroupsCmd});
 				reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
