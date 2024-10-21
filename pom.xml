@@ -454,7 +454,7 @@
                     <artifactId>enunciate-maven-plugin</artifactId>
                     <version>${enunciate.version}</version>
                     <configuration>
-                        <enunciateArtifactId />
+                        <enunciateArtifactId/>
                         <docsDir>docs/src/site/</docsDir>
                         <source>1.8</source>
                         <target>1.8</target>
