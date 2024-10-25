@@ -184,7 +184,7 @@
           <include>org.apache.ozone:hdds-config:jar:${ozone.version}</include>
           <include>org.apache.ozone:hdds-interface-client:jar:${ozone.version}</include>
           <include>org.apache.ozone:ozone-interface-client:jar:${ozone.version}</include>
-          <include>org.apache.ozone:ozone-filesystem-hadoop3:${ozone.version}</include>
+          <include>org.apache.ozone:ozone-filesystem-hadoop3:jar:${ozone.version}</include>
           <include>org.apache.ratis:ratis-common:jar:${ratis.version}</include>
           <include>org.apache.ratis:ratis-proto:jar:${ratis.version}</include>
           <include>org.apache.ratis:ratis-thirdparty-misc:jar:${ratis.thirdparty.version}</include>
