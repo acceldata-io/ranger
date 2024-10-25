@@ -141,6 +141,11 @@ public class RangerServiceOzone extends RangerBaseService {
 					defaultPolicy.getPolicyItems().add(policyItemForLookupUser);
 				}
 			}
+            if (defaultPolicy.getName().startsWith("Service Check User Policy")) {
+                for (RangerPolicyItem item : defaultPolicy.getPolicyItems()) {
+                    item.setDelegateAdmin(this.service.getConfigs().get("default-policy.1.policyItem.1.delegateAdmin").equals("true"));
+                }
+            }
 		}	
         if (LOG.isDebugEnabled()) {
             LOG.debug("<== RangerServiceOzone.getDefaultRangerPolicies() : " + ret);
