@@ -57,6 +57,7 @@
                     <include>org.apache.commons:commons-lang3:jar:${commons.lang3.version}</include>
                     <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
                     <include>commons-lang:commons-lang</include>
+                    <include>org.apache.commons:commons-lang3:jar:${commons.lang3.version}</include>
                     <include>commons-logging:commons-logging:jar:${commons.logging.version}</include>
                     <include>org.slf4j:slf4j-api:jar:${slf4j-api.version}</include>
                     <include>org.apache.hadoop:hadoop-common:jar:${hadoop.version}</include>
