@@ -120,6 +120,7 @@ import org.apache.ranger.service.RangerPolicyService;
 import org.apache.ranger.service.RangerServiceDefService;
 import org.apache.ranger.service.RangerServiceService;
 import org.apache.ranger.service.XUserService;
+import org.apache.ranger.services.s3.RangerS3Constants;
 import org.apache.ranger.view.RangerExportPolicyList;
 import org.apache.ranger.view.RangerPluginInfoList;
 import org.apache.ranger.view.RangerPolicyList;
@@ -1697,12 +1698,18 @@ public class ServiceREST {
 				if(LOG.isDebugEnabled()) {
 					LOG.debug("<== ServiceREST.createPolicy(" + policy + "): " + ret);
 				}
+				if (policy.getServiceType().equals(RangerS3Constants.S3)) {
+					svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_CREATE);
+				}
 				return ret;
 
 			}
 
 			if(ret == null) {
 				ret = createPolicyUnconditionally(policy);
+				if (policy.getServiceType().equals(RangerS3Constants.S3)) {
+					svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_CREATE);
+				}
 			}
 		} catch(WebApplicationException excp) {
 			throw excp;
@@ -1847,6 +1854,9 @@ public class ServiceREST {
 			bizUtil.blockAuditorRoleUser();
 
 			ret = svcStore.updatePolicy(policy);
+			if (policy.getServiceType().equals(RangerS3Constants.S3)) {
+				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_UPDATE);
+			}
 		} catch(WebApplicationException excp) {
 			throw excp;
 		} catch(Throwable excp) {
@@ -1885,6 +1895,9 @@ public class ServiceREST {
 			ensureAdminAccess(policy);
 			bizUtil.blockAuditorRoleUser();
 			svcStore.deletePolicy(policy);
+			if (policy.getServiceType().equals(RangerS3Constants.S3)) {
+				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_DELETE);
+			}
 		} catch(WebApplicationException excp) {
 			throw excp;
 		} catch(Throwable excp) {
