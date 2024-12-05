@@ -288,6 +288,7 @@
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
                 <module>plugin-ozone</module>
+                <module>s3-agent</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>
@@ -312,7 +313,6 @@
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
-                <module>s3-agent</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
                 <module>plugin-schema-registry</module>
