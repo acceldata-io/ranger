@@ -554,7 +554,6 @@
         </includes>
       </binaries>
     </moduleSet>
-  </moduleSets>
 
   <moduleSet>
     <useAllReactorProjects>true</useAllReactorProjects>
@@ -574,6 +573,7 @@
       </includes>
     </binaries>
   </moduleSet>
+  </moduleSets>
 
   <fileSets>
     <fileSet>
