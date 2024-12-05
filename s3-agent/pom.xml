@@ -22,10 +22,10 @@
     <parent>
         <groupId>org.apache.ranger</groupId>
         <artifactId>ranger</artifactId>
-        <version>3.0.0-SNAPSHOT</version>
+        <version>2.5.0.3.3.6.0-1</version>
         <relativePath>..</relativePath>
     </parent>
-    <artifactId>s3-agen</artifactId>
+    <artifactId>s3-agent</artifactId>
     <packaging>jar</packaging>
     <name>S3 Policies Agent</name>
     <description>S3 Policies Agent</description>
