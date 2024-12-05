@@ -6541,7 +6541,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		return statements;
 	}
 
-	private PolicyStatement prepareBucketPolicyStatement(String s3Resources, List<String> accessTypes, String effect, String namespaceurn, List<String> users, List<String> groups, List<String> roles, List<RangerPolicyItemCondition> conditions) {
+	private PolicyStatement prepareBucketPolicyStatement(String s3Resources, List<String> accessTypes, String effect, String namespaceurn, List<String> users, List<String> groups, List<String> roles) {
 		PolicyStatement statement = new PolicyStatement();
 		statement.setEffect(effect);
 
