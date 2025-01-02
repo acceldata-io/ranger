@@ -1,6 +1,6 @@
 {
   "id":21,
-  "name": "S3",
+  "name": "s3",
   "displayName": "S3",
   "implClass": "org.apache.ranger.services.s3.RangerServiceS3",
   "label": "S3 Repository",
@@ -92,21 +92,8 @@
       "uiHint":"",
       "label": "End Point URL"
     },
-
     {
       "itemId": 4,
-      "name": "namespaceurn",
-      "type": "string",
-      "subType": "",
-      "mandatory": true,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Namespace URN"
-    },
-
-    {
-      "itemId": 5,
       "name": "region",
       "type": "string",
       "subType": "",
@@ -118,7 +105,7 @@
     },
 
     {
-      "itemId": 6,
+      "itemId": 5,
       "name": "bucketname",
       "type": "string",
       "subType": "",

@@ -75,7 +75,7 @@ public class RangerServiceS3 extends RangerBaseService {
 
         if (context != null) {
             try {
-                ret  = S3ResourceMgr.getS3Resources(serviceName, serviceType, configs,context);
+                ret  = S3ResourceMgr.getS3Resources(serviceName, configs, context);
             } catch (S3Exception e) {
                 LOG.error( "<==RangerServiceS3.lookupResource Error : " + e);
                 throw e;
