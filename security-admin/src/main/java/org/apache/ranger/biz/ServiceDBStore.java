@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
+import java.util.function.Function;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.ServletOutputStream;
@@ -222,16 +223,18 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import software.amazon.awssdk.core.exception.SdkServiceException;
+import software.amazon.awssdk.services.iam.model.GetGroupRequest;
+import software.amazon.awssdk.services.iam.model.GetRoleRequest;
+import software.amazon.awssdk.services.iam.model.GetUserRequest;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketPolicyResponse;
-import software.amazon.awssdk.services.s3.model.ListBucketsRequest;
-import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.iam.IamClient;
 
 
 import static org.apache.ranger.db.XXGlobalStateDao.RANGER_GLOBAL_STATE_NAME_GDS;
@@ -6471,11 +6474,10 @@ public class ServiceDBStore extends AbstractServiceStore {
 			RangerService rangerService = getServiceByName(serviceName);
 
 			S3Client s3 = S3ClientConnectionMgr.getS3client(rangerService.getConfigs());
-			String namespaceurn = rangerService.getConfigs().get(RangerS3Constants.NAMESPACE_URN);
 			String bucketName = rangerService.getConfigs().get(RangerS3Constants.BUCKET_NAME);
 			List<PolicyStatement> statements = new ArrayList<>();
 			List<RangerPolicy> rangerPolicyList = new ArrayList<>();
-			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
+			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter()); //all-path
 			if (servicePolicies.isEmpty()) {
 				servicePolicies.add(rangerPolicy);
 			}
@@ -6484,35 +6486,51 @@ public class ServiceDBStore extends AbstractServiceStore {
 				if (policy.getName().trim().equals(rangerPolicy.getName().trim())) {
 					policy = rangerPolicy; // Update the policy with the provided rangerPolicy
 				} else if (!rangerPolicyList.contains(rangerPolicy)) {
-					rangerPolicyList.add(rangerPolicy);
+					rangerPolicyList.add(rangerPolicy);//rangerPolicyList["manishS3"]
 				}
 				if (!action.equals(RangerConstants.ACTION_DELETE)) {
 					// Add the policy to rangerPolicyList
-					rangerPolicyList.add(policy);
+					rangerPolicyList.add(policy); // rangerPolicyList["manishS3", "all-path"]
 				}
 			}
 			for (RangerPolicy policy : rangerPolicyList) {
 				Map<String, RangerPolicyResource> resources = policy.getResources();
-				List<String> s3Resources = new ArrayList<>();
+				// Create a HashMap to store bucket names with associated paths
+				Map<String, List<String>> bucketMap = new HashMap<>();
 				for (Entry<String, RangerPolicyResource> entry : resources.entrySet()) {
-					RangerPolicyResource rangerPolicyResource = entry.getValue();
-					for (String s3path : rangerPolicyResource.getValues()) {
-						s3Resources.add(RangerS3Constants.S3_RESOURCE_PATH_ARN + s3path);
-					}
+					List<String> bucketPaths = entry.getValue().getValues();
+					Collections.sort(bucketPaths);
+					if (bucketPaths.contains("*")) { // bucketPaths = ["*",...]
+						bucketMap.putIfAbsent(bucketName, new ArrayList<>());
+						bucketMap.get(bucketName).add("*");
+					} else {
+						for (String s3path : bucketPaths) { // bucketPaths = ["ad-odp","test","ad-o1/","ad-odp/test1/"]
+								String[] parts = s3path.split("/", 2);
+								String bucketPart = parts[0]; // The bucket name is the first part
+								// Add the path to the corresponding bucket in the HashMap
+								bucketMap.putIfAbsent(bucketPart, new ArrayList<>());
+								bucketMap.get(bucketPart).add(s3path);
+							}
+						}
 				}
 				List<RangerPolicyItem> policyItems = policy.getPolicyItems();
 				List<RangerPolicyItem> denyPolicyItems = policy.getDenyPolicyItems();
-
-				if (CollectionUtils.isNotEmpty(policyItems)){
-					statements = createBucketPolicyStatement(policyItems, RangerS3Constants.ALLOW, s3Resources, namespaceurn, statements);
+				for (Map.Entry<String, List<String>> entry : bucketMap.entrySet()) {
+					List<String> s3Resources = new ArrayList<>();
+					for(String s3path : entry.getValue()) {
+						s3Resources.add(RangerS3Constants.S3_RESOURCE_PATH_ARN + s3path);
+					}
+					if (CollectionUtils.isNotEmpty(policyItems)) {
+						statements = createBucketPolicyStatement(policyItems, RangerS3Constants.ALLOW, s3Resources, statements);
+					}
+					if (CollectionUtils.isNotEmpty(denyPolicyItems)) {
+						statements = createBucketPolicyStatement(denyPolicyItems, RangerS3Constants.DENY, s3Resources, statements);
+					}
+					String policyJson = mapToS3BucketPolicyObject(statements);
+					if (StringUtils.isNotEmpty(policyJson)) {
+						putBucketPolicy(s3, entry.getKey(), policyJson);
+					}
 				}
-				if (CollectionUtils.isNotEmpty(denyPolicyItems)) {
-					statements = createBucketPolicyStatement(denyPolicyItems, RangerS3Constants.DENY, s3Resources, namespaceurn, statements);
-				}
-			}
-			String policyJson = mapToS3BucketPolicyObject(statements);
-			if (StringUtils.isNotEmpty(policyJson)) {
-				putBucketPolicy(s3, bucketName, policyJson);
 			}
 		} catch (S3Exception e) {
 			throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
@@ -6521,7 +6539,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		return true;
 	}
 
-	private List<PolicyStatement> createBucketPolicyStatement(List<RangerPolicyItem> policyItems, String effect, List<String> s3Resources, String namespaceurn, List<PolicyStatement> statements) {
+	private List<PolicyStatement> createBucketPolicyStatement(List<RangerPolicyItem> policyItems, String effect, List<String> s3Resources, List<PolicyStatement> statements) {
 		if (CollectionUtils.isNotEmpty(policyItems) && CollectionUtils.isNotEmpty(s3Resources)) {
 			for (String s3Resource :s3Resources) {
 				for (RangerPolicyItem policyItem : policyItems) {
@@ -6531,7 +6549,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 					for (RangerPolicyItemAccess access : accesses) {
 						accessTypes.add(access.getType());
 					}
-					PolicyStatement statement = prepareBucketPolicyStatement(s3Resource, accessTypes, effect, namespaceurn,
+					PolicyStatement statement = prepareBucketPolicyStatement(s3Resource, accessTypes, effect,
 							policyItem.getUsers(), policyItem.getGroups(), policyItem.getRoles());
 					statements.add(statement);
 				}
@@ -6541,16 +6559,16 @@ public class ServiceDBStore extends AbstractServiceStore {
 		return statements;
 	}
 
-	private PolicyStatement prepareBucketPolicyStatement(String s3Resources, List<String> accessTypes, String effect, String namespaceurn, List<String> users, List<String> groups, List<String> roles) {
+	private PolicyStatement prepareBucketPolicyStatement(String s3Resources, List<String> accessTypes, String effect, List<String> users, List<String> groups, List<String> roles) {
 		PolicyStatement statement = new PolicyStatement();
 		statement.setEffect(effect);
 
 		// Set multiple AWS account IDs in the Principal
 		Map<String, List<String>> principal = new HashMap<>();
 		List<String> awsAccounts = new ArrayList<>();
-		awsAccounts = addAccounts(awsAccounts, namespaceurn, users, "user");
-		awsAccounts = addAccounts(awsAccounts, namespaceurn, groups, "group");
-		awsAccounts = addAccounts(awsAccounts, namespaceurn, roles, "role");
+		awsAccounts = addAccounts(awsAccounts, users, "user");
+		awsAccounts = addAccounts(awsAccounts, groups, "group");
+		awsAccounts = addAccounts(awsAccounts, roles, "role");
 
 		principal.put(RangerS3Constants.AWS, awsAccounts);
 		statement.setPrincipal(principal);
@@ -6559,10 +6577,32 @@ public class ServiceDBStore extends AbstractServiceStore {
 		return statement;
     }
 
-	private List<String> addAccounts(List<String> awsAccounts, String namespaceurn, List<String> entities, String entityType) {
+	private List<String> addAccounts(List<String> awsAccounts, List<String> entities, String entityType) {
 		if (CollectionUtils.isNotEmpty(entities)) {
-			for (String entity : entities) {
-				awsAccounts.add(RangerS3Constants.S3_AWS_ACCOUNT_URN + namespaceurn + ":" + entityType + "/" + entity);
+			Region region = Region.AWS_GLOBAL; // IAM is a global service
+			try (IamClient iamClient = IamClient.builder()
+					.region(region)
+					.credentialsProvider(ProfileCredentialsProvider.create())
+					.build()) {
+				// Define a map to associate entity types with the respective IAM call
+				Map<String, Function<String, String>> entityArnExtractor = new HashMap<>();
+				entityArnExtractor.put("user", entity -> iamClient.getUser(GetUserRequest.builder().userName(entity).build()).user().arn());
+				entityArnExtractor.put("group", entity -> iamClient.getGroup(GetGroupRequest.builder().groupName(entity).build()).group().arn());
+				entityArnExtractor.put("role", entity -> iamClient.getRole(GetRoleRequest.builder().roleName(entity).build()).role().arn());
+				for (String entity : entities) {
+					try {
+						String entityArn = entityArnExtractor.get(entityType).apply(entity);
+						String accountId = entityArn.split(":")[4]; // Account ID is the 5th segment of the ARN
+						awsAccounts.add(RangerS3Constants.S3_AWS_ACCOUNT_URN + accountId + ":" + entityType + "/" + entity);
+					} catch (Exception e) {
+                        LOG.error("Failed to retrieve account ID for entity '{}': {}", entity, e.getMessage());
+					}
+				}
+			} catch (SdkServiceException e) {
+                LOG.error("IAM service error: {}", e.getMessage());
+			}
+			catch (Exception e) {
+                LOG.error("General Exception to retrieve and addAccounts: {}", e.getMessage());
 			}
 		}
 		return awsAccounts;
