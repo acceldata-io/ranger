@@ -29,8 +29,7 @@ public class RangerS3Constants {
     public static final String SECRET_KEY = "secretkey";
     public static final String ENDPOINT = "endpoint";
     public static final String REGION = "region";
-    public static final String NAMESPACE_URN = "namespaceurn";
     public static final String BUCKET_NAME = "bucketname";
     public static final String S3_RESOURCE_PATH_ARN = "arn:aws:s3:::";
-    public static final String S3_AWS_ACCOUNT_URN = "urn:ecs:iam::";
+    public static final String S3_AWS_ACCOUNT_URN = "arn:aws:iam::";
 }
