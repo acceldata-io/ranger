@@ -113,7 +113,7 @@
         <derby.version>10.17.1.0</derby.version>
         <dnsjava.version>3.6.2</dnsjava.version>
         <eclipse.jpa.version>2.7.12</eclipse.jpa.version>
-        <elasticsearch.version>7.10.2</elasticsearch.version>
+        <elasticsearch.version>7.17.26</elasticsearch.version>
         <enunciate.version>2.13.2</enunciate.version>
         <spotbugs.plugin.version>4.7.3.5</spotbugs.plugin.version>
         <googlecode.log4jdbc.version>1.2</googlecode.log4jdbc.version>
