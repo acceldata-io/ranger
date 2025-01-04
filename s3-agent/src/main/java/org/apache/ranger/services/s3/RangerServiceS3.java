@@ -75,14 +75,15 @@ public class RangerServiceS3 extends RangerBaseService {
 
         if (context != null) {
             try {
-                ret  = S3ResourceMgr.getS3Resources(serviceName, configs, context);
+                long timeLookup = new Long(this.config.getProperties().getProperty("ranger.resource.lookup.timeout.value.in.ms"));
+                ret  = S3ResourceMgr.getS3Resources(serviceName, configs, context, timeLookup);
             } catch (S3Exception e) {
                 LOG.error( "<==RangerServiceS3.lookupResource Error : " + e);
                 throw e;
             }
         }
 
-        LOG.info("<== RangerServiceS3.lookupResource Response: (" + ret + ")");
+        LOG.info("<== RangerServiceS3.lookupResource Response Received");
 
         return ret;
     }

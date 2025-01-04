@@ -20,7 +20,7 @@
 package org.apache.ranger.services.s3;
 
 public class RangerS3Constants {
-    public static final String S3 = "S3";
+    public static final String S3 = "s3";
     public static final String AWS = "AWS";
     public static final String ALLOW = "Allow";
     public static final String DENY = "Deny";
