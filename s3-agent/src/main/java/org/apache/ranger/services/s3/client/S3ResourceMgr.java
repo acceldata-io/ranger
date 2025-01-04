@@ -21,7 +21,7 @@ package org.apache.ranger.services.s3.client;
 import org.apache.ranger.plugin.client.HadoopException;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.apache.ranger.plugin.util.TimedEventUtil;
-import org.apache.ranger.services.s3.*;
+import org.apache.ranger.services.s3.RangerS3Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -54,24 +54,21 @@ public class S3ResourceMgr {
         return ret;
     }
 
-    public static List<String> getS3Resources(String serviceName, Map<String, String> configs, ResourceLookupContext context) throws Exception {
+    public static List<String> getS3Resources(String serviceName, Map<String, String> configs, ResourceLookupContext context, long timeLookup) throws Exception {
 
         List<String> resultList = new ArrayList<>();
         String userInput = context.getUserInput();
         String resource = context.getResourceName();
         Map<String, List<String>> resourceMap = context.getResources();
-        String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
         final List<String> pathList = new ArrayList<>();
 
         LOG.info("==> S3ResourceMgr.connectionTest ServiceName:{}", serviceName);
 
-        if (resourceMap != null && resource != null && resourceMap.get(PATH) !=null) {
-            for (String path: resourceMap.get(PATH)) {
-                pathList.add(path);
-            }
+        if (resourceMap != null && resource != null && resourceMap.get(PATH) !=null && !resourceMap.get(PATH).isEmpty()) {
+            pathList.addAll(resourceMap.get(PATH));
         }
 
-        if (serviceName != null && userInput != null) {
+        if (serviceName != null && userInput != null && !pathList.contains("*") && !userInput.equals("*")) {
             try {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("<== S3ResourceMgr.getS3Resources()  UserInput: \"" + userInput + "\" resource : " + resource +
@@ -84,41 +81,41 @@ public class S3ResourceMgr {
 
                         @Override
                         public List<String> call() throws Exception {
-                            ListObjectsV2Request.Builder listObjectsRequestBuilder = ListObjectsV2Request.builder()
-                                    .bucket(bucketName);
 
-                            if (!userInput.isEmpty()) {
-                                listObjectsRequestBuilder.prefix(userInput.replace("*", ""));  // Replace '*' to use only the prefix part
-                            }
                             List<String> resultListInner = new ArrayList<>();
-                            ListObjectsV2Request listObjectsRequest = listObjectsRequestBuilder.build();
-                            ListObjectsV2Response listObjectsResponse;
-                            do {
-                                listObjectsResponse = s3.listObjectsV2(listObjectsRequest);
-
-                                listObjectsResponse.contents().forEach(s3Object -> {
+                            if (userInput.contains("/")) {
+                                String bucketName = userInput.substring(0, userInput.indexOf("/"));
+                                String path = userInput.substring(userInput.indexOf("/") + 1);
+                                ListObjectsV2Request.Builder listObjectsRequestBuilder = ListObjectsV2Request.builder()
+                                        .bucket(bucketName);
+                                if(!path.isEmpty()) {
+                                    listObjectsRequestBuilder.prefix(path.replace("*", ""));  // Replace '*' to use only the prefix part
+                                }
+                                ListObjectsV2Request listObjectsRequest = listObjectsRequestBuilder.build();
+                                ListObjectsV2Response listObjectsResponse;
+                                do {
+                                    listObjectsResponse = s3.listObjectsV2(listObjectsRequest);
+                                    listObjectsResponse.contents().forEach(s3Object -> {
                                     String key = s3Object.key();
-                                    for (String path : pathList) {
-                                        String prefixPath = userInput.replace("*", "");
-                                        if (key.startsWith(prefixPath) && !path.equals(prefixPath)) {
+                                    String prefixPath = path.replace("*", "");
+                                    if (key.startsWith(prefixPath) && !pathList.contains(prefixPath)) {
                                             resultListInner.add(key);
-                                            break;
-                                        }
                                     }
-                                });
+                                    });
 
                                 // If the response is truncated, set the next continuation token for the next request
                                 String nextContinuationToken = listObjectsResponse.nextContinuationToken();
                                 if (nextContinuationToken != null) {
                                     listObjectsRequest = listObjectsRequest.toBuilder().continuationToken(nextContinuationToken).build();
                                 }
-                            } while (listObjectsResponse.isTruncated());
+                                } while (listObjectsResponse.isTruncated());
+                            }
                             return resultListInner;
                         }
                     };
                     if (callableObj != null) {
                         synchronized (s3) {
-                            resultList = TimedEventUtil.timedTask(callableObj, 5,
+                            resultList = TimedEventUtil.timedTask(callableObj, timeLookup,
                                     TimeUnit.SECONDS);
                         }
                     }
