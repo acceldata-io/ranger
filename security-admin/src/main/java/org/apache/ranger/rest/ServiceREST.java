@@ -1854,15 +1854,11 @@ public class ServiceREST {
 			bizUtil.blockAuditorRoleUser();
 
 			ret = svcStore.updatePolicy(policy);
-			LOG.info("Policy service Type " + policy.getServiceType());
-			LOG.info("Ranger constants " + RangerS3Constants.S3);
 			if (policy.getServiceType().equalsIgnoreCase(RangerS3Constants.S3)) {
 				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_UPDATE);
 			}
 		} catch(WebApplicationException excp) {
 			throw excp;
-		} catch (Exception e) {
-			LOG.error("Throwing general exception " + e.getMessage());
 		} catch(Throwable excp) {
 			LOG.error("updatePolicy(" + policy + ") failed", excp);
 
