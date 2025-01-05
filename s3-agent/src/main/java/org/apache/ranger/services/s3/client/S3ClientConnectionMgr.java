@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListBucketsRequest;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
@@ -79,13 +80,22 @@ public class S3ClientConnectionMgr extends BaseClient {
         String secretKey = configs.get(RangerS3Constants.SECRET_KEY);
         String endPointOCE = configs.get(RangerS3Constants.ENDPOINT);
         String regionstr = configs.get(RangerS3Constants.REGION);
-        LOG.debug("accessKey:{} and secretKey:{} and Endpoint:{} and Region:{}",accessKey, secretKey, endPointOCE, regionstr);
         AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
         Region region = Region.of(regionstr);
         return S3Client.builder()
                 .region(region)
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
                 .endpointOverride(URI.create(endPointOCE))
+                .build();
+    }
+
+    public static IamClient getIamClient(Map<String, String> configs) {
+        String accessKey = configs.get(RangerS3Constants.USER_NAME);
+        String secretKey = configs.get(RangerS3Constants.SECRET_KEY);
+        AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
+        return IamClient.builder()
+                .region(Region.AWS_GLOBAL)
+                .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
                 .build();
     }
 }
