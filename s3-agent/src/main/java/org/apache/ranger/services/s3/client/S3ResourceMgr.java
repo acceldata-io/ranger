@@ -99,7 +99,7 @@ public class S3ResourceMgr {
                                     String key = s3Object.key();
                                     String prefixPath = path.replace("*", "");
                                     if (key.startsWith(prefixPath) && !pathList.contains(prefixPath)) {
-                                            resultListInner.add(key);
+                                            resultListInner.add(bucketName+"/"+key);
                                     }
                                     });
 
