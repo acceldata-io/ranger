@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.ServletOutputStream;
@@ -6470,71 +6471,55 @@ public class ServiceDBStore extends AbstractServiceStore {
 		String serviceName = rangerPolicy.getService();
 		try {
 			RangerService rangerService = getServiceByName(serviceName);
+			Map<String, String> configs = rangerService.getConfigs();
 
-			S3Client s3 = S3ClientConnectionMgr.getS3client(rangerService.getConfigs());
-			IamClient iamClient = S3ClientConnectionMgr.getIamClient(rangerService.getConfigs());
-			if(s3 !=null && iamClient !=null) {
-				String bucketName = rangerService.getConfigs().get(RangerS3Constants.BUCKET_NAME);
+			S3Client s3 = S3ClientConnectionMgr.getS3client(configs);
+			IamClient iamClient = S3ClientConnectionMgr.getIamClient(configs);
+
+			if (s3 == null || iamClient == null) {
+				throw new Exception("S3 and IAM client initialization failed.");
+			}
+
+			String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
+			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
+
+			if (servicePolicies.isEmpty()) {
+				servicePolicies.add(rangerPolicy);
+			}
+
+			List<RangerPolicy> combinedPolicies = new ArrayList<>();
+
+			for (RangerPolicy policy : servicePolicies) {
+				if (policy.getName().trim().equalsIgnoreCase(rangerPolicy.getName().trim())) {
+					policy = rangerPolicy; // Update with the provided rangerPolicy
+				} else if (!combinedPolicies.contains(policy)) {
+					combinedPolicies.add(policy);
+				}
+
+				if (!action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+					combinedPolicies.add(policy);
+				}
+			}
+
+			for (RangerPolicy policy : combinedPolicies) {
+				Map<String, List<String>> bucketMap = new HashMap<>();
+				populateBucketMap(bucketMap, policy.getResources(), bucketName);
+
 				List<PolicyStatement> statements = new ArrayList<>();
-				List<RangerPolicy> rangerPolicyList = new ArrayList<>();
-				List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter()); //all-path
-				if (servicePolicies.isEmpty()) {
-					servicePolicies.add(rangerPolicy);
-				}
+				for (Map.Entry<String, List<String>> entry : bucketMap.entrySet()) {
+					List<String> s3Resources = entry.getValue()
+							.stream()
+							.map(s3path -> RangerS3Constants.S3_RESOURCE_PATH_ARN + s3path)
+							.collect(Collectors.toList());
 
-				for (RangerPolicy policy : servicePolicies) {
-					if (policy.getName().trim().equals(rangerPolicy.getName().trim())) {
-						policy = rangerPolicy; // Update the policy with the provided rangerPolicy
-					} else if (!rangerPolicyList.contains(rangerPolicy)) {
-						rangerPolicyList.add(rangerPolicy);//rangerPolicyList["manishS3"]
-					}
-					if (!action.equals(RangerConstants.ACTION_DELETE)) {
-						// Add the policy to rangerPolicyList
-						rangerPolicyList.add(policy); // rangerPolicyList["manishS3", "all-path"]
+					statements.addAll(createBucketPolicyStatement(policy.getPolicyItems(), RangerS3Constants.ALLOW, s3Resources, iamClient));
+					statements.addAll(createBucketPolicyStatement(policy.getDenyPolicyItems(), RangerS3Constants.DENY, s3Resources, iamClient));
+
+					String policyJson = mapToS3BucketPolicyObject(statements);
+					if (StringUtils.isNotEmpty(policyJson) && !policyJson.equals(getBucketPolicy(s3, entry.getKey()))) {
+						putBucketPolicy(s3, entry.getKey(), policyJson);
 					}
 				}
-				for (RangerPolicy policy : rangerPolicyList) {
-					Map<String, RangerPolicyResource> resources = policy.getResources();
-					// Create a HashMap to store bucket names with associated paths
-					Map<String, List<String>> bucketMap = new HashMap<>();
-					for (Entry<String, RangerPolicyResource> entry : resources.entrySet()) {
-						List<String> bucketPaths = entry.getValue().getValues();
-						Collections.sort(bucketPaths);
-						if (bucketPaths.contains("*")) { // bucketPaths = ["*",...]
-							bucketMap.putIfAbsent(bucketName, new ArrayList<>());
-							bucketMap.get(bucketName).add("*");
-						} else {
-							for (String s3path : bucketPaths) { // bucketPaths = ["ad-odp","test","ad-o1/","ad-odp/test1/"]
-								String[] parts = s3path.split("/", 2);
-								String bucketPart = parts[0]; // The bucket name is the first part
-								// Add the path to the corresponding bucket in the HashMap
-								bucketMap.putIfAbsent(bucketPart, new ArrayList<>());
-								bucketMap.get(bucketPart).add(s3path);
-							}
-						}
-					}
-					List<RangerPolicyItem> policyItems = policy.getPolicyItems();
-					List<RangerPolicyItem> denyPolicyItems = policy.getDenyPolicyItems();
-					for (Map.Entry<String, List<String>> entry : bucketMap.entrySet()) {
-						List<String> s3Resources = new ArrayList<>();
-						for (String s3path : entry.getValue()) {
-							s3Resources.add(RangerS3Constants.S3_RESOURCE_PATH_ARN + s3path);
-						}
-						if (CollectionUtils.isNotEmpty(policyItems)) {
-							statements = createBucketPolicyStatement(policyItems, RangerS3Constants.ALLOW, s3Resources, statements, iamClient);
-						}
-						if (CollectionUtils.isNotEmpty(denyPolicyItems)) {
-							statements = createBucketPolicyStatement(denyPolicyItems, RangerS3Constants.DENY, s3Resources, statements, iamClient);
-						}
-						String policyJson = mapToS3BucketPolicyObject(statements);
-						if (StringUtils.isNotEmpty(policyJson)) {
-							putBucketPolicy(s3, entry.getKey(), policyJson);
-						}
-					}
-				}
-			} else {
-				LOG.error("<== ServiceDBStore.createS3BucketPolicy() : S3 and IAM client is not initialized");
-				throw new Exception("S3 and IAM client is not initialized");
 			}
 		} catch (S3Exception e) {
 			throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
@@ -6543,7 +6528,32 @@ public class ServiceDBStore extends AbstractServiceStore {
 		return true;
 	}
 
-	private List<PolicyStatement> createBucketPolicyStatement(List<RangerPolicyItem> policyItems, String effect, List<String> s3Resources, List<PolicyStatement> statements, IamClient iamClient) {
+	private void populateBucketMap(Map<String, List<String>> bucketMap, Map<String, RangerPolicyResource> resources, String bucketName) throws Exception {
+		for (Entry<String, RangerPolicyResource> entry : resources.entrySet()) {
+			List<String> bucketPaths = entry.getValue().getValues();
+			Collections.sort(bucketPaths);
+
+			if (bucketPaths.contains("*")) {
+				bucketMap.putIfAbsent(bucketName, new ArrayList<>());
+				bucketMap.get(bucketName).add("*");
+			} else {
+				for (String s3path : bucketPaths) {
+					String bucketPart = s3path.contains("/") ? s3path.split("/")[0] : "";
+
+					if (bucketPart.isEmpty()) {
+						LOG.error("Invalid S3 path: {}", s3path);
+						throw new Exception("Specify at least one correct existing bucket name");
+					}
+
+					bucketMap.putIfAbsent(bucketPart, new ArrayList<>());
+					bucketMap.get(bucketPart).add(s3path);
+				}
+			}
+		}
+	}
+
+	private List<PolicyStatement> createBucketPolicyStatement(List<RangerPolicyItem> policyItems, String effect, List<String> s3Resources, IamClient iamClient) {
+		List<PolicyStatement> statements = new ArrayList<>();
 		if (CollectionUtils.isNotEmpty(policyItems) && CollectionUtils.isNotEmpty(s3Resources)) {
 			for (String s3Resource :s3Resources) {
 				for (RangerPolicyItem policyItem : policyItems) {
