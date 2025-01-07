@@ -6482,23 +6482,16 @@ public class ServiceDBStore extends AbstractServiceStore {
 
 			String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
 			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
+			List<RangerPolicy> combinedPolicies = new ArrayList<>(servicePolicies);
 
 			if (servicePolicies.isEmpty()) {
-				servicePolicies.add(rangerPolicy);
-			}
-
-			List<RangerPolicy> combinedPolicies = new ArrayList<>();
-
-			for (RangerPolicy policy : servicePolicies) {
-				if (policy.getName().trim().equalsIgnoreCase(rangerPolicy.getName().trim())) {
-					policy = rangerPolicy; // Update with the provided rangerPolicy
-				} else if (!combinedPolicies.contains(policy)) {
-					combinedPolicies.add(policy);
+				if(!action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+					LOG.warn("Service Policy {} list is empty for any deletion.", rangerPolicy.getName());
+				} else {
+					combinedPolicies.add(rangerPolicy);
 				}
-
-				if (!action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
-					combinedPolicies.add(policy);
-				}
+			} else if (!action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+						combinedPolicies.add(rangerPolicy); //service list not empty but action is not delete
 			}
 
 			for (RangerPolicy policy : combinedPolicies) {
