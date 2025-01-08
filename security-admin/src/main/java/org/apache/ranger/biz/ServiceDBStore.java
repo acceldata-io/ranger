@@ -6489,9 +6489,23 @@ public class ServiceDBStore extends AbstractServiceStore {
 			List<RangerPolicy> affectedPolicies = populateBucketMap(bucketMap, combinedPolicies,
 					bucketName, rangerPolicy);
 
-			if (affectedPolicies.isEmpty() && !combinedPolicies.isEmpty()) {
-				deleteBucketPolicy(s3, bucketName);
-			} else {
+			if (affectedPolicies.isEmpty()) {
+				for (Entry<String, RangerPolicyResource> affectedResources : rangerPolicy.getResources().entrySet()) {
+					List<String> affectedBuckets = affectedResources.getValue().getValues().stream()
+							.map(s3path -> s3path.split("/", 2)[0]) // Extract bucket name
+							.distinct() // Ensure unique bucket names
+							.collect(Collectors.toList());
+
+					if (affectedBuckets.isEmpty()) {
+						deleteBucketPolicy(s3, bucketName);
+					} else {
+						for (String bucketPart : affectedBuckets) {
+							deleteBucketPolicy(s3, bucketPart);
+						}
+					}
+				}
+			}
+			else {
 				processPolicies(bucketMap, s3, iamClient);
 			}
 		} catch (S3Exception e) {
