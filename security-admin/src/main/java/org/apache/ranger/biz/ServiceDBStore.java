@@ -6573,7 +6573,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 						for (RangerPolicyResource resource : rangerPolicy.getResources().values()) {
 							for(String s3Path: resource.getValues()) {
 								String prefixBucketPath = s3Path.split("/", 2)[0];
-								if (affectedPaths.contains("*") && prefixBucketPath.equals(bucketName)) {
+								if (affectedPath.startsWith("*") || (affectedPaths.contains("*") && prefixBucketPath.equals(bucketName))) {
 									addToBucketMap(bucketMap, bucketName, rangerPolicy, s3Path);
 									affectedPolicies.add(rangerPolicy);
 									break;
