@@ -104,14 +104,9 @@ public class EagerKeyGeneratorKeyProviderCryptoExtension
     }
 
     @Override
-    public void warmUpEncryptedKeys(String... keyNames) throws
-                                                        IOException {
-      try {
-        encKeyVersionQueue.initializeQueuesForKeys(keyNames);
-      } catch (ExecutionException e) {
-        throw new IOException(e);
-      }
-    }
+    public void warmUpEncryptedKeys(String... keyNames) throws IOException {
+      encKeyVersionQueue.initializeQueuesForKeys(keyNames);
+    }  
 
     @Override
     public void drain(String keyName) {
