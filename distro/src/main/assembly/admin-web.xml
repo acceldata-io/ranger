@@ -112,7 +112,7 @@
             <include>io.dropwizard.metrics:metrics-core</include>
             <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
             <include>org.apache.commons:commons-lang3:jar:${commons.lang3.version}</include>
-            <include>org.apache.hadoop:hadoop-client-runtime</include>
+          <include>org.apache.hadoop:hadoop-client-runtime</include>
         </includes>
       </binaries>
     </moduleSet>
@@ -314,7 +314,6 @@
           <include>org.apache.commons:commons-lang3</include>
           <include>org.apache.hadoop:hadoop-common</include>
           <include>org.apache.hadoop:hadoop-auth</include>
-          <include>org.apache.hadoop:hadoop-client-runtime</include>
           <include>com.fasterxml.woodstox:woodstox-core:jar:${fasterxml.woodstox.version}</include>
           <include>org.codehaus.woodstox:stax2-api:jar:${codehaus.woodstox.stax2api.version}</include>
           <include>org.apache.commons:commons-configuration2:jar:${commons.configuration.version}</include>
