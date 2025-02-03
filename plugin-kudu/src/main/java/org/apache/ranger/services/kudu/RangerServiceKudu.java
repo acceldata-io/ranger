@@ -18,6 +18,7 @@
  */
 package org.apache.ranger.services.kudu;
 
+import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.service.RangerBaseService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 
@@ -30,9 +31,11 @@ import java.util.List;
  */
 public class RangerServiceKudu extends RangerBaseService {
     @Override
-    public HashMap<String, Object> validateConfig() throws Exception {
-        // TODO: implement configure validation for Kudu policies.
-        return new HashMap<>();
+    public HashMap<String, Object> validateConfig() {
+        HashMap<String, Object> responseData = new HashMap<String, Object>();
+        String message = "Currently unimplemented. This can be safely ignored.";
+        BaseClient.generateResponseDataMap(false, message, message, null, null, responseData);
+        return responseData;
     }
 
     @Override
