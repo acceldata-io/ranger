@@ -108,7 +108,7 @@ public class EagerKeyGeneratorKeyProviderCryptoExtension
                                                         IOException {
       try {
         encKeyVersionQueue.initializeQueuesForKeys(keyNames);
-      } catch (ExecutionException e) {
+      } catch (IOException e) {
         throw new IOException(e);
       }
     }
