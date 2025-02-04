@@ -115,7 +115,7 @@ public class EagerKeyGeneratorKeyProviderCryptoExtension extends KeyProviderCryp
         public void warmUpEncryptedKeys(String... keyNames) throws IOException {
             try {
                 encKeyVersionQueue.initializeQueuesForKeys(keyNames);
-            } catch (ExecutionException e) {
+            } catch (IOException e) {
                 throw new IOException(e);
             }
         }
