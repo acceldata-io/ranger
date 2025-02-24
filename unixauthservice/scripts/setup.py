@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env ambari-python-wrap
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -613,7 +613,7 @@ def main():
         os.symlink(hadoop_conf_full_path, usersync_conf_full_path)
 
     rangerUsersync_name ='rangerusersync'
-    cmd = 'python updatepolicymgrpassword.py %s %s'  %(rangerUsersync_name, rangerUsersync_password)
+    cmd = 'ambari-python-wrap updatepolicymgrpassword.py %s %s'  %(rangerUsersync_name, rangerUsersync_password)
 
     if rangerUsersync_password != "" :
         output = os.system(cmd)
