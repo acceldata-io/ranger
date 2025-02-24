@@ -12,7 +12,7 @@
 #  limitations under the License. See accompanying LICENSE file.
 #
 
-#!/usr/bin/env python
+#!/usr/bin/env ambari-python-wrap
 
 #Make sure script has sufficient privileges
 # chmod 755 ./test-hdfs-policy.py

@@ -122,7 +122,7 @@
                             <environmentVariables>
                                 <PYTHONPATH>${project.basedir}/src/main/python</PYTHONPATH>
                             </environmentVariables>
-                            <executable>python3</executable>
+                            <executable>ambari-python-wrap</executable>
                             <arguments>
                                 <argument>-B</argument>
                                 <argument>src/test/python/test_ranger_client.py</argument>
@@ -137,7 +137,7 @@
                         <phase>prepare-package</phase>
                         <configuration>
                             <skip>true</skip>
-                            <executable>python3</executable>
+                            <executable>ambari-python-wrap</executable>
                             <arguments>
                                 <argument>src/main/python/setup.py</argument>
                                 <argument>sdist</argument>
