@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env ambari-python-wrap
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -521,7 +521,7 @@ def main():
 	rangerTagsync_password = globalDict['rangerTagsync_password']
 	rangerTagsync_name ='rangerTagsync'
 	endPoint='RANGER'
-	cmd = 'python updatetagadminpassword.py %s %s %s'  %(endPoint, rangerTagsync_name, rangerTagsync_password)
+	cmd = 'ambari-python-wrap updatetagadminpassword.py %s %s %s'  %(endPoint, rangerTagsync_name, rangerTagsync_password)
 	if rangerTagsync_password != "" :
 		output = os.system(cmd)
 		if (output == 0):
