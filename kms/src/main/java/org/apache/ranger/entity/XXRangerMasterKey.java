@@ -22,7 +22,6 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.Lob;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -70,7 +69,6 @@ public class XXRangerMasterKey extends XXDBBase implements java.io.Serializable 
 		this.bitLength = bitLength;
 	}
 		
-	@Lob
 	@Column(name="masterkey")
 	protected String masterKey;
 
