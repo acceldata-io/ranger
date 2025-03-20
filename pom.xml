@@ -125,7 +125,7 @@
         <hadoop.version>3.3.6.3.3.6.1-1</hadoop.version>
         <ozone.version>1.4.0.3.3.6.1-1</ozone.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <hbase.version>2.5.8.3.3.6.1-1</hbase.version>
+        <hbase.version>2.6.2.3.3.6.1-1</hbase.version>
         <hive.version>4.0.0.3.3.6.1-1</hive.version>
         <hive.storage-api.version>2.7.2</hive.storage-api.version>
         <orc.version>1.5.8</orc.version>
