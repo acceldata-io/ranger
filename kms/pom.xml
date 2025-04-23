@@ -52,11 +52,21 @@
             <artifactId>jackson-databind</artifactId>
             <version>${fasterxml.jackson.databind.version}</version>
     </dependency>
-       <dependency>
-    <groupId>org.apache.hadoop.thirdparty</groupId>
-    <artifactId>hadoop-shaded-guava</artifactId>
-    <version>1.1.1</version>
-</dependency>
+        <dependency>
+            <groupId>org.apache.hadoop.thirdparty</groupId>
+            <artifactId>hadoop-shaded-guava</artifactId>
+            <version>1.1.1</version>
+        </dependency>
+        <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-hdfs-client</artifactId>
+        <version>${hadoop.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
