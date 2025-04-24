@@ -39,6 +39,9 @@
                         <unpack>false</unpack>
                         <includes>
                     <include>org.apache.hadoop:hadoop-common:jar:${hadoop.version}</include>
+                    <include>org.apache.hadoop:hadoop-hdfs-client:jar:${hadoop.version}</include>
+                    <include>org.apache.hadoop:hadoop-client-runtime:jar:${hadoop.version}</include>
+                    <include>com.google.re2j:re2j:jar:${trino.re2j.version}</include>
                     <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
                     <include>org.apache.hadoop:hadoop-auth:jar:${hadoop.version}</include>
                     <include>org.eclipse.persistence:eclipselink</include>
@@ -53,8 +56,8 @@
                     <include>org.apache.curator:curator-framework</include>
                     <include>org.apache.curator:curator-client</include>
                     <include>org.apache.curator:curator-test</include>
-		    <include>asm:asm-all</include>
-		    <include>com.sun.jersey:jersey-bundle:jar:1.19.4</include>
+                    <include>asm:asm-all</include>
+                    <include>com.sun.jersey:jersey-bundle:jar:1.19.4</include>
                     <include>org.apache.httpcomponents:httpclient</include>
                     <include>javax.activation:activation</include>
                     <include>org.apache.directory.server:apacheds-i18n</include>
