@@ -131,6 +131,8 @@
                     <include>org.apache.orc:orc-core:jar:${orc.version}</include>
                     <include>org.apache.orc:orc-shims:jar:${orc.version}</include>
                     <include>io.airlift:aircompressor:jar:${aircompressor.version}</include>
+                    <include>org.apache.zookeeper:zookeeper:jar:${zookeeper.version}</include>
+                    <include>org.apache.zookeeper:zookeeper-jute:jar:${zookeeper.version}</include>
                 </includes>
             </binaries>
         </moduleSet>
