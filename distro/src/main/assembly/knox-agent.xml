@@ -62,6 +62,7 @@
           <include>org.apache.httpcomponents:httpcore:jar:${httpcomponents.httpcore.version}</include>
           <include>org.noggit:noggit:jar:${noggit.version}</include>
           <include>com.google.protobuf:protobuf-java:jar:${protobuf-java.version}</include>
+          <include>org.apache.hadoop:hadoop-hdfs-client:jar:${hadoop.version}</include>
           <include>org.apache.hadoop:hadoop-hdfs:jar:${hadoop.version}</include>
           <include>org.apache.hadoop:hadoop-common:jar:${hadoop.version}</include>
           <include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.version}</include>
