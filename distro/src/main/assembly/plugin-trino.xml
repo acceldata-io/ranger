@@ -51,7 +51,6 @@
                     <include>javax.annotation:javax.annotation-api:jar:${javax.annotation-api}</include>
                     <include>com.fasterxml.jackson.core:jackson-core</include>
                     <include>com.fasterxml.jackson.core:jackson-databind</include>
-
                     <include>com.google.code.gson:gson*</include>
                     <include>org.eclipse.jetty:jetty-client:jar:${jetty-client.version}</include>
                     <include>org.apache.httpcomponents:httpmime:jar:${httpcomponents.httpmime.version}</include>
