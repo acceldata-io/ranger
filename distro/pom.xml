@@ -69,6 +69,7 @@
                                         <descriptor>src/main/assembly/ranger-tools.xml</descriptor>
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                         <descriptor>src/main/assembly/sample-client.xml</descriptor>
                                     </descriptors>
@@ -404,6 +405,35 @@
             </build>
         </profile>
         <profile>
+            <id>ranger-trino-plugin</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <version>${assembly.plugin.version}</version>
+                        <configuration>
+                            <finalName>ranger-${project.version}</finalName>
+                            <outputDirectory>../target</outputDirectory>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <skipAssembly>false</skipAssembly>
+                                    <descriptors>
+                                        <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>ranger-schema-registry-plugin</id>
             <build>
                 <plugins>
@@ -474,6 +504,7 @@
                                         <descriptor>src/main/assembly/ranger-tools.xml</descriptor>
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                     </descriptors>
                                 </configuration>

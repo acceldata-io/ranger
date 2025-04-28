@@ -313,6 +313,7 @@
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
                 <module>plugin-schema-registry</module>
+                <module>plugin-trino</module>
                 <!--
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
@@ -579,7 +580,7 @@
                 <module>agents-installer</module>
                 <module>credentialbuilder</module>
                 <module>embeddedwebserver</module>
-		<module>ranger-common-ha</module>
+		        <module>ranger-common-ha</module>
                 <module>kms</module>
                 <module>hbase-agent</module>
                 <module>hdfs-agent</module>
@@ -616,6 +617,7 @@
                 <module>plugin-schema-registry</module>
                 <module>ranger-authn</module>
                 <module>ranger-metrics</module>
+                <module>plugin-trino</module>
                 <!--
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
@@ -688,6 +690,7 @@
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
                 <module>plugin-schema-registry</module>
+                <module>plugin-trino</module>
             </modules>
             <build>
                 <plugins>
