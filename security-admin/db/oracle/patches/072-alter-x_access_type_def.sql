@@ -22,3 +22,6 @@ BEGIN
         end if;
         commit;
 END;/
+
+-- todo:Prabhu remove this once we are officially on 3.0.0
+update x_db_version_h set inst_by='Ranger 2.5.0' where inst_by = 'Ranger 3.0.0';
