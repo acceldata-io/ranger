@@ -16,5 +16,7 @@
 IF NOT EXISTS(select * from SYS.SYSCOLUMNS where tname = 'x_access_type_def' and cname = 'category') THEN
                 ALTER TABLE dbo.x_access_type_def ADD category smallint DEFAULT NULL;
 END IF;
+-- todo:Prabhu remove this once we are officially on 3.0.0
+update x_db_version_h set inst_by='Ranger 2.5.0' where inst_by = 'Ranger 3.0.0';
 GO
 exit
