@@ -278,12 +278,12 @@
         <dependency>
             <groupId>com.fasterxml.jackson.jaxrs</groupId>
             <artifactId>jackson-jaxrs-base</artifactId>
-            <version>${fasterxml.jackson.databind.version}</version>
+            <version>${fasterxml.jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.jaxrs</groupId>
             <artifactId>jackson-jaxrs-json-provider</artifactId>
-            <version>${fasterxml.jackson.databind.version}</version>
+            <version>${fasterxml.jackson.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>jakarta.activation</groupId>
