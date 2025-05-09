@@ -59,12 +59,12 @@
 							<include>org.apache.ranger:ranger-plugins-common</include>
 							<include>org.apache.ranger:ranger-util</include>
 							<include>org.apache.zookeeper:zookeeper:jar:${zookeeper.version}</include>
-							<include>com.fasterxml.jackson.core:jackson-annotations:jar:${atlas.jackson.version}</include>
-							<include>com.fasterxml.jackson.core:jackson-core:jar:${atlas.jackson.version}</include>
-							<include>com.fasterxml.jackson.core:jackson-databind:jar:${atlas.jackson.databind.version}</include>
-							<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:jar:${atlas.jackson.version}</include>
-							<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:jar:${atlas.jackson.version}</include>
-							<include>com.fasterxml.jackson.module:jackson-module-jaxb-annotations:jar:${atlas.jackson.version}</include>
+							<include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.version}</include>
+							<include>com.fasterxml.jackson.core:jackson-core:jar:${fasterxml.jackson.version}</include>
+							<include>com.fasterxml.jackson.core:jackson-databind:jar:${fasterxml.jackson.databind.version}</include>
+							<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:jar:${fasterxml.jackson.version}</include>
+							<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:jar:${fasterxml.jackson.version}</include>
+							<include>com.fasterxml.jackson.module:jackson-module-jaxb-annotations:jar:${fasterxml.jackson.version}</include>
 							<include>org.codehaus.jettison:jettison:jar:${jettison.version}</include>
 							<include>org.scala-lang:scala-library:jar:${scala.version}</include>
 							<include>org.slf4j:slf4j-api:jar:${slf4j.version}</include>
@@ -77,7 +77,7 @@
 							<include>commons-lang:commons-lang:jar:${commons.lang.version}</include>
 							<include>commons-logging:commons-logging:jar:${commons.logging.version}</include>
 							<include>javax.inject:javax.inject:jar:${javax-inject.version}</include>
-							<include>joda-time:joda-time:jar:${joda-time.version}</include>
+							<include>joda-time:joda-time:jar:${joda.time.version}</include>
 							<include>org.codehaus.woodstox:stax2-api</include>
 							<include>com.fasterxml.woodstox:woodstox-core</include>
 							<include>com.kstruct:gethostname4j:jar:${kstruct.gethostname4j.version}</include>
@@ -97,7 +97,7 @@
 							<include>org.apache.curator:curator-client:jar:${curator.version}</include>
 							<include>org.apache.zookeeper:zookeeper:jar:${zookeeper.version}</include>
 							<include>org.apache.zookeeper:zookeeper-jute:jar:${zookeeper.version}</include>
-                                                        <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
+							<include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
 						</includes>
 					</dependencySet>
 				</dependencySets>
