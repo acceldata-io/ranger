@@ -95,6 +95,10 @@
                     <artifactId>commons-configuration2</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>javax.servlet-api</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
@@ -169,6 +173,11 @@
             <groupId>com.kstruct</groupId>
             <artifactId>gethostname4j</artifactId>
             <version>${kstruct.gethostname4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>${javax.servlet.version}</version>
         </dependency>
         <dependency>
             <groupId>mysql</groupId>
