@@ -1116,7 +1116,7 @@
             <plugin>
                 <groupId>org.apache.rat</groupId>
                 <artifactId>apache-rat-plugin</artifactId>
-                <version>0.11</version>
+                <version>0.16.1</version>
                 <executions>
                     <execution>
                         <phase>verify</phase>
@@ -1135,6 +1135,7 @@
                         <exclude>**/src/main/webapp/fonts/**</exclude>
                         <exclude>**/src/main/webapp/libs/**</exclude>
                         <exclude>.git/**</exclude>
+                        <exclude>.gitattributes/**</exclude>
                         <exclude>.github/pull_request_template.md</exclude>
                         <exclude>.pc/**</exclude>
                         <exclude>debian/**</exclude>
