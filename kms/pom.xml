@@ -457,10 +457,6 @@
                     <artifactId>jackson-dataformat-cbor</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>javax.servlet-api</artifactId>
-                </exclusion>
-                <exclusion>
                     <artifactId>jmespath-java</artifactId>
                     <groupId>com.amazonaws</groupId>
                 </exclusion>
@@ -479,11 +475,6 @@
             <groupId>io.reactivex</groupId>
             <artifactId>rxjava</artifactId>
             <version>${io.reactivex.rxjava.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <version>${javax.servlet.version}</version>
         </dependency>
         <dependency>
             <groupId>net.minidev</groupId>
