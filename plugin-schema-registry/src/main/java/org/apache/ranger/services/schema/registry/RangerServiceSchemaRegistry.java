@@ -108,7 +108,6 @@ public class RangerServiceSchemaRegistry extends RangerBaseService {
                 RangerPolicy.RangerPolicyItem policyItemForLookupUser = new RangerPolicy.RangerPolicyItem();
                 List<RangerPolicy.RangerPolicyItemAccess> accessListForLookupUser = new ArrayList<>();
                 accessListForLookupUser.add(new RangerPolicy.RangerPolicyItemAccess(ACCESS_TYPE_READ));
-                accessListForLookupUser.add(new RangerPolicy.RangerPolicyItemAccess(ACCESS_TYPE_ALL));
                 policyItemForLookupUser.setUsers(Collections.singletonList(lookUpUser));
                 policyItemForLookupUser.setAccesses(accessListForLookupUser);
                 policyItemForLookupUser.setDelegateAdmin(false);
