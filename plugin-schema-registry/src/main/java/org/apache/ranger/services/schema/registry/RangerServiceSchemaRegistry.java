@@ -38,7 +38,6 @@ public class RangerServiceSchemaRegistry extends RangerBaseService {
     public static final String ACCESS_TYPE_UPDATE = "update";
     public static final String ACCESS_TYPE_READ  = "read";
     public static final String ACCESS_TYPE_DELETE = "delete";
-    public static final String ACCESS_TYPE_ALL    = "all";
 
     private static final Logger LOG = LoggerFactory.getLogger(RangerServiceSchemaRegistry.class);
 
