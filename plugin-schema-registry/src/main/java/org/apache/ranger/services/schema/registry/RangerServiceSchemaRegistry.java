@@ -34,8 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Collections;
 
-//import java.util.*;
-
 import static org.apache.ranger.plugin.policyengine.RangerPolicyEngine.GROUP_PUBLIC;
 
 public class RangerServiceSchemaRegistry extends RangerBaseService {
