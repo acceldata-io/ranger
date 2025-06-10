@@ -98,11 +98,79 @@
     { "itemId": 3, "name": "update", "label": "Update", "category": "UPDATE" },
     { "itemId": 4, "name": "delete", "label": "Delete", "category": "DELETE" }
   ],
-  "configs": [
-    { "itemId": 1, "name": "schema.registry.url",            "type": "string", "mandatory": true,  "label": "Schema Registry URL",          "defaultValue": "" },
-    { "itemId": 2, "name": "schema-registry.authentication", "type": "enum",   "mandatory": true,  "label": "Authentication Type",          "defaultValue": "KERBEROS", "subType": "authType" },
-    { "itemId": 3, "name": "commonNameForCertificate",       "type": "string", "mandatory": false, "label": "Ranger Plugin SSL CName" },
-    { "itemId": 4, "name": "ranger.plugin.audit.filters",    "type": "string", "mandatory": false, "label": "Ranger Default Audit Filters", "defaultValue": "[]" }
+
+  "configs":
+  [
+    {
+      "itemId": 1,
+      "name": "username",
+      "type": "string",
+      "mandatory": true,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "Username"
+    },
+
+    {
+      "itemId": 2,
+      "name": "password",
+      "type": "password",
+      "mandatory": true,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "Password"
+    },
+
+    {
+      "itemId": 3,
+      "name": "schema.registry.url",
+      "type": "string",
+      "mandatory": true,
+      "defaultValue": "",
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "Schema Registry URL"
+    },
+
+    {
+      "itemId": 4,
+      "name": "schema-registry.authentication",
+      "type": "enum",
+      "subType": "authType",
+      "mandatory": true,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "Authentication Type",
+      "defaultValue": "KERBEROS"
+    },
+
+    {
+      "itemId": 5,
+      "name": "commonNameForCertificate",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "Ranger Plugin SSL CName"
+    },
+
+    {
+      "itemId": 6,
+      "name": "ranger.plugin.audit.filters",
+      "type": "string",
+      "subType": "",
+      "mandatory": false,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "Ranger Default Audit Filters",
+      "defaultValue": "[]"
+    }
   ],
   "enums":
   [

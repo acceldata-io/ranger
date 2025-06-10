@@ -17,6 +17,8 @@
 
 package org.apache.ranger.services.schema.registry;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerService;
 import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.service.RangerBaseService;
@@ -27,10 +29,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import static org.apache.ranger.plugin.policyengine.RangerPolicyEngine.GROUP_PUBLIC;
 
 public class RangerServiceSchemaRegistry extends RangerBaseService {
+    public static final String ACCESS_TYPE_CREATE = "create";
+    public static final String ACCESS_TYPE_UPDATE = "update";
+    public static final String ACCESS_TYPE_READ  = "read";
+    public static final String ACCESS_TYPE_DELETE = "delete";
+
     private static final Logger LOG = LoggerFactory.getLogger(RangerServiceSchemaRegistry.class);
 
     @Override
@@ -72,6 +83,33 @@ public class RangerServiceSchemaRegistry extends RangerBaseService {
 
         LOG.debug("<== RangerServiceSchemaRegistry.lookupResource({}): ret={}", serviceName, ret);
 
+        return ret;
+    }
+
+    @Override
+    public List<RangerPolicy> getDefaultRangerPolicies() throws Exception {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("==> RangerServiceSchemaRegistry.getDefaultRangerPolicies() ");
+        }
+
+        List<RangerPolicy> ret = super.getDefaultRangerPolicies();
+
+        for (RangerPolicy defaultPolicy : ret) {
+            final Map<String, RangerPolicy.RangerPolicyResource> policyResources = defaultPolicy.getResources();
+            if (defaultPolicy.getName().contains("all") && StringUtils.isNotBlank(lookUpUser)) {
+                RangerPolicy.RangerPolicyItem policyItemForLookupUser = new RangerPolicy.RangerPolicyItem();
+                List<RangerPolicy.RangerPolicyItemAccess> accessListForLookupUser = new ArrayList<>();
+                accessListForLookupUser.add(new RangerPolicy.RangerPolicyItemAccess(ACCESS_TYPE_READ));
+                policyItemForLookupUser.setUsers(Collections.singletonList(lookUpUser));
+                policyItemForLookupUser.setAccesses(accessListForLookupUser);
+                policyItemForLookupUser.setDelegateAdmin(false);
+                defaultPolicy.addPolicyItem(policyItemForLookupUser);
+            }
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== RangerServiceSchemaRegistry.getDefaultRangerPolicies() ");
+        }
         return ret;
     }
 }
