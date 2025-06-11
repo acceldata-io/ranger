@@ -528,6 +528,12 @@
             <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-hdfs-plugin</artifactId>
             <version>${project.version}</version>
+        <exclusions>
+            <exclusion>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+            </exclusion>
+        </exclusions>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -594,6 +600,12 @@
             <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-kafka-plugin-shim</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.xerial.snappy</groupId>
+                    <artifactId>snappy-java</artifactId>
+                </exclusion>
+            </exclusions>
             <scope>provided</scope>
         </dependency>
         <dependency>

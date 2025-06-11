@@ -419,6 +419,10 @@
                    <groupId>org.apache.zookeeper</groupId>
                    <artifactId>zookeeper-jute</artifactId>
                </exclusion>
+               <exclusion>
+                   <groupId>org.xerial.snappy</groupId>
+                   <artifactId>snappy-java</artifactId>
+               </exclusion>
           </exclusions>
         </dependency>
         <dependency>
@@ -613,6 +617,10 @@
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.xerial.snappy</groupId>
+                    <artifactId>snappy-java</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -665,6 +673,12 @@
             <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-plugins-common</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.xerial.snappy</groupId>
+                    <artifactId>snappy-java</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.ranger</groupId>
