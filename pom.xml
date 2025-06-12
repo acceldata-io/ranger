@@ -252,7 +252,7 @@
         <aws-java-sdk.version>1.12.780</aws-java-sdk.version>
 
         <!-- GCP HSM -->
-        <google.cloud.kms>2.3.0</google.cloud.kms>
+        <google.cloud.kms>2.23.0</google.cloud.kms>
 
         <!-- JaCoCo Properties -->
         <jacoco.version>0.8.7</jacoco.version>
