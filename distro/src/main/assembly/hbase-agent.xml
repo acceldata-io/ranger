@@ -82,6 +82,7 @@
           <include>org.apache.orc:orc-shims:jar:${orc.version}</include>
           <include>io.airlift:aircompressor:jar:${aircompressor.version}</include>
           <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
+          <include>commons-lang:commons-lang:jar:${commons.lang.version}</include>
         </includes>
       </binaries>
     </moduleSet>
