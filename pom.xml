@@ -855,12 +855,12 @@
                         <artifactId>*</artifactId>
                     </exclusion>
                 </exclusions>
-	</dependency>
-	  <dependency>
-    <groupId>org.apache.hadoop.thirdparty</groupId>
-    <artifactId>hadoop-shaded-guava</artifactId>
-    <version>1.2.0</version>
-</dependency>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.hadoop.thirdparty</groupId>
+                <artifactId>hadoop-shaded-guava</artifactId>
+                <version>${hadoop-shaded-guava.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.hadoop</groupId>
                 <artifactId>hadoop-mapreduce-client-core</artifactId>
