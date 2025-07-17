@@ -226,7 +226,7 @@
             <version>${io.opentelemetry.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.opentelemetry</groupId>
+            <groupId>io.opentelemetry.semconv</groupId>
             <artifactId>opentelemetry-semconv</artifactId>
             <version>${io.opentelemetry-semconv.version}</version>
         </dependency>
