@@ -130,9 +130,9 @@
         <hive.storage-api.version>2.7.2</hive.storage-api.version>
         <orc.version>1.5.8</orc.version>
         <aircompressor.version>0.27</aircompressor.version>
-        <hbase-shaded-protobuf>4.1.10</hbase-shaded-protobuf>
-        <hbase-shaded-netty>4.1.10</hbase-shaded-netty>
-        <hbase-shaded-miscellaneous>4.1.10</hbase-shaded-miscellaneous>
+        <hbase-shaded-protobuf>4.1.11</hbase-shaded-protobuf>
+        <hbase-shaded-netty>4.1.11</hbase-shaded-netty>
+        <hbase-shaded-miscellaneous>4.1.11</hbase-shaded-miscellaneous>
         <libthrift.version>0.16.0</libthrift.version>
         <htrace-core.version>4.1.0-incubating</htrace-core.version>
         <httpcomponents.httpclient.version>4.5.13</httpcomponents.httpclient.version>
