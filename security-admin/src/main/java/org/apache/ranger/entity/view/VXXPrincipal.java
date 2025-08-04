@@ -24,10 +24,58 @@ import org.apache.ranger.common.DateUtil;
 import org.apache.ranger.common.RangerConstants;
 
 import javax.persistence.*;
+import java.io.Serializable;
 import java.util.Date;
+import java.util.Objects;
+
+// Composite primary key class for VXXPrincipal
+class VXXPrincipalId implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
+	private String principalName;
+	private Integer principalType;
+	
+	public VXXPrincipalId() {}
+	
+	public VXXPrincipalId(String principalName, Integer principalType) {
+		this.principalName = principalName;
+		this.principalType = principalType;
+	}
+	
+	public String getPrincipalName() {
+		return principalName;
+	}
+	
+	public void setPrincipalName(String principalName) {
+		this.principalName = principalName;
+	}
+	
+	public Integer getPrincipalType() {
+		return principalType;
+	}
+	
+	public void setPrincipalType(Integer principalType) {
+		this.principalType = principalType;
+	}
+	
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		VXXPrincipalId that = (VXXPrincipalId) o;
+		return Objects.equals(principalName, that.principalName) &&
+			   Objects.equals(principalType, that.principalType);
+	}
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(principalName, principalType);
+	}
+}
 
 @Entity
 @Table(name="vx_principal")
+@IdClass(VXXPrincipalId.class)
 public class VXXPrincipal implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
