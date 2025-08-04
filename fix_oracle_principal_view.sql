@@ -1,23 +1,17 @@
--- Licensed to the Apache Software Foundation (ASF) under one or more
--- contributor license agreements.  See the NOTICE file distributed with
--- this work for additional information regarding copyright ownership.
--- The ASF licenses this file to You under the Apache License, Version 2.0
--- (the "License"); you may not use this file except in compliance with
--- the License.  You may obtain a copy of the License at
---
---     http://www.apache.org/licenses/LICENSE-2.0
---
--- Unless required by applicable law or agreed to in writing, software
--- distributed under the License is distributed on an "AS IS" BASIS,
--- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
--- See the License for the specific language governing permissions and
--- limitations under the License.
+-- Fix for ODP-4248 Oracle ORA-00923 error
+-- Replace vx_principal view with a materialized view that has a single primary key
+-- This avoids EclipseLink composite key issues
 
-call spdropview('vx_principal');
+-- Drop the existing view
+DROP VIEW vx_principal;
 
-CREATE VIEW vx_principal AS
+-- Create a materialized view with a single synthetic primary key
+CREATE MATERIALIZED VIEW vx_principal
+BUILD IMMEDIATE
+REFRESH COMPLETE ON DEMAND
+AS
 SELECT 
-    ABS(ORA_HASH(principal_name || '_' || principal_type)) as id,
+    ROWNUM as id,
     principal_name,
     principal_type,
     status,
@@ -35,4 +29,13 @@ FROM (
     SELECT r.name       AS principal_name, 2 AS principal_type, 1        AS status, 1            AS is_visible, null               AS other_attributes, r.create_time AS create_time, r.update_time AS update_time, r.added_by_id AS added_by_id, r.upd_by_id AS upd_by_id FROM x_role r
 );
 
-commit;
+-- Add primary key constraint on the synthetic ID
+ALTER TABLE vx_principal ADD CONSTRAINT pk_vx_principal PRIMARY KEY (id);
+
+-- Create unique index on the original composite key for performance
+CREATE UNIQUE INDEX idx_vx_principal_composite ON vx_principal (principal_name, principal_type);
+
+-- Refresh the materialized view
+EXEC DBMS_MVIEW.REFRESH('vx_principal', 'C');
+
+COMMIT;
