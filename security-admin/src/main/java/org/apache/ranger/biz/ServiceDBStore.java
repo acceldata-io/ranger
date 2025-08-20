@@ -3502,7 +3502,16 @@ public class ServiceDBStore extends AbstractServiceStore {
 		
 		List<XXServiceConfigDef> svcConfDefList = daoMgr.getXXServiceConfigDef()
 				.findByServiceDefName(service.getType());
+		if (svcConfDefList == null) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("No service config definitions found for service type: " + service.getType());
+			}
+			svcConfDefList = new ArrayList<>();
+		}
 		for(XXServiceConfigDef svcConfDef : svcConfDefList ) {
+			if (svcConfDef == null) {
+				continue; // Skip null config definitions
+			}
 			String confField = configs.get(svcConfDef.getName());
 			
 			if(svcConfDef.getIsMandatory() && stringUtil.isEmpty(confField)) {

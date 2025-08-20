@@ -147,6 +147,28 @@
       "validationMessage":"",
       "uiHint":"",
       "label":"Truststore Password"
+    },
+    {
+      "itemId":560,
+      "name":"commonNameForCertificate",
+      "type":"string",
+      "mandatory":false,
+      "defaultValue":"",
+      "validationRegEx":"",
+      "validationMessage":"",
+      "uiHint":"",
+      "label":"Common Name For Certificate"
+    },
+    {
+      "itemId":570,
+      "name":"ambari.service.check.user",
+      "type":"string",
+      "mandatory":false,
+      "defaultValue":"",
+      "validationRegEx":"",
+      "validationMessage":"",
+      "uiHint":"",
+      "label":"Service Check User"
     }
   ],
   "enums":
