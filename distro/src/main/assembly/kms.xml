@@ -248,7 +248,7 @@
                     <include>org.codehaus.woodstox:stax2-api</include>
                     <include>com.fasterxml.woodstox:woodstox-core</include>
                     <include>org.apache.commons:commons-text:jar:${commons.text.version}</include>
-                    <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:1.1.1</include>
+                    <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
                 </includes>
             </binaries>
         </moduleSet>
@@ -406,7 +406,7 @@
                     <include>com.fasterxml.woodstox:woodstox-core</include>
                     <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
                     <include>org.apache.commons:commons-lang3</include>
-                    <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:1.1.1</include>
+                    <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
                 </includes>
             </binaries>
         </moduleSet>

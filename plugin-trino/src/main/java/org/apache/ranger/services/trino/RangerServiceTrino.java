@@ -36,6 +36,7 @@ public class RangerServiceTrino
 {
     private static final Logger LOG = LoggerFactory.getLogger(RangerServiceTrino.class);
     public static final String ACCESS_TYPE_SELECT = "select";
+    public static final String ACCESS_TYPE_IMPERSONATE = "impersonate";
 
     @Override
     public List<RangerPolicy> getDefaultRangerPolicies()
@@ -60,6 +61,19 @@ public class RangerServiceTrino
 
                 if (policyItems == null || policyItems.isEmpty()) {
                     policyItems = new ArrayList<>();
+                }
+
+                // Amend all-triouser default policy to allow {USER} to impersonate
+                if (defaultPolicy.getName().contains("all - trinouser"))
+                {
+                    List<RangerPolicyItemAccess> accessListForUser = new ArrayList<RangerPolicyItemAccess>();
+                    RangerPolicyItem policyItemForImpersonateUser = new RangerPolicyItem();
+                    accessListForUser.add(new RangerPolicyItemAccess(ACCESS_TYPE_IMPERSONATE));
+                    policyItemForImpersonateUser.setUsers(Collections.singletonList("{USER}"));
+                    policyItemForImpersonateUser.setAccesses(accessListForUser);
+                    policyItemForImpersonateUser.setDelegateAdmin(false);
+
+                    policyItems.add(policyItemForImpersonateUser);
                 }
 
                 policyItems.add(policyItemForLookupUser);

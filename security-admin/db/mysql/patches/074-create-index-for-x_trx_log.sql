@@ -13,6 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+ALTER TABLE x_trx_log CONVERT TO CHARACTER SET latin1;
 drop procedure if exists create_index_for_x_trx_log;
 
 delimiter ;;
