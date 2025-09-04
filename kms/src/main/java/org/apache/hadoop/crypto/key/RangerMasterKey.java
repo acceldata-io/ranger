@@ -34,9 +34,6 @@ import javax.crypto.spec.PBEParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.hadoop.thirdparty.com.google.common.base.Joiner;
-import org.apache.hadoop.thirdparty.com.google.common.base.Splitter;
-import org.apache.hadoop.thirdparty.com.google.common.collect.Lists;
 import org.apache.ranger.kms.dao.DaoManager;
 import org.apache.ranger.kms.dao.RangerMasterKeyDao;
 import org.apache.ranger.plugin.util.XMLUtils;
@@ -44,6 +41,9 @@ import org.apache.ranger.entity.XXRangerMasterKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import com.sun.org.apache.xml.internal.security.utils.Base64;
 
 public class RangerMasterKey implements RangerKMSMKI {

@@ -55,6 +55,7 @@
                     <include>commons-collections:commons-collections</include>
                     <include>com.sun.jersey:jersey-bundle</include>
                     <include>commons-io:commons-io</include>
+                    <include>com.google.guava:guava:jar:${google.guava.version}</include>
                     <include>org.apache.httpcomponents:httpmime:jar:${httpcomponents.httpmime.version}</include>
                     <include>org.noggit:noggit:jar:${noggit.version}</include>
                     <include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.version}</include>

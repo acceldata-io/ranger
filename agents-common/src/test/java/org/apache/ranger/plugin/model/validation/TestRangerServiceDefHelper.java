@@ -31,7 +31,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.hadoop.thirdparty.com.google.common.collect.Lists;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.model.RangerServiceDef.RangerResourceDef;
@@ -39,6 +38,7 @@ import org.apache.ranger.plugin.model.validation.RangerServiceDefHelper.Delegate
 import org.junit.Before;
 import org.junit.Test;
 
+import com.google.common.collect.Lists;
 
 public class TestRangerServiceDefHelper {
 

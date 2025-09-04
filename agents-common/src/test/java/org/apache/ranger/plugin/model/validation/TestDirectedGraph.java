@@ -23,10 +23,11 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.HashSet;
 
-import org.apache.hadoop.thirdparty.com.google.common.collect.Lists;
-import org.apache.hadoop.thirdparty.com.google.common.collect.Sets;
 import org.apache.ranger.plugin.model.validation.RangerServiceDefHelper.DirectedGraph;
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 public class TestDirectedGraph {
 

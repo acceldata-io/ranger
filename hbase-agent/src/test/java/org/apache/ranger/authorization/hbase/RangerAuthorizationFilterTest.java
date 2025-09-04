@@ -29,9 +29,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.collect.ImmutableSet;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.filter.Filter.ReturnCode;
-import org.apache.hadoop.thirdparty.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 
 public class RangerAuthorizationFilterTest {
