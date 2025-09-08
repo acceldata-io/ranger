@@ -100,7 +100,6 @@
           <include>org.apache.orc:orc-core:jar:${orc.version}</include>
           <include>org.apache.orc:orc-shims:jar:${orc.version}</include>
           <include>io.airlift:aircompressor:jar:${aircompressor.version}</include>
-          <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
         </includes>
       </binaries>
     </moduleSet>
@@ -132,7 +131,6 @@
           <include>org.apache.hadoop:hadoop-auth:jar:${hadoop.version}</include>
           <include>org.apache.ranger:ranger-plugins-cred</include>
           <include>org.apache.ranger:credentialbuilder</include>
-          <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
         </includes>
       </binaries>
     </moduleSet>

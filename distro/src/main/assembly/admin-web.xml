@@ -289,7 +289,6 @@
           <include>org.slf4j:log4j-over-slf4j:jar:${slf4j.version}</include>
           <include>ch.qos.logback:logback-classic:jar:${logback.version}</include>
           <include>ch.qos.logback:logback-core:jar:${logback.version}</include>
-          <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
         </includes>
       </binaries>
     </moduleSet>
@@ -321,7 +320,6 @@
           <include>org.codehaus.woodstox:stax2-api:jar:${codehaus.woodstox.stax2api.version}</include>
           <include>org.apache.commons:commons-configuration2:jar:${commons.configuration.version}</include>
           <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
-          <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
         </includes>
       </binaries>
     </moduleSet>
@@ -356,7 +354,6 @@
         <fileMode>644</fileMode>
         <includes>
           <include>org.apache.ranger:ranger-kafka-plugin</include>
-          <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
         </includes>
       </binaries>
     </moduleSet>
