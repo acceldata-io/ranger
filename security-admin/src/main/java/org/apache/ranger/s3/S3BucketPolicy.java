@@ -30,7 +30,6 @@ import java.util.List;
 public class S3BucketPolicy {
     private static final Logger LOG = LoggerFactory.getLogger(S3BucketPolicy.class);
 
-    LOG.debug("S3BucketPolicy initialized");
     @JsonProperty("Version")
     private String version;
     @JsonProperty("Statement")
