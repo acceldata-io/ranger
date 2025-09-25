@@ -28,12 +28,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListBucketsRequest;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+import java.io.FileInputStream;
+import java.security.KeyStore;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
 
 public class S3ClientConnectionMgr extends BaseClient {
     private static final Logger LOG = LoggerFactory.getLogger(S3ClientConnectionMgr.class);
@@ -82,11 +94,69 @@ public class S3ClientConnectionMgr extends BaseClient {
         String regionstr = configs.get(RangerS3Constants.REGION);
         AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
         Region region = Region.of(regionstr);
-        return S3Client.builder()
-                .region(region)
-                .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
-                .endpointOverride(URI.create(endPointOCE))
-                .build();
+        try {
+            // Initialize TrustManagerFactory with system trust store (cacerts)
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
+                    TrustManagerFactory.getDefaultAlgorithm()
+            );
+            trustManagerFactory.init((KeyStore) null);
+
+            // Get trust managers and verify X509TrustManager exists
+            TrustManager[] trustManagers = trustManagerFactory.getTrustManagers();
+
+            // Log available trust managers
+            LOG.info("Found {} trust managers", trustManagers.length);
+            for (int i = 0; i < trustManagers.length; i++) {
+                TrustManager tm = trustManagers[i];
+                LOG.debug("Trust manager {}: {}", i, tm.getClass().getName());
+                if (tm instanceof X509TrustManager) {
+                    X509TrustManager x509tm = (X509TrustManager) tm;
+                    LOG.info("✓ X509TrustManager found: {} - Accepted issuers: {}",
+                            x509tm.getClass().getSimpleName(), x509tm.getAcceptedIssuers().length);
+                } else {
+                    LOG.warn("✗ Trust manager {} is not an X509TrustManager", tm.getClass().getSimpleName());
+                }
+            }
+
+            X509TrustManager x509TrustManager = findX509TrustManager(trustManagers);
+
+            if (x509TrustManager == null) {
+                LOG.error("No X509TrustManager found in system trust store");
+                throw new RuntimeException("No X509TrustManager found in system trust store");
+            }
+
+            LOG.info("Successfully found X509TrustManager: {}", x509TrustManager.getClass().getName());
+
+
+            // Configure HTTP client with explicit trust managers
+            SdkHttpClient httpClient = ApacheHttpClient.builder()
+                    .maxConnections(50)
+                    .connectionTimeout(Duration.ofSeconds(30))
+                    .socketTimeout(Duration.ofSeconds(60))
+                    .tlsTrustManagersProvider(() -> trustManagerFactory.getTrustManagers())
+                    .build();
+            // Return S3Client with configured HTTP client
+            return S3Client.builder()
+                    .region(region)
+                    .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
+                    .endpointOverride(URI.create(endPointOCE))
+                    .httpClient(httpClient)  // Add this line!
+                    .build();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create S3Client", e);
+        }
+    }
+    /**
+     * Helper method to find X509TrustManager from trust managers array
+     */
+    private static X509TrustManager findX509TrustManager(TrustManager[] trustManagers) {
+        for (TrustManager trustManager : trustManagers) {
+            if (trustManager instanceof X509TrustManager) {
+                return (X509TrustManager) trustManager;
+            }
+        }
+        return null;
     }
 
     public static IamClient getIamClient(Map<String, String> configs) {
