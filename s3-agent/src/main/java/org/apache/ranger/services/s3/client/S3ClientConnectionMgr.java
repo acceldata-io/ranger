@@ -88,6 +88,7 @@ public class S3ClientConnectionMgr extends BaseClient {
     }
 
     public static S3Client getS3client(Map<String, String> configs) {
+        LOG.info("=== S3ClientConnectionMgr.getS3client() START (INFO level) ===");
         String accessKey = configs.get(RangerS3Constants.USER_NAME);
         String secretKey = configs.get(RangerS3Constants.SECRET_KEY);
         String endPointOCE = configs.get(RangerS3Constants.ENDPOINT);
