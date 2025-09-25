@@ -95,11 +95,44 @@ public class S3ClientConnectionMgr extends BaseClient {
         AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
         Region region = Region.of(regionstr);
         try {
-            // Initialize TrustManagerFactory with system trust store (cacerts)
+            LOG.info("Creating S3Client with explicit trust store configuration");
+
+            // Get trust store information from system properties
+            String trustStorePath = System.getProperty("javax.net.ssl.trustStore");
+            String trustStorePassword = System.getProperty("javax.net.ssl.trustStorePassword", "changeit");
+            String trustStoreType = System.getProperty("javax.net.ssl.trustStoreType", "JKS");
+
+            LOG.info("Trust store path: {}", trustStorePath);
+            LOG.info("Trust store type: {}", trustStoreType);
+
+            // Initialize TrustManagerFactory with explicit trust store
             TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
                     TrustManagerFactory.getDefaultAlgorithm()
             );
-            trustManagerFactory.init((KeyStore) null);
+
+            KeyStore trustStore = null;
+            if (trustStorePath != null) {
+                // Load the trust store explicitly using system properties
+                LOG.info("Loading trust store from: {}", trustStorePath);
+                trustStore = KeyStore.getInstance(trustStoreType);
+                try (FileInputStream fis = new FileInputStream(trustStorePath)) {
+                    trustStore.load(fis, trustStorePassword.toCharArray());
+                }
+                LOG.info("Trust store loaded successfully, contains {} entries", trustStore.size());
+            } else {
+                // Fallback to default location if system property is not set
+                String javaHome = System.getProperty("java.home");
+                String defaultTrustStorePath = javaHome + "/lib/security/cacerts";
+                LOG.info("No trust store system property set, using default: {}", defaultTrustStorePath);
+
+                trustStore = KeyStore.getInstance("JKS");
+                try (FileInputStream fis = new FileInputStream(defaultTrustStorePath)) {
+                    trustStore.load(fis, "changeit".toCharArray());
+                }
+            }
+
+            // Initialize TrustManagerFactory with the loaded trust store
+            trustManagerFactory.init(trustStore);
 
             // Get trust managers and verify X509TrustManager exists
             TrustManager[] trustManagers = trustManagerFactory.getTrustManagers();
