@@ -47,6 +47,11 @@ import org.apache.ranger.plugin.resourcematcher.RangerPathResourceMatcher;
 
 public class RangerServiceDefHelper {
 	private static final Logger LOG = LoggerFactory.getLogger(RangerServiceDefHelper.class);
+
+	public static final String RRN_RESOURCE_PREFIX   = "{";
+	public static final String RRN_RESOURCE_SUFFIX   = "}";
+	public static final String RRN_RESOURCE_SEP      = ".";
+	public static final String RRN_PATH_RESOURCE_SEP = "/";
 	
 	static final Map<String, Delegate> _Cache = new ConcurrentHashMap<>();
 	final Delegate _delegate;
@@ -200,6 +205,10 @@ public class RangerServiceDefHelper {
 		return _delegate.getResourceHierarchyKeys(policyType);
 	}
 
+	public String getRrnTemplate(String resourceName) {
+		return _delegate.getRrnTemplate(resourceName);
+	}
+
 	public Set<List<RangerResourceDef>> filterHierarchies_containsOnlyMandatoryResources(Integer policyType) {
 		Set<List<RangerResourceDef>> hierarchies = getResourceHierarchies(policyType);
 		Set<List<RangerResourceDef>> result = new HashSet<List<RangerResourceDef>>(hierarchies.size());
@@ -328,6 +337,10 @@ public class RangerServiceDefHelper {
 		return _delegate.isResourceGraphValid();
 	}
 
+	public Set<String> getAllResourceNames() {
+		return _delegate.rrnTemplates.keySet();
+	}
+
 	public List<String> getOrderedResourceNames(Collection<String> resourceNames) {
 		final List<String> ret;
 		if (resourceNames != null) {
@@ -394,6 +407,7 @@ public class RangerServiceDefHelper {
 		final boolean _valid;
 		final List<String> _orderedResourceNames;
 		final Map<String, Collection<String>> _impliedGrants;
+		final Map<String, String> rrnTemplates = new HashMap<>();
 		final static Set<List<RangerResourceDef>> EMPTY_RESOURCE_HIERARCHY = Collections.unmodifiableSet(new HashSet<List<RangerResourceDef>>());
 
 
@@ -436,6 +450,16 @@ public class RangerServiceDefHelper {
 
 			if (isValid) {
 				_orderedResourceNames = buildSortedResourceNames();
+
+				for (RangerResourceDef resourceDef : serviceDef.getResources()) {
+					if (StringUtils.isBlank(resourceDef.getRrnTemplate())) {
+						resourceDef.setRrnTemplate(getDefaultRrnTemplate(resourceDef));
+
+						LOG.debug("No rrnTemplate was defined for resource {}.{}. It is now set to default: {}", _serviceName, resourceDef.getName(), resourceDef.getRrnTemplate());
+					}
+
+					this.rrnTemplates.put(resourceDef.getName(), resourceDef.getRrnTemplate());
+				}
 			} else {
 				_orderedResourceNames = new ArrayList<>();
 			}
@@ -506,6 +530,10 @@ public class RangerServiceDefHelper {
 			Set<Set<String>> ret = _hierarchyKeys.get(policyType);
 
 			return ret != null ? ret : Collections.emptySet();
+		}
+
+		public String getRrnTemplate(String resourceName) {
+			return rrnTemplates.get(resourceName);
 		}
 
 		public String getServiceName() {
@@ -806,6 +834,34 @@ public class RangerServiceDefHelper {
 				}
 			}
 			return ret;
+		}
+
+		// create default resource-name template for the resource-def, like:
+		//  database:{database}
+		//  table:{database}.{table}
+		//  column:{database}.{table}.{column}
+		//  path:{bucket}/{path}
+		//  key:{volume}.{bucket}/{key}
+		private String getDefaultRrnTemplate(RangerResourceDef resourceDef) {
+			List<RangerResourceDef> path = new ArrayList<>();
+
+			for (RangerResourceDef resource = resourceDef; resource != null; resource = getResourceDef(resource.getParent(), RangerPolicy.POLICY_TYPE_ACCESS)) {
+				path.add(0, resource);
+			}
+
+			StringBuilder sb = new StringBuilder();
+
+			for (int i = 0; i < path.size(); i++) {
+				RangerResourceDef res = path.get(i);
+
+				if (i > 0) {
+					sb.append(StringUtils.equalsIgnoreCase(res.getType(), "path") ? RRN_PATH_RESOURCE_SEP : RRN_RESOURCE_SEP);
+				}
+
+				sb.append(RRN_RESOURCE_PREFIX).append(res.getName()).append(RRN_RESOURCE_SUFFIX);
+			}
+
+			return sb.toString();
 		}
 	}
 
