@@ -105,32 +105,35 @@ public class S3ClientConnectionMgr extends BaseClient {
 
             LOG.info("Trust store path: {}", trustStorePath);
             LOG.info("Trust store type: {}", trustStoreType);
-            // LOAD THE TRUSTSTORE ***
-            KeyStore trustStore = null;
-            if (trustStorePath != null) {
-                LOG.info("Loading trust store from system property: {}", trustStorePath);
-
-                // Create KeyStore instance
-                trustStore = KeyStore.getInstance(trustStoreType);
-
-                // Load the trust store file with password
-                try (FileInputStream fis = new FileInputStream(trustStorePath)) {
-                    LOG.info("Loading trust store with password...");
-                    trustStore.load(fis, trustStorePassword.toCharArray());
-                    LOG.info("✓ Trust store loaded successfully, contains {} entries", trustStore.size());
-                }
-            } else {
-                // Fallback to default location if system property not set
-                LOG.info("No trust store system property");
-            }
 
             // Initialize TrustManagerFactory with explicit trust store
             TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
                     TrustManagerFactory.getDefaultAlgorithm()
             );
+
+            KeyStore trustStore = null;
+            if (trustStorePath != null) {
+                // Load the trust store explicitly using system properties
+                LOG.info("Loading trust store from: {}", trustStorePath);
+                trustStore = KeyStore.getInstance(trustStoreType);
+                try (FileInputStream fis = new FileInputStream(trustStorePath)) {
+                    trustStore.load(fis, trustStorePassword.toCharArray());
+                }
+                LOG.info("Trust store loaded successfully, contains {} entries", trustStore.size());
+            } else {
+                // Fallback to default location if system property is not set
+                String javaHome = System.getProperty("java.home");
+                String defaultTrustStorePath = javaHome + "/lib/security/cacerts";
+                LOG.info("No trust store system property set, using default: {}", defaultTrustStorePath);
+
+                trustStore = KeyStore.getInstance("JKS");
+                try (FileInputStream fis = new FileInputStream(defaultTrustStorePath)) {
+                    trustStore.load(fis, "changeit".toCharArray());
+                }
+            }
+
             // Initialize TrustManagerFactory with the loaded trust store
             trustManagerFactory.init(trustStore);
-            LOG.info("✓ TrustManagerFactory initialized successfully");
 
             // Get trust managers and verify X509TrustManager exists
             TrustManager[] trustManagers = trustManagerFactory.getTrustManagers();
