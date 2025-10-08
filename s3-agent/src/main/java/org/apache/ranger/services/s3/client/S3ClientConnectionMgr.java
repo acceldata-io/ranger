@@ -31,9 +31,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.ListBucketsRequest;
-import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
-import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.*;
 
 public class S3ClientConnectionMgr extends BaseClient {
     private static final Logger LOG = LoggerFactory.getLogger(S3ClientConnectionMgr.class);
@@ -46,12 +44,39 @@ public class S3ClientConnectionMgr extends BaseClient {
         LOG.debug("==> S3ClientConnectionMgr.connectionTest ServiceName: "+ serviceName + "Configs" + configs );
         boolean connectivityStatus = false;
         Map<String, Object> responseData = new HashMap<String, Object>();
+        String bucketName = "odp-ranger-test";
 
 
         try {
             S3Client s3 = getS3client(configs);
+            // Using ListObjectsV2 approach
 
-            ListBucketsRequest listBucketsRequest = ListBucketsRequest.builder().build();
+            ListObjectsV2Request listObjectsRequest = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .maxKeys(1) // Just need to check if bucket is accessible
+                    .build();
+            ListObjectsV2Response listObjectsResponse = s3.listObjectsV2(listObjectsRequest);
+
+            // If we get here without exception, bucket exists and is accessible
+            connectivityStatus = true;
+            String successMsg = "ConnectionTest Successful - Bucket '" + bucketName + "' is accessible";
+            generateResponseDataMap(connectivityStatus, successMsg, successMsg, null, null, responseData);
+
+        } catch (NoSuchBucketException e) {
+            String failureMsg = "Bucket '" + bucketName + "' does not exist";
+            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
+            LOG.error("<== S3ClientConnectionMgr.testConnection Error: " + e.getMessage(), e);
+        } catch (S3Exception e) {
+            String failureMsg = "Unable to connect to S3 using given parameters: " + e.awsErrorDetails().errorMessage();
+            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
+            LOG.error("<== S3ClientConnectionMgr.testConnection Error: " + e.getMessage(), e);
+        } catch (Exception e) {
+            String failureMsg = "Unexpected error during connection test: " + e.getMessage();
+            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
+            LOG.error("<== S3ClientConnectionMgr.testConnection Error: " + e.getMessage(), e);
+        }
+
+            /*ListBucketsRequest listBucketsRequest = ListBucketsRequest.builder().build();
             ListBucketsResponse listBucketsResponse = s3.listBuckets(listBucketsRequest);
 
             if (listBucketsResponse != null) {
@@ -69,7 +94,7 @@ public class S3ClientConnectionMgr extends BaseClient {
             generateResponseDataMap(connectivityStatus, failureMsg, failureMsg,
                     null, null, responseData);
             LOG.error("<== S3ClientConnectionMgr.testConnection Error: " + e.getMessage(),  e);
-        }
+        } */
 
         LOG.debug("<== S3ClientConnectionMgr.connectionTest Result : "+ responseData  );
         return responseData;
