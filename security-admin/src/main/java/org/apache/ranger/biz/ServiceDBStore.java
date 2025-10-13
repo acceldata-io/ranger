@@ -6484,6 +6484,38 @@ public class ServiceDBStore extends AbstractServiceStore {
 			String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
 			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
 
+			// Find the OLD version of this policy from database
+			RangerPolicy existingPolicyFromDB = null;
+			if (rangerPolicy.getId() != null && !action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+				existingPolicyFromDB = servicePolicies.stream()
+						.filter(policy -> policy.getId() != null && policy.getId().equals(rangerPolicy.getId()))
+						.findFirst()
+						.orElse(null);
+
+				if (existingPolicyFromDB != null) {
+					boolean policyItemsChanged = hasPolicyItemsChanged(existingPolicyFromDB, rangerPolicy);
+					boolean resourcesChanged = !compareResources(existingPolicyFromDB.getResources(),
+							rangerPolicy.getResources());
+
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Policy {} comparison - PolicyItems changed: {}, Resources changed: {}",
+								rangerPolicy.getId(), policyItemsChanged, resourcesChanged);
+						LOG.debug("OLD policy users: {}", existingPolicyFromDB.getPolicyItems());
+						LOG.debug("NEW policy users: {}", rangerPolicy.getPolicyItems());
+					}
+
+					if (!policyItemsChanged && !resourcesChanged) {
+						LOG.info("No changes detected for policy {}. Skipping S3 bucket policy update.",
+								rangerPolicy.getId());
+						return true;
+					}
+
+					LOG.info("Changes detected in policy {} - PolicyItems: {}, Resources: {}",
+							rangerPolicy.getId(), policyItemsChanged, resourcesChanged);
+				}
+			}
+			// ========== END CHANGE DETECTION ==========
+
 			List<RangerPolicy> combinedPolicies = combinePolicies(servicePolicies, rangerPolicy, action);
 			Map<String, Map<RangerPolicy, Set<String>>> bucketMap = new HashMap<>();
 			List<RangerPolicy> affectedPolicies = populateBucketMap(bucketMap, combinedPolicies,
@@ -6512,6 +6544,71 @@ public class ServiceDBStore extends AbstractServiceStore {
 			throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
 		}
 		LOG.info("<== ServiceDBStore.createS3BucketPolicy()");
+		return true;
+	}
+	private boolean hasPolicyItemsChanged(RangerPolicy oldPolicy, RangerPolicy newPolicy) {
+		// Compare policyItems
+		if (!comparePolicyItemsList(oldPolicy.getPolicyItems(), newPolicy.getPolicyItems())) {
+			return true;
+		}
+
+		// Compare denyPolicyItems
+		if (!comparePolicyItemsList(oldPolicy.getDenyPolicyItems(), newPolicy.getDenyPolicyItems())) {
+			return true;
+		}
+
+		// Compare resources
+		if (!compareResources(oldPolicy.getResources(), newPolicy.getResources())) {
+			return true;
+		}
+
+		return false;
+	}
+
+	private boolean comparePolicyItemsList(List<RangerPolicyItem> list1, List<RangerPolicyItem> list2) {
+		if (list1 == null && list2 == null) return true;
+		if (list1 == null || list2 == null) return false;
+		if (list1.size() != list2.size()) return false;
+
+		for (int i = 0; i < list1.size(); i++) {
+			RangerPolicyItem item1 = list1.get(i);
+			RangerPolicyItem item2 = list2.get(i);
+
+			if (!CollectionUtils.isEqualCollection(item1.getUsers(), item2.getUsers())) return false;
+			if (!CollectionUtils.isEqualCollection(item1.getGroups(), item2.getGroups())) return false;
+			if (!CollectionUtils.isEqualCollection(item1.getRoles(), item2.getRoles())) return false;
+
+			// Compare access types
+			if (!compareAccesses(item1.getAccesses(), item2.getAccesses())) return false;
+		}
+
+		return true;
+	}
+
+	private boolean compareAccesses(List<RangerPolicyItemAccess> list1, List<RangerPolicyItemAccess> list2) {
+		if (list1 == null && list2 == null) return true;
+		if (list1 == null || list2 == null) return false;
+		if (list1.size() != list2.size()) return false;
+
+		Set<String> accessTypes1 = list1.stream().map(RangerPolicyItemAccess::getType).collect(Collectors.toSet());
+		Set<String> accessTypes2 = list2.stream().map(RangerPolicyItemAccess::getType).collect(Collectors.toSet());
+
+		return accessTypes1.equals(accessTypes2);
+	}
+
+	private boolean compareResources(Map<String, RangerPolicyResource> res1, Map<String, RangerPolicyResource> res2) {
+		if (res1 == null && res2 == null) return true;
+		if (res1 == null || res2 == null) return false;
+		if (res1.size() != res2.size()) return false;
+
+		for (String key : res1.keySet()) {
+			RangerPolicyResource resource1 = res1.get(key);
+			RangerPolicyResource resource2 = res2.get(key);
+
+			if (resource2 == null) return false;
+			if (!CollectionUtils.isEqualCollection(resource1.getValues(), resource2.getValues())) return false;
+		}
+
 		return true;
 	}
 
