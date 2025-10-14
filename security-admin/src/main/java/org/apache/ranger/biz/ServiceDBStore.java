@@ -6488,7 +6488,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			// Find the OLD version of this policy from database
 			RangerPolicy existingPolicyFromDB = null;
 			LOG.info("====> existingPolicyFromDB old version of policies in databnase");
-			if (rangerPolicy.getId() > 0 && !action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+			if (rangerPolicy.getId() != null && !action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
 				LOG.info("====> Enter if rangerPolicy.getId() not null");
 				existingPolicyFromDB = servicePolicies.stream()
 						.filter(policy -> policy.getId() != null && policy.getId().equals(rangerPolicy.getId()))
@@ -6663,7 +6663,6 @@ public class ServiceDBStore extends AbstractServiceStore {
 			}
 			return combinedPolicies; // Return empty list for delete actions
 		}
-
 		// Check if rangerPolicy already exists in servicePolicies
 		boolean policyExists = combinedPolicies.stream()
 				.anyMatch(policy -> policy.getId() != null && policy.getId().equals(rangerPolicy.getId()));
@@ -6673,13 +6672,20 @@ public class ServiceDBStore extends AbstractServiceStore {
 			// Remove rangerPolicy if it exists
 			if (policyExists) {
 				combinedPolicies.removeIf(policy -> policy.getId() != null &&
-													policy.getId().equals(rangerPolicy.getId()));
+						policy.getId().equals(rangerPolicy.getId()));
+				LOG.info("Removed policy {} from combinedPolicies", rangerPolicy.getId());
 			}
-		} else {
-			// Add rangerPolicy if it doesn't already exist
-			if (!policyExists) {
-				combinedPolicies.add(rangerPolicy);
+			else {
+				LOG.error("Failed to delete policy {} from combinedPolicies", rangerPolicy.getId());
 			}
+		}
+		else {
+			// CREATE or UPDATE: Remove old version and add new version
+			combinedPolicies.removeIf(policy -> policy.getId() != null &&
+					policy.getId().equals(rangerPolicy.getId()));
+			combinedPolicies.add(rangerPolicy);
+			LOG.info("Added/Updated policy {} with users: {}",
+					rangerPolicy.getId(), rangerPolicy.getPolicyItems());
 		}
 
 		return combinedPolicies;
