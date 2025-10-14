@@ -6483,10 +6483,13 @@ public class ServiceDBStore extends AbstractServiceStore {
 
 			String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
 			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
+			LOG.info("====> createS3BucketPolicy.getServicePolicies()");
 
 			// Find the OLD version of this policy from database
 			RangerPolicy existingPolicyFromDB = null;
-			if (rangerPolicy.getId() != null && !action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+			LOG.info("====> existingPolicyFromDB old version of policies in databnase");
+			if (rangerPolicy.getId() > 0 && !action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+				LOG.info("====> Enter if rangerPolicy.getId() not null");
 				existingPolicyFromDB = servicePolicies.stream()
 						.filter(policy -> policy.getId() != null && policy.getId().equals(rangerPolicy.getId()))
 						.findFirst()
@@ -6497,12 +6500,10 @@ public class ServiceDBStore extends AbstractServiceStore {
 					boolean resourcesChanged = !compareResources(existingPolicyFromDB.getResources(),
 							rangerPolicy.getResources());
 
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Policy {} comparison - PolicyItems changed: {}, Resources changed: {}",
+					LOG.info("Policy {} comparison - PolicyItems changed: {}, Resources changed: {}",
 								rangerPolicy.getId(), policyItemsChanged, resourcesChanged);
-						LOG.debug("OLD policy users: {}", existingPolicyFromDB.getPolicyItems());
-						LOG.debug("NEW policy users: {}", rangerPolicy.getPolicyItems());
-					}
+					LOG.info("OLD policy users: {}", existingPolicyFromDB.getPolicyItems());
+					LOG.info("NEW policy users: {}", rangerPolicy.getPolicyItems());
 
 					if (!policyItemsChanged && !resourcesChanged) {
 						LOG.info("No changes detected for policy {}. Skipping S3 bucket policy update.",
@@ -6514,8 +6515,22 @@ public class ServiceDBStore extends AbstractServiceStore {
 							rangerPolicy.getId(), policyItemsChanged, resourcesChanged);
 				}
 			}
+			else if (rangerPolicy.getId() == null)
+			{
+				LOG.info("====> rangerPolicy.getId() is null");
+			}
+			else if (action.equalsIgnoreCase(RangerConstants.ACTION_DELETE))
+			{
+				LOG.info("====> User called DELETE POLICY ACTION");
+			}
+			else
+			{
+				LOG.info("====> fetch old version of policy failed with reason undefined.");
+			}
+
 			// ========== END CHANGE DETECTION ==========
 
+			LOG.info("------- Invoking combinePolicies --------");
 			List<RangerPolicy> combinedPolicies = combinePolicies(servicePolicies, rangerPolicy, action);
 			Map<String, Map<RangerPolicy, Set<String>>> bucketMap = new HashMap<>();
 			List<RangerPolicy> affectedPolicies = populateBucketMap(bucketMap, combinedPolicies,
@@ -6547,6 +6562,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		return true;
 	}
 	private boolean hasPolicyItemsChanged(RangerPolicy oldPolicy, RangerPolicy newPolicy) {
+		LOG.info(" ======> ServiceDBStore.hasPolicyItemsChanged()");
 		// Compare policyItems
 		if (!comparePolicyItemsList(oldPolicy.getPolicyItems(), newPolicy.getPolicyItems())) {
 			return true;
@@ -6566,15 +6582,35 @@ public class ServiceDBStore extends AbstractServiceStore {
 	}
 
 	private boolean comparePolicyItemsList(List<RangerPolicyItem> list1, List<RangerPolicyItem> list2) {
-		if (list1 == null && list2 == null) return true;
-		if (list1 == null || list2 == null) return false;
-		if (list1.size() != list2.size()) return false;
+		LOG.info(" ======> ServiceDBStore.comparePolicyItemsList()");
+		if (list1 == null && list2 == null)
+		{
+			LOG.info("-------------- Both OLD and NEW policyItems lists are null ");
+			return true;
+		}
+		if (list1 == null || list2 == null)
+		{
+			LOG.info("-------------- OLD or NEW policyItems list is null ");
+			return false;
+		}
+		if (list1.size() != list2.size())
+		{
+			LOG.info("-------------- OLD and NEW policyItems list have different size ");
+			return false;
+		}
 
 		for (int i = 0; i < list1.size(); i++) {
 			RangerPolicyItem item1 = list1.get(i);
 			RangerPolicyItem item2 = list2.get(i);
+			LOG.info("OLD policyItems: {}", item1);
+			LOG.info("NEW policyItems: {}", item2);
 
-			if (!CollectionUtils.isEqualCollection(item1.getUsers(), item2.getUsers())) return false;
+			if (!CollectionUtils.isEqualCollection(item1.getUsers(), item2.getUsers()))
+			{
+				LOG.info("OLD policy users: {}", item1.getUsers());
+				LOG.info("NEW policy users: {}", item2.getUsers());
+				return false;
+			}
 			if (!CollectionUtils.isEqualCollection(item1.getGroups(), item2.getGroups())) return false;
 			if (!CollectionUtils.isEqualCollection(item1.getRoles(), item2.getRoles())) return false;
 
@@ -6586,6 +6622,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 	}
 
 	private boolean compareAccesses(List<RangerPolicyItemAccess> list1, List<RangerPolicyItemAccess> list2) {
+		LOG.info(" ======> ServiceDBStore.compareAccesses()");
 		if (list1 == null && list2 == null) return true;
 		if (list1 == null || list2 == null) return false;
 		if (list1.size() != list2.size()) return false;
@@ -6597,6 +6634,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 	}
 
 	private boolean compareResources(Map<String, RangerPolicyResource> res1, Map<String, RangerPolicyResource> res2) {
+		LOG.info(" ======> ServiceDBStore.compareResources()");
 		if (res1 == null && res2 == null) return true;
 		if (res1 == null || res2 == null) return false;
 		if (res1.size() != res2.size()) return false;
@@ -6616,6 +6654,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 	private List<RangerPolicy> combinePolicies(List<RangerPolicy> servicePolicies, RangerPolicy rangerPolicy, String action) {
 		// Create a new list to avoid modifying the original list
 		List<RangerPolicy> combinedPolicies = new ArrayList<>(servicePolicies);
+		LOG.info(" ======> ServiceDBStore.combinePolicies()");
 
 		// Handle cases when servicePolicies is empty
 		if (servicePolicies.isEmpty()) {
@@ -6658,6 +6697,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 												 String bucketName, RangerPolicy affectedPolicy) {
 
 		List<RangerPolicy> affectedPolicies = new ArrayList<>();
+		LOG.info(" ======> ServiceDBStore.populateBucketMap()");
 		if (CollectionUtils.isNotEmpty(combinedPolicies)) {
 
 			List<String> affectedPaths = affectedPolicy.getResources().values().stream()
