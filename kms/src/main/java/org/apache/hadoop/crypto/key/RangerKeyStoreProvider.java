@@ -90,6 +90,7 @@ public class RangerKeyStoreProvider extends KeyProvider {
     private final ReadWriteLock         lock  = new ReentrantReadWriteLock(true);
     private final boolean               keyVaultEnabled;
     private       boolean               changed = false;
+    private Map<String, String> oldToNewVersionMapping =  new HashMap<String, String>();
 
     public RangerKeyStoreProvider(Configuration conf) throws Throwable {
         super(conf);
@@ -219,9 +220,20 @@ public class RangerKeyStoreProvider extends KeyProvider {
 
             dbStore   = new RangerKeyStore(daoManager);
             masterKey = this.generateAndGetMasterKey(masterKeyProvider, password);
+            String oldverionMappingConfig = conf.get("ranger.kms.kts.mapping");
+            logger.info("OldversionMapping :" + oldverionMappingConfig);
+            this.populateOldVersionHashMap(oldverionMappingConfig);
         }
 
         reloadKeys();
+    }
+
+    private void populateOldVersionHashMap(String versionString) {
+        String[] keyValues = versionString.split(" ");
+        for (String keyValue : keyValues) {
+            String[] kv = keyValue.split(":");
+            oldToNewVersionMapping.put(kv[0], kv[1]);
+        }
     }
 
     public static Configuration getDBKSConf() {
@@ -350,6 +362,13 @@ public class RangerKeyStoreProvider extends KeyProvider {
 
         KeyVersion ret = null;
 
+        String originalVersionName = versionName;
+        logger.info("###### In Ranger getKeyVersion ##########");
+        if (this.oldToNewVersionMapping.containsKey(versionName)) {
+            logger.info("###### Got old key version ##########");
+            versionName = this.oldToNewVersionMapping.get(versionName);
+        }
+
         try (AutoClosableReadLock ignored = new AutoClosableReadLock(lock)) {
             if (keyVaultEnabled) {
                 try {
@@ -403,7 +422,8 @@ public class RangerKeyStoreProvider extends KeyProvider {
                 }
 
                 if (key != null) {
-                    ret = new KeyVersion(getBaseName(versionName), versionName, key.getEncoded());
+                    logger.info("###### setting original versionname  ##########");
+                    ret = new KeyVersion(getBaseName(versionName), originalVersionName, key.getEncoded());
                 }
             }
         }
