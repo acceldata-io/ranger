@@ -74,6 +74,7 @@
           <include>org.apache.lucene:lucene-core</include>
           <include>joda-time:joda-time</include>
           <include>com.carrotsearch:hppc</include>
+          <include>org.apache.htrace:htrace-core4</include>
         </includes>
       </binaries>
     </moduleSet>
