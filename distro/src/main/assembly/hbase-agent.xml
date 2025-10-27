@@ -83,6 +83,7 @@
           <include>org.apache.orc:orc-shims:jar:${orc.version}</include>
           <include>io.airlift:aircompressor:jar:${aircompressor.version}</include>
           <include>commons-lang:commons-lang:jar:${commons.lang.version}</include>
+          <include>org.apache.htrace:htrace-core4</include>
         </includes>
       </binaries>
     </moduleSet>
