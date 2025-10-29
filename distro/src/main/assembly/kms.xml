@@ -82,6 +82,7 @@
                     <include>jline:jline</include>
                     <include>com.jcraft:jsch</include>
                     <include>com.google.code.findbugs:jsr305</include>
+                    <include>com.google.guava:failureaccess</include>
                     <include>io.netty:netty-all</include>
                     <include>com.thoughtworks.paranamer:paranamer</include>
                     <include>org.xerial.snappy:snappy-java</include>
@@ -191,7 +192,7 @@
                     <include>com.squareup.okhttp:logging-interceptor</include>
                     <include>com.squareup.okhttp:okhttp</include>
                     <!-- ranger common metrics module-->
-                            <include>org.apache.ranger:ranger-metrics</include>
+                    <include>org.apache.ranger:ranger-metrics</include>
                     <include>org.apache.zookeeper:zookeeper-jute:jar:${zookeeper.version}</include>
                     <include>org.apache.kerby:kerb-core</include>
                     <include>org.apache.kerby:kerb-util</include>
