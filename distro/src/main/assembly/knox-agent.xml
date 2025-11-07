@@ -118,6 +118,7 @@
           <include>org.codehaus.woodstox:stax2-api</include>
           <include>com.fasterxml.woodstox:woodstox-core</include>
           <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
+          <include>org.apache.htrace:htrace-core4</include>
         </includes>
       </binaries>
     </moduleSet>
