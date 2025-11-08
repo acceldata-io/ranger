@@ -108,7 +108,7 @@
             <include>org.apache.hbase.thirdparty:hbase-shaded-miscellaneous:jar:${hbase-shaded-miscellaneous}</include>
             <include>io.opentelemetry:opentelemetry-api:jar:${io.opentelemetry.version}</include>
             <include>io.opentelemetry:opentelemetry-context:jar:${io.opentelemetry.version}</include>
-            <include>io.opentelemetry.semconv:opentelemetry-semconv:jar:${io.opentelemetry-semconv.version}</include>
+            <include>io.opentelemetry:opentelemetry-semconv:jar:${io.opentelemetry-semconv.version}</include>
             <include>io.dropwizard.metrics:metrics-core</include>
             <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
             <include>org.apache.commons:commons-lang3:jar:${commons.lang3.version}</include>
