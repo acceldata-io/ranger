@@ -53,6 +53,7 @@ public class RangerAccessRequestUtil {
 	public static final String KEY_CONTEXT_GDS_RESULT    = "_GDS_RESULT";
 	public static final String KEY_CONTEXT_IS_REQUEST_PREPROCESSED 	= "ISREQUESTPREPROCESSED";
 	public static final String KEY_CONTEXT_RESOURCE_ZONE_NAMES 		= "RESOURCE_ZONE_NAMES";
+	public static final String KEY_CONTEXT_ACL_ENFORCER             = "_ACL_ENFORCER";
 	public static final String KEY_CONTEXT_IS_SKIP_CHAINED_PLUGINS 	= "_IS_SKIP_CHAINED_PLUGINS";
 
 	public static void setRequestTagsInContext(Map<String, Object> context, Set<RangerTagForEval> tags) {
@@ -428,5 +429,21 @@ public class RangerAccessRequestUtil {
 	public static boolean getIsSkipChainedPlugins(Map<String, Object> context) {
 		Boolean value = (Boolean)context.get(KEY_CONTEXT_IS_SKIP_CHAINED_PLUGINS);
 		return value != null && value;
+	}
+
+	public static String getAclEnforcerOrDefault(Map<String, Object> context, String defaultValue) {
+		Object ret = context != null ? context.get(KEY_CONTEXT_ACL_ENFORCER) : null;
+
+		return ret instanceof String ? (String) ret : defaultValue;
+	}
+
+	public static void setAclEnforcer(Map<String, Object> context, String aclEnforcer) {
+		if (context != null) {
+			if (aclEnforcer != null) {
+				context.put(KEY_CONTEXT_ACL_ENFORCER, aclEnforcer);
+			} else {
+				context.remove(KEY_CONTEXT_ACL_ENFORCER);
+			}
+		}
 	}
 }
