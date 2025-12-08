@@ -42,11 +42,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.io.IOUtils;
@@ -174,6 +179,8 @@ import org.apache.ranger.plugin.util.SearchFilter;
 import org.apache.ranger.plugin.util.ServicePolicies;
 import org.apache.ranger.rest.ServiceREST;
 import org.apache.ranger.rest.TagREST;
+import org.apache.ranger.s3.PolicyStatement;
+import org.apache.ranger.s3.S3BucketPolicy;
 import org.apache.ranger.service.RangerAuditFields;
 import org.apache.ranger.service.RangerDataHistService;
 import org.apache.ranger.service.RangerPolicyLabelsService;
@@ -186,6 +193,8 @@ import org.apache.ranger.service.RangerServiceService;
 import org.apache.ranger.service.RangerServiceWithAssignedIdService;
 import org.apache.ranger.service.XGroupService;
 import org.apache.ranger.service.XUserService;
+import org.apache.ranger.services.s3.client.S3ClientConnectionMgr;
+import org.apache.ranger.services.s3.RangerS3Constants;
 import org.apache.ranger.util.RestUtil;
 import org.apache.ranger.view.RangerExportPolicyList;
 import org.apache.ranger.view.RangerExportRoleList;
@@ -214,6 +223,18 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
+
+import software.amazon.awssdk.core.exception.SdkServiceException;
+import software.amazon.awssdk.services.iam.model.GetGroupRequest;
+import software.amazon.awssdk.services.iam.model.GetRoleRequest;
+import software.amazon.awssdk.services.iam.model.GetUserRequest;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketPolicyResponse;
+import software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest;
+import software.amazon.awssdk.services.s3.model.DeleteBucketPolicyRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.iam.IamClient;
 
 
 import static org.apache.ranger.db.XXGlobalStateDao.RANGER_GLOBAL_STATE_NAME_GDS;
@@ -6444,5 +6465,449 @@ public class ServiceDBStore extends AbstractServiceStore {
 		}
 
 		return ret;
+	}
+
+	public boolean createS3BucketPolicy(RangerPolicy rangerPolicy, String action) throws Exception {
+		LOG.info("==> ServiceDBStore.createS3BucketPolicy()");
+		String serviceName = rangerPolicy.getService();
+		try {
+			RangerService rangerService = getServiceByName(serviceName);
+			Map<String, String> configs = rangerService.getConfigs();
+
+			S3Client s3 = S3ClientConnectionMgr.getS3client(configs);
+			IamClient iamClient = S3ClientConnectionMgr.getIamClient(configs);
+
+			if (s3 == null || iamClient == null) {
+				throw new Exception("S3 and IAM client initialization failed.");
+			}
+
+			String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
+			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
+			LOG.info("====> createS3BucketPolicy.getServicePolicies()");
+
+			// Find the OLD version of this policy from database
+			RangerPolicy existingPolicyFromDB = null;
+			LOG.info("====> existingPolicyFromDB old version of policies in databnase");
+			if (rangerPolicy.getId() != null && !action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+				LOG.info("====> Enter if rangerPolicy.getId() not null");
+				existingPolicyFromDB = servicePolicies.stream()
+						.filter(policy -> policy.getId() != null && policy.getId().equals(rangerPolicy.getId()))
+						.findFirst()
+						.orElse(null);
+
+				if (existingPolicyFromDB != null) {
+					boolean policyItemsChanged = hasPolicyItemsChanged(existingPolicyFromDB, rangerPolicy);
+					boolean resourcesChanged = !compareResources(existingPolicyFromDB.getResources(),
+							rangerPolicy.getResources());
+
+					LOG.info("Policy {} comparison - PolicyItems changed: {}, Resources changed: {}",
+								rangerPolicy.getId(), policyItemsChanged, resourcesChanged);
+					LOG.info("OLD policy users: {}", existingPolicyFromDB.getPolicyItems());
+					LOG.info("NEW policy users: {}", rangerPolicy.getPolicyItems());
+
+					if (!policyItemsChanged && !resourcesChanged) {
+						LOG.info("No changes detected for policy {}. Skipping S3 bucket policy update.",
+								rangerPolicy.getId());
+						return true;
+					}
+
+					LOG.info("Changes detected in policy {} - PolicyItems: {}, Resources: {}",
+							rangerPolicy.getId(), policyItemsChanged, resourcesChanged);
+				}
+			}
+			else if (rangerPolicy.getId() == null)
+			{
+				LOG.info("====> rangerPolicy.getId() is null");
+			}
+			else if (action.equalsIgnoreCase(RangerConstants.ACTION_DELETE))
+			{
+				LOG.info("====> User called DELETE POLICY ACTION");
+			}
+			else
+			{
+				LOG.info("====> fetch old version of policy failed with reason undefined.");
+			}
+
+			// ========== END CHANGE DETECTION ==========
+
+			LOG.info("------- Invoking combinePolicies --------");
+			List<RangerPolicy> combinedPolicies = combinePolicies(servicePolicies, rangerPolicy, action);
+			Map<String, Map<RangerPolicy, Set<String>>> bucketMap = new HashMap<>();
+			List<RangerPolicy> affectedPolicies = populateBucketMap(bucketMap, combinedPolicies,
+					bucketName, rangerPolicy);
+
+			if (affectedPolicies.isEmpty()) {
+				for (Entry<String, RangerPolicyResource> affectedResources : rangerPolicy.getResources().entrySet()) {
+					List<String> affectedBuckets = affectedResources.getValue().getValues().stream()
+							.map(s3path -> s3path.split("/", 2)[0]) // Extract bucket name
+							.distinct() // Ensure unique bucket names
+							.collect(Collectors.toList());
+
+					if (affectedBuckets.isEmpty()) {
+						deleteBucketPolicy(s3, bucketName);
+					} else {
+						for (String bucketPart : affectedBuckets) {
+							deleteBucketPolicy(s3, bucketPart);
+						}
+					}
+				}
+			}
+			else {
+				processPolicies(bucketMap, s3, iamClient);
+			}
+		} catch (S3Exception e) {
+			throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
+		}
+		LOG.info("<== ServiceDBStore.createS3BucketPolicy()");
+		return true;
+	}
+	private boolean hasPolicyItemsChanged(RangerPolicy oldPolicy, RangerPolicy newPolicy) {
+		LOG.info(" ======> ServiceDBStore.hasPolicyItemsChanged()");
+		// Compare policyItems
+		if (!comparePolicyItemsList(oldPolicy.getPolicyItems(), newPolicy.getPolicyItems())) {
+			return true;
+		}
+
+		// Compare denyPolicyItems
+		if (!comparePolicyItemsList(oldPolicy.getDenyPolicyItems(), newPolicy.getDenyPolicyItems())) {
+			return true;
+		}
+
+		// Compare resources
+		if (!compareResources(oldPolicy.getResources(), newPolicy.getResources())) {
+			return true;
+		}
+
+		return false;
+	}
+
+	private boolean comparePolicyItemsList(List<RangerPolicyItem> list1, List<RangerPolicyItem> list2) {
+		LOG.info(" ======> ServiceDBStore.comparePolicyItemsList()");
+		if (list1 == null && list2 == null)
+		{
+			LOG.info("-------------- Both OLD and NEW policyItems lists are null ");
+			return true;
+		}
+		if (list1 == null || list2 == null)
+		{
+			LOG.info("-------------- OLD or NEW policyItems list is null ");
+			return false;
+		}
+		if (list1.size() != list2.size())
+		{
+			LOG.info("-------------- OLD and NEW policyItems list have different size ");
+			return false;
+		}
+
+		for (int i = 0; i < list1.size(); i++) {
+			RangerPolicyItem item1 = list1.get(i);
+			RangerPolicyItem item2 = list2.get(i);
+			LOG.info("OLD policyItems: {}", item1);
+			LOG.info("NEW policyItems: {}", item2);
+
+			if (!CollectionUtils.isEqualCollection(item1.getUsers(), item2.getUsers()))
+			{
+				LOG.info("OLD policy users: {}", item1.getUsers());
+				LOG.info("NEW policy users: {}", item2.getUsers());
+				return false;
+			}
+			if (!CollectionUtils.isEqualCollection(item1.getGroups(), item2.getGroups())) return false;
+			if (!CollectionUtils.isEqualCollection(item1.getRoles(), item2.getRoles())) return false;
+
+			// Compare access types
+			if (!compareAccesses(item1.getAccesses(), item2.getAccesses())) return false;
+		}
+
+		return true;
+	}
+
+	private boolean compareAccesses(List<RangerPolicyItemAccess> list1, List<RangerPolicyItemAccess> list2) {
+		LOG.info(" ======> ServiceDBStore.compareAccesses()");
+		if (list1 == null && list2 == null) return true;
+		if (list1 == null || list2 == null) return false;
+		if (list1.size() != list2.size()) return false;
+
+		Set<String> accessTypes1 = list1.stream().map(RangerPolicyItemAccess::getType).collect(Collectors.toSet());
+		Set<String> accessTypes2 = list2.stream().map(RangerPolicyItemAccess::getType).collect(Collectors.toSet());
+
+		return accessTypes1.equals(accessTypes2);
+	}
+
+	private boolean compareResources(Map<String, RangerPolicyResource> res1, Map<String, RangerPolicyResource> res2) {
+		LOG.info(" ======> ServiceDBStore.compareResources()");
+		if (res1 == null && res2 == null) return true;
+		if (res1 == null || res2 == null) return false;
+		if (res1.size() != res2.size()) return false;
+
+		for (String key : res1.keySet()) {
+			RangerPolicyResource resource1 = res1.get(key);
+			RangerPolicyResource resource2 = res2.get(key);
+
+			if (resource2 == null) return false;
+			if (!CollectionUtils.isEqualCollection(resource1.getValues(), resource2.getValues())) return false;
+		}
+
+		return true;
+	}
+
+	// Combine policies based on action and service policies
+	private List<RangerPolicy> combinePolicies(List<RangerPolicy> servicePolicies, RangerPolicy rangerPolicy, String action) {
+		// Create a new list to avoid modifying the original list
+		List<RangerPolicy> combinedPolicies = new ArrayList<>(servicePolicies);
+		LOG.info(" ======> ServiceDBStore.combinePolicies()");
+
+		// Handle cases when servicePolicies is empty
+		if (servicePolicies.isEmpty()) {
+			if (!action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+				return Collections.singletonList(rangerPolicy); // Add only rangerPolicy for non-delete actions
+			}
+			return combinedPolicies; // Return empty list for delete actions
+		}
+		// Check if rangerPolicy already exists in servicePolicies
+		boolean policyExists = combinedPolicies.stream()
+				.anyMatch(policy -> policy.getId() != null && policy.getId().equals(rangerPolicy.getId()));
+
+		// Add or remove rangerPolicy based on action
+		if (action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
+			// Remove rangerPolicy if it exists
+			if (policyExists) {
+				combinedPolicies.removeIf(policy -> policy.getId() != null &&
+						policy.getId().equals(rangerPolicy.getId()));
+				LOG.info("Removed policy {} from combinedPolicies", rangerPolicy.getId());
+			}
+			else {
+				LOG.error("Failed to delete policy {} from combinedPolicies", rangerPolicy.getId());
+			}
+		}
+		else {
+			// CREATE or UPDATE: Remove old version and add new version
+			combinedPolicies.removeIf(policy -> policy.getId() != null &&
+					policy.getId().equals(rangerPolicy.getId()));
+			combinedPolicies.add(rangerPolicy);
+			LOG.info("Added/Updated policy {} with users: {}",
+					rangerPolicy.getId(), rangerPolicy.getPolicyItems());
+		}
+
+		return combinedPolicies;
+	}
+
+	/*
+Case 1: Create - default bucket with * or new bucket path
+Case 2: Update - default bucket with * or existing bucket path
+Case 3: Delete - default bucket with * (this goes for complete delete) or
+existing bucket path (this goes an update bucketPolicy)
+Case 4: No Change - existing default bucket with * or with path but not in affected path
+ */
+
+	private List<RangerPolicy> populateBucketMap(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, List<RangerPolicy> combinedPolicies,
+												 String bucketName, RangerPolicy affectedPolicy) {
+
+		List<RangerPolicy> affectedPolicies = new ArrayList<>();
+		LOG.info(" ======> ServiceDBStore.populateBucketMap()");
+		if (CollectionUtils.isNotEmpty(combinedPolicies)) {
+
+			List<String> affectedPaths = affectedPolicy.getResources().values().stream()
+					.flatMap(resource -> resource.getValues().stream())
+					.collect(Collectors.toList());
+
+			for (String affectedPath: affectedPaths) {
+				String bucketPart = affectedPath.split("/",2)[0];
+					for (RangerPolicy rangerPolicy : combinedPolicies) {
+						for (RangerPolicyResource resource : rangerPolicy.getResources().values()) {
+							for(String s3Path: resource.getValues()) {
+								String prefixBucketPath = s3Path.split("/", 2)[0];
+								if (affectedPath.startsWith("*") || (affectedPaths.contains("*") && prefixBucketPath.equals(bucketName))) {
+									addToBucketMap(bucketMap, bucketName, rangerPolicy, s3Path);
+									affectedPolicies.add(rangerPolicy);
+									break;
+								} else if (prefixBucketPath.equals(bucketPart)) {
+									addToBucketMap(bucketMap, bucketPart, rangerPolicy, s3Path);
+									affectedPolicies.add(rangerPolicy);
+								}
+							}
+						}
+					}
+				}
+		}
+		return affectedPolicies;
+	}
+
+	// Add to bucket map helper method
+	private void addToBucketMap(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, String bucketPart,
+								RangerPolicy policy, String path) {
+		bucketMap.putIfAbsent(bucketPart, new HashMap<>());
+		bucketMap.get(bucketPart).putIfAbsent(policy, new HashSet<>());
+		bucketMap.get(bucketPart).get(policy).add(path);
+	}
+
+	// Process bucket policies
+	private void processPolicies(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, S3Client s3, IamClient iamClient) throws Exception {
+		for (Entry<String, Map<RangerPolicy, Set<String>>> entry : bucketMap.entrySet()) {
+			List<PolicyStatement> statements = new ArrayList<>();
+
+			for(Entry<RangerPolicy, Set<String>> policyEntry: entry.getValue().entrySet()) {
+				List<String> s3Resources = policyEntry.getValue().stream()
+							.map(s3path -> RangerS3Constants.S3_RESOURCE_PATH_ARN + s3path)
+							.collect(Collectors.toList());
+				statements.addAll(createBucketPolicyStatement(policyEntry.getKey().getPolicyItems(),
+						RangerS3Constants.ALLOW, s3Resources, iamClient));
+				statements.addAll(createBucketPolicyStatement(policyEntry.getKey().getDenyPolicyItems(),
+						RangerS3Constants.DENY, s3Resources, iamClient));
+			}
+
+			String policyJson = mapToS3BucketPolicyObject(statements);
+			if (StringUtils.isNotEmpty(policyJson)) {
+				updateBucketPolicyIfChanged(s3, entry.getKey(), policyJson);
+			}
+		}
+	}
+
+	// Update bucket policy if it has changed
+	private void updateBucketPolicyIfChanged(S3Client s3, String bucketName, String policyJson) throws Exception {
+		ObjectMapper objectMapper = new ObjectMapper();
+		Object framedPolicyJson = objectMapper.readTree(policyJson);
+		String existingPolicy = getBucketPolicy(s3, bucketName);
+		if (!existingPolicy.isEmpty()) {
+			Object existingPolicyJson = objectMapper.readTree(existingPolicy);
+			if (!framedPolicyJson.equals(existingPolicyJson)) {
+				putBucketPolicy(s3, bucketName, policyJson);
+			}
+		} else {
+			putBucketPolicy(s3, bucketName, policyJson); // New policy if none exists
+		}
+	}
+
+	private List<PolicyStatement> createBucketPolicyStatement(List<RangerPolicyItem> policyItems, String effect, List<String> s3Resources, IamClient iamClient) {
+		List<PolicyStatement> statements = new ArrayList<>();
+		if (CollectionUtils.isNotEmpty(policyItems) && CollectionUtils.isNotEmpty(s3Resources)) {
+			for (String s3Resource :s3Resources) {
+				for (RangerPolicyItem policyItem : policyItems) {
+					List<RangerPolicyItemAccess> accesses = policyItem.getAccesses();
+					List<String> accessTypes = new ArrayList<>();
+
+					for (RangerPolicyItemAccess access : accesses) {
+						accessTypes.add(access.getType());
+					}
+					PolicyStatement statement = prepareBucketPolicyStatement(s3Resource, accessTypes, effect,
+							policyItem.getUsers(), policyItem.getGroups(), policyItem.getRoles(), iamClient);
+					statements.add(statement);
+				}
+			}
+			return statements;
+		}
+		return statements;
+	}
+
+	private PolicyStatement prepareBucketPolicyStatement(String s3Resources, List<String> accessTypes, String effect, List<String> users, List<String> groups, List<String> roles, IamClient iamClient) {
+		PolicyStatement statement = new PolicyStatement();
+		statement.setEffect(effect);
+
+		// Set multiple AWS account IDs in the Principal
+		Map<String, List<String>> principal = new HashMap<>();
+		List<String> awsAccounts = new ArrayList<>();
+		awsAccounts = addAccounts(awsAccounts, users, "user", iamClient);
+		awsAccounts = addAccounts(awsAccounts, groups, "group", iamClient);
+		awsAccounts = addAccounts(awsAccounts, roles, "role", iamClient);
+
+		principal.put(RangerS3Constants.AWS, awsAccounts);
+		statement.setPrincipal(principal);
+		statement.setAction(accessTypes);
+		statement.setResource(s3Resources);
+		return statement;
+    }
+
+	private List<String> addAccounts(List<String> awsAccounts, List<String> entities, String entityType, IamClient iamClient) {
+		if (CollectionUtils.isNotEmpty(entities)) {
+			try  {
+				// Define a map to associate entity types with the respective IAM call
+				Map<String, Function<String, String>> entityArnExtractor = new HashMap<>();
+				entityArnExtractor.put("user", entity -> iamClient.getUser(GetUserRequest.builder().userName(entity).build()).user().arn());
+				entityArnExtractor.put("group", entity -> iamClient.getGroup(GetGroupRequest.builder().groupName(entity).build()).group().arn());
+				entityArnExtractor.put("role", entity -> iamClient.getRole(GetRoleRequest.builder().roleName(entity).build()).role().arn());
+				for (String entity : entities) {
+					try {
+						String entityArn = entityArnExtractor.get(entityType).apply(entity);
+						String accountId = entityArn.split(":")[4]; // Account ID is the 5th segment of the ARN
+						awsAccounts.add(RangerS3Constants.S3_AWS_ACCOUNT_URN + accountId + ":" + entityType + "/" + entity);
+					} catch (Exception e) {
+                        LOG.error("Failed to retrieve account ID for entity '{}': {}", entity, e.getMessage());
+						throw e;
+					}
+				}
+			} catch (SdkServiceException e) {
+                LOG.error("IAM service error: {}", e.getMessage());
+				throw e;
+			}
+			catch (Exception e) {
+                LOG.error("General Exception to retrieve and addAccounts: {}", e.getMessage());
+				throw e;
+			}
+		}
+		return awsAccounts;
+	}
+
+	private String mapToS3BucketPolicyObject(List<PolicyStatement> statements) {
+		S3BucketPolicy s3BucketPolicy = new S3BucketPolicy();
+		s3BucketPolicy.setVersion(RangerS3Constants.S3_POLICY_LANGUAGE_VERSION);
+		s3BucketPolicy.setStatement(statements);
+
+		ObjectMapper objectMapper = new ObjectMapper();
+		objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
+		try {
+			return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(s3BucketPolicy);
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+
+	public void putBucketPolicy(S3Client s3, String bucketName, String policy) {
+		try {
+			PutBucketPolicyRequest putBucketPolicyRequest = PutBucketPolicyRequest.builder()
+					.bucket(bucketName)
+					.policy(policy)
+					.build();
+
+			s3.putBucketPolicy(putBucketPolicyRequest);
+		} catch (S3Exception e) {
+			LOG.error(e.awsErrorDetails().toString());
+			throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
+		}
+	}
+
+	public void deleteBucketPolicy(S3Client s3, String bucketName) {
+		try {
+			DeleteBucketPolicyRequest deleteBucketPolicyRequest = DeleteBucketPolicyRequest.builder()
+					.bucket(bucketName)
+					.build();
+
+			s3.deleteBucketPolicy(deleteBucketPolicyRequest);
+		} catch (S3Exception e) {
+			LOG.error(e.awsErrorDetails().toString());
+			throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
+		}
+	}
+
+	public String getBucketPolicy(S3Client s3, String bucketName) {
+		String policyText;
+		GetBucketPolicyRequest policyReq = GetBucketPolicyRequest.builder()
+				.bucket(bucketName)
+				.build();
+
+		try {
+			GetBucketPolicyResponse policyRes = s3.getBucketPolicy(policyReq);
+			policyText = policyRes.policy();
+			return policyText;
+
+		} catch (S3Exception e) {
+			if (e.awsErrorDetails().errorCode().equals("NoSuchBucketPolicy")) {
+				LOG.error("Bucket: " + bucketName + " does not have a policy.");
+				return "";
+			} else {
+				LOG.error("Failed to get policy for bucket " + bucketName + ": " + e.getMessage());
+				throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
+			}
+		}
 	}
 }
