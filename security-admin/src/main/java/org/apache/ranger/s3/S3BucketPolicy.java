@@ -21,14 +21,11 @@ package org.apache.ranger.s3;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class S3BucketPolicy {
-    private static final Logger LOG = LoggerFactory.getLogger(S3BucketPolicy.class);
 
     @JsonProperty("Version")
     private String version;
