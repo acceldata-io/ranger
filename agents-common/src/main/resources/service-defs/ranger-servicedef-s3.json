@@ -66,11 +66,22 @@
       "validationRegEx":"",
       "validationMessage": "",
       "uiHint":"",
+      "label": "Username"
+    },
+    {
+      "itemId": 2,
+      "name": "accesskey",
+      "type": "string",
+      "subType": "",
+      "mandatory": true,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
       "label": "Access key"
     },
 
     {
-      "itemId": 2,
+      "itemId": 3,
       "name": "secretkey",
       "type": "password",
       "subType": "",
@@ -82,7 +93,7 @@
     },
 
     {
-      "itemId": 3,
+      "itemId": 4,
       "name": "endpoint",
       "type": "string",
       "subType": "",
@@ -93,7 +104,7 @@
       "label": "End Point URL"
     },
     {
-      "itemId": 4,
+      "itemId": 5,
       "name": "region",
       "type": "string",
       "subType": "",
@@ -105,7 +116,7 @@
     },
 
     {
-      "itemId": 5,
+      "itemId": 6,
       "name": "bucketname",
       "type": "string",
       "subType": "",

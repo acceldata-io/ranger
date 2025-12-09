@@ -101,7 +101,7 @@ public class S3ClientConnectionMgr extends BaseClient {
     }
 
     public static S3Client getS3client(Map<String, String> configs) {
-        String accessKey = configs.get(RangerS3Constants.USER_NAME);
+        String accessKey = configs.get(RangerS3Constants.ACCESS_KEY);
         String secretKey = configs.get(RangerS3Constants.SECRET_KEY);
         String endPointOCE = configs.get(RangerS3Constants.ENDPOINT);
         String regionstr = configs.get(RangerS3Constants.REGION);
@@ -115,7 +115,7 @@ public class S3ClientConnectionMgr extends BaseClient {
     }
 
     public static IamClient getIamClient(Map<String, String> configs) {
-        String accessKey = configs.get(RangerS3Constants.USER_NAME);
+        String accessKey = configs.get(RangerS3Constants.ACCESS_KEY);
         String secretKey = configs.get(RangerS3Constants.SECRET_KEY);
         AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
         return IamClient.builder()
