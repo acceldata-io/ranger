@@ -18,8 +18,12 @@
  */
 package org.apache.ranger.services.s3;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerService;
 import org.apache.ranger.plugin.model.RangerServiceDef;
+import org.apache.ranger.plugin.policyengine.RangerPolicyEngine;
+import org.apache.ranger.plugin.resourcematcher.RangerAbstractResourceMatcher;
 import org.apache.ranger.plugin.service.RangerBaseService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.apache.ranger.services.s3.client.S3ResourceMgr;
@@ -27,14 +31,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class RangerServiceS3 extends RangerBaseService {
 
     private static final Logger LOG                     = LoggerFactory.getLogger(RangerServiceS3.class);
+    public static final String ACCESS_TYPE_LIST_BUCKET = "ListBucket";
     public RangerServiceS3() {
         super();
     }
@@ -84,6 +86,40 @@ public class RangerServiceS3 extends RangerBaseService {
         }
 
         LOG.info("<== RangerServiceS3.lookupResource Response Received");
+
+        return ret;
+    }
+
+    @Override
+    public List<RangerPolicy> getDefaultRangerPolicies() throws Exception {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("==> RangerServiceS3.getDefaultRangerPolicies()");
+        }
+
+        List<RangerPolicy> ret = super.getDefaultRangerPolicies();
+
+        for (RangerPolicy defaultPolicy : ret) {
+
+            String 	lookUpUser = getConfig().get(RangerS3Constants.USER_NAME);
+
+            if (defaultPolicy.getName().contains("all") && StringUtils.isNotBlank(lookUpUser)) {
+                RangerPolicy.RangerPolicyItem policyItemForLookupUser = new RangerPolicy.RangerPolicyItem();
+                List<RangerPolicy.RangerPolicyItemAccess> accessListForLookupUser = new ArrayList<>();
+                accessListForLookupUser.add(new RangerPolicy.RangerPolicyItemAccess(ACCESS_TYPE_LIST_BUCKET));
+                String bucketName = getConfig().get(RangerS3Constants.BUCKET_NAME);
+                RangerPolicy.RangerPolicyResource pathPolicyResource = defaultPolicy.getResources().get(RangerS3Constants.PATH);
+                policyItemForLookupUser.setUsers(Collections.singletonList(lookUpUser));
+                policyItemForLookupUser.setAccesses(accessListForLookupUser);
+                pathPolicyResource.setValue(bucketName);
+                policyItemForLookupUser.setDelegateAdmin(false);
+                defaultPolicy.addPolicyItem(policyItemForLookupUser);
+            }
+
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== RangerServiceS3.getDefaultRangerPolicies()");
+        }
 
         return ret;
     }
