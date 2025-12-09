@@ -52,6 +52,12 @@
       "itemId": 4,
       "name": "s3:DeleteObject",
       "label": "DeleteObject"
+    },
+
+    {
+      "itemId": 5,
+      "name": "s3:GetBucketLocation",
+      "label": "GetBucketLocation"
     }
   ],
 
