@@ -1854,6 +1854,35 @@ public class ServiceDBStore extends AbstractServiceStore {
 		disassociateZonesForService(service); //RANGER-3016
 
 		List<Long> policyIds = daoMgr.getXXPolicy().findPolicyIdsByServiceId(service.getId());
+
+		// Handle S3 bucket policy cleanup BEFORE deleting policies
+		if (CollectionUtils.isNotEmpty(policyIds) &&
+				service.getType() != null &&
+				service.getType().equalsIgnoreCase(RangerS3Constants.S3)) {
+
+			if(LOG.isDebugEnabled()) {
+				LOG.debug("Cleaning up S3 bucket policies for service: " + service.getName());
+			}
+
+			try {
+				// Get all policies that will be deleted
+				List<RangerPolicy> policiesToDelete = new ArrayList<>();
+				for (Long policyID : policyIds) {
+					RangerPolicy policy = getPolicy(policyID);
+					if (policy != null) {
+						policiesToDelete.add(policy);
+					}
+				}
+
+				// Clean up S3 bucket policies for all affected buckets
+				cleanupS3BucketPoliciesForService(service, policiesToDelete);
+
+			} catch (Exception e) {
+				LOG.error("Error cleaning up S3 bucket policies for service: " + service.getName(), e);
+				// Continue with service deletion even if S3 cleanup fails
+			}
+		}
+
 		if (CollectionUtils.isNotEmpty(policyIds)) {
 			long totalDeletedPolicies = 0;
 			for (Long policyID : policyIds) {
@@ -1896,6 +1925,65 @@ public class ServiceDBStore extends AbstractServiceStore {
 		resetPolicyCache(service.getName());
 		tagStore.resetTagCache(service.getName());
 
+	}
+
+	/**
+	 * Cleanup S3 bucket policies for all policies in a service being deleted
+	 */
+	private void cleanupS3BucketPoliciesForService(RangerService service, List<RangerPolicy> policiesToDelete) throws Exception {
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("==> ServiceDBStore.cleanupS3BucketPoliciesForService(" + service.getName() + ")");
+		}
+
+		try {
+			Map<String, String> configs = service.getConfigs();
+			S3Client s3 = S3ClientConnectionMgr.getS3client(configs);
+
+			if (s3 == null) {
+				LOG.warn("S3 client initialization failed for service: " + service.getName());
+				return;
+			}
+
+			String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
+
+			// Collect all affected buckets from policies
+			Set<String> affectedBuckets = new HashSet<>();
+			for (RangerPolicy policy : policiesToDelete) {
+				if (policy.getResources() != null) {
+					for (RangerPolicyResource resource : policy.getResources().values()) {
+						for (String s3path : resource.getValues()) {
+							if (s3path.startsWith("*")) {
+								affectedBuckets.add(bucketName);
+							} else {
+								String bucketPart = s3path.split("/", 2)[0];
+								affectedBuckets.add(bucketPart);
+							}
+						}
+					}
+				}
+			}
+
+			// Delete bucket policies for all affected buckets
+			for (String bucket : affectedBuckets) {
+				try {
+					deleteBucketPolicy(s3, bucket);
+					if(LOG.isDebugEnabled()) {
+						LOG.debug("Deleted S3 bucket policy for bucket: " + bucket);
+					}
+				} catch (Exception e) {
+					LOG.error("Failed to delete S3 bucket policy for bucket: " + bucket, e);
+					// Continue with other buckets even if one fails
+				}
+			}
+
+		} catch (Exception e) {
+			LOG.error("Error in cleanupS3BucketPoliciesForService for service: " + service.getName(), e);
+			throw e;
+		}
+
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("<== ServiceDBStore.cleanupS3BucketPoliciesForService(" + service.getName() + ")");
+		}
 	}
 
 	private void updateTabPermissions(String svcType, Map<String, String> svcConfig) {
