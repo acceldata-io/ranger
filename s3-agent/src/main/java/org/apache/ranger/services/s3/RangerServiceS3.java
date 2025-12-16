@@ -101,20 +101,38 @@ public class RangerServiceS3 extends RangerBaseService {
         for (RangerPolicy defaultPolicy : ret) {
 
             String 	lookUpUser = getConfig().get(RangerS3Constants.USER_NAME);
+            String  bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
 
             if (defaultPolicy.getName().contains("all") && StringUtils.isNotBlank(lookUpUser)) {
-                RangerPolicy.RangerPolicyItem policyItemForLookupUser = new RangerPolicy.RangerPolicyItem();
-                List<RangerPolicy.RangerPolicyItemAccess> accessListForLookupUser = new ArrayList<>();
-                accessListForLookupUser.add(new RangerPolicy.RangerPolicyItemAccess(ACCESS_TYPE_LIST_BUCKET));
-                String bucketName = getConfig().get(RangerS3Constants.BUCKET_NAME);
+                // Update the resource path value to use bucket name instead of wildcard
                 RangerPolicy.RangerPolicyResource pathPolicyResource = defaultPolicy.getResources().get(RangerS3Constants.PATH);
-                policyItemForLookupUser.setUsers(Collections.singletonList(lookUpUser));
-                policyItemForLookupUser.setAccesses(accessListForLookupUser);
-                pathPolicyResource.setValue(bucketName);
-                policyItemForLookupUser.setDelegateAdmin(false);
-                defaultPolicy.addPolicyItem(policyItemForLookupUser);
-            }
+                if (pathPolicyResource != null) {
+                    // Clear existing values and set bucket name
+                    pathPolicyResource.setValues(Collections.singletonList(bucketName));
+                }
 
+                // Clear existing policy items and create a new one with only ListBucket access
+                defaultPolicy.getPolicyItems().clear();
+
+                RangerPolicy.RangerPolicyItem policyItemForLookupUser = new RangerPolicy.RangerPolicyItem();
+
+                // Set only ListBucket access
+                List<RangerPolicy.RangerPolicyItemAccess> accessListForLookupUser = new ArrayList<>();
+                accessListForLookupUser.add(new RangerPolicy.RangerPolicyItemAccess(ACCESS_TYPE_LIST_BUCKET, true));
+                policyItemForLookupUser.setAccesses(accessListForLookupUser);
+
+                // Set the lookup user
+                policyItemForLookupUser.setUsers(Collections.singletonList(lookUpUser));
+
+                // Set delegate admin to true (or false based on your requirement)
+                policyItemForLookupUser.setDelegateAdmin(true);
+
+                // Add the modified policy item
+                defaultPolicy.addPolicyItem(policyItemForLookupUser);
+
+                LOG.info("Modified default policy for S3 service: policy=" + defaultPolicy.getName() +
+                        ", bucketName=" + bucketName + ", user=" + lookUpUser + ", access=ListBucket");
+            }
         }
 
         if (LOG.isDebugEnabled()) {
