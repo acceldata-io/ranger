@@ -34,7 +34,7 @@ import java.util.*;
 public class RangerServiceS3 extends RangerBaseService {
 
     private static final Logger LOG                     = LoggerFactory.getLogger(RangerServiceS3.class);
-    public static final String ACCESS_TYPE_LIST_BUCKET = "ListBucket";
+    public static final String ACCESS_TYPE_LIST_BUCKET = "s3:ListBucket";
     public RangerServiceS3() {
         super();
     }
