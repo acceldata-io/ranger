@@ -100,7 +100,7 @@ public class RangerServiceS3 extends RangerBaseService {
 
         for (RangerPolicy defaultPolicy : ret) {
 
-            String 	lookUpUser = getConfig().get(RangerS3Constants.USER_NAME);
+            String 	lookUpUser = configs.get(RangerS3Constants.USER_NAME);
             String  bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
 
             if (defaultPolicy.getName().contains("all") && StringUtils.isNotBlank(lookUpUser)) {
