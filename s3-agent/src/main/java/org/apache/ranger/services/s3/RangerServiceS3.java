@@ -22,8 +22,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerService;
 import org.apache.ranger.plugin.model.RangerServiceDef;
-import org.apache.ranger.plugin.policyengine.RangerPolicyEngine;
-import org.apache.ranger.plugin.resourcematcher.RangerAbstractResourceMatcher;
 import org.apache.ranger.plugin.service.RangerBaseService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.apache.ranger.services.s3.client.S3ResourceMgr;
