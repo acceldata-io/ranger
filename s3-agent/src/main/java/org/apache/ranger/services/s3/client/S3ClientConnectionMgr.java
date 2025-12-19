@@ -44,13 +44,12 @@ public class S3ClientConnectionMgr extends BaseClient {
         LOG.debug("==> S3ClientConnectionMgr.connectionTest ServiceName: "+ serviceName + "Configs" + configs );
         boolean connectivityStatus = false;
         Map<String, Object> responseData = new HashMap<String, Object>();
-        String bucketName = "odp-ranger-test";
-
+        // String bucketName = "odp-ranger-test";
+        S3Client s3 = getS3client(configs);
+        String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
 
         try {
-            S3Client s3 = getS3client(configs);
             // Using ListObjectsV2 approach
-
             ListObjectsV2Request listObjectsRequest = ListObjectsV2Request.builder()
                     .bucket(bucketName)
                     .maxKeys(1) // Just need to check if bucket is accessible
