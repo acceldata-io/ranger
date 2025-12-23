@@ -26,10 +26,12 @@ public class RangerS3Constants {
     public static final String DENY = "Deny";
     public static final String S3_POLICY_LANGUAGE_VERSION = "2012-10-17";
     public static final String USER_NAME = "username";
+    public static final String ACCESS_KEY = "accesskey";
     public static final String SECRET_KEY = "secretkey";
     public static final String ENDPOINT = "endpoint";
     public static final String REGION = "region";
     public static final String BUCKET_NAME = "bucketname";
+    public static final String PATH	= "path";
     public static final String S3_RESOURCE_PATH_ARN = "arn:aws:s3:::";
     public static final String S3_AWS_ACCOUNT_URN = "arn:aws:iam::";
 }
