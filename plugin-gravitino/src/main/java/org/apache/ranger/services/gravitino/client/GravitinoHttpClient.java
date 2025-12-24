@@ -1,15 +1,14 @@
 package org.apache.ranger.services.gravitino.client;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.client.HadoopException;
 
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 
 public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
@@ -89,7 +88,16 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         InputStream in = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
 
         // TODO: parse JSON -> list of names, filter by prefix if needed
-        throw new UnsupportedOperationException("Implement JSON parsing + prefix filtering");
+        List<String> names = new ArrayList<String>();
+        JsonNode jsonNode = new ObjectMapper().readTree(in);
+        JsonNode rootData = jsonNode.get(prefix);
+        if (rootData != null && rootData.isArray()) {
+            for (JsonNode node : rootData) {
+                names.add(node.get("name").asText());
+            }
+        }
+        return names;
+//        throw new UnsupportedOperationException("Implement JSON parsing + prefix filtering");
     }
 
 
