@@ -26,7 +26,7 @@ public class GravitinoResourceManager {
         List<String> metalakes = resourceMap != null ? resourceMap.get(METALAKE) : null;
         String metalake = (metalakes != null && !metalakes.isEmpty()) ? metalakes.get(0) : null;
 
-        final GravitinoHttpClient client = new GravitinoHttpClient(serviceName, configs);
+        final GravitinoClient client = GravitinoConnectionManager.getClient(serviceName, serviceType, configs);
 
         Callable<List<String>> task = null;
 
