@@ -9,12 +9,20 @@
         <version>2.5.0.3.3.6.2-SNAPSHOT</version>
     </parent>
 
-    <artifactId>plugin-gravitino</artifactId>
+    <artifactId>ranger-gravitino-plugin</artifactId>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.ranger</groupId>
+            <artifactId>ranger-plugins-common</artifactId>
+            <version>2.5.0.3.3.6.2-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
 
 </project>

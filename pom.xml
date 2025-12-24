@@ -26,6 +26,9 @@
     <artifactId>ranger</artifactId>
     <version>2.5.0.3.3.6.2-1</version>
     <description>Security for Enforcing Enterprise Policies</description>
+    <modules>
+        <module>plugin-gravitino</module>
+    </modules>
     <packaging>pom</packaging>
     <name>ranger</name>
     <url>http://ranger.apache.org/</url>
