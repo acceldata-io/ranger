@@ -1,0 +1,95 @@
+{
+    "name": "gravitino",
+    "displayName": "gravitino",
+    "label": "Gravitino",
+    "description": "Gravitino",
+    "guid": "REPLACE-WITH-NEW-UUID",
+    "implClass": "org.apache.ranger.services.gravitino.RangerServiceGravitino",
+    "resources": [
+      {
+        "itemId": 1,
+        "name": "metalake",
+        "type": "string",
+        "level": 10,
+        "parent": "",
+        "mandatory": true,
+        "isValidLeaf": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": true
+        },
+        "label": "Metalake",
+        "description": "Metalake - Collection of Catalogs"
+      },
+        {
+            "itemId": 1,
+            "name": "catalog",
+            "type": "string",
+            "level": 20,
+            "parent": "metalake",
+            "mandatory": true,
+            "isValidLeaf": true,
+            "lookupSupported": false,
+            "recursiveSupported": false,
+            "excludesSupported": true,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": true,
+                "ignoreCase": true
+            },
+            "label": "Catalog",
+            "description": "Catalog"
+        },
+        {
+            "itemId": 2,
+            "name": "schema",
+            "type": "string",
+            "level": 20,
+            "parent": "catalog",
+            "mandatory": true,
+            "isValidLeaf": true,
+            "lookupSupported": false,
+            "recursiveSupported": false,
+            "excludesSupported": true,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": true,
+                "ignoreCase": true
+            },
+            "label": "Schema",
+            "description": "Schema"
+        },
+        {
+            "itemId": 3,
+            "name": "table",
+            "type": "string",
+            "level": 30,
+            "parent": "schema",
+            "mandatory": true,
+            "isValidLeaf": true,
+            "lookupSupported": false,
+            "recursiveSupported": false,
+            "excludesSupported": true,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": true,
+                "ignoreCase": true
+            },
+            "label": "Table",
+            "description": "Table"
+        }
+    ],
+    "configs": [
+        {
+            "itemId": 1,
+            "name": "gravitino.url",
+            "type": "string",
+            "mandatory": true,
+            "label": "Gravitino URL"
+        }
+    ]
+}
