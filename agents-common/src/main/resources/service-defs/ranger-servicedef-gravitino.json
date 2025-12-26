@@ -90,6 +90,59 @@
             "type": "string",
             "mandatory": true,
             "label": "Gravitino URL"
+        },
+        {
+          "itemId": 2,
+          "name": "gravitino.auth.token.url",
+          "type": "string",
+          "mandatory": true,
+          "label": "Gravitino Auth URL"
+        },
+        {
+          "itemId": 3,
+          "name": "gravitino.auth.client.id",
+          "type": "string",
+          "mandatory": true,
+          "label": "Client ID"
+        },
+        {
+          "itemId": 4,
+          "name": "gravitino.auth.client.secret",
+          "type": "password",
+          "mandatory": true,
+          "label": "Client Secret"
+        },
+        {
+          "itemId": 5,
+          "name": "gravitino.auth.scope",
+          "type": "string",
+          "mandatory": false,
+          "label": "Token Scope (Optional)",
+          "defaultValue": ""
+        },
+        {
+          "itemId": 6,
+          "name": "gravitino.auth.token.cache.skew.ms",
+          "type": "number",
+          "mandatory": false,
+          "label": "Token Refresh Safety Window",
+          "defaultValue": 30000
+        },
+        {
+          "itemId": 7,
+          "name": "gravitino.auth.token.connect.timeout.ms",
+          "type": "number",
+          "mandatory": false,
+          "label": "Token Endpoint Connect Timeout",
+          "defaultValue": 5000
+        },
+        {
+          "itemId": 8,
+          "name": "gravitino.auth.token.read.timeout.ms",
+          "type": "number",
+          "mandatory": false,
+          "label": "Token Endpoint Read Timeout",
+          "defaultValue": 5000
         }
     ]
 }
