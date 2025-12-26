@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.client.HadoopException;
+import org.apache.ranger.services.gravitino.client.auth.BearerTokenProvider;
 
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -18,6 +19,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
 
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) {
         Map<String, Object> resp = new HashMap<>();
+
         try {
             GravitinoHttpClient client = new GravitinoHttpClient(serviceName, configs);
             Properties p = client.getConfigHolder().getRangerSection();
@@ -34,8 +36,8 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
-            // TODO: set auth headers if needed (basic/token/TLS client cert)
-            // conn.setRequestProperty("Authorization", "Bearer " + token);
+            String bearer = BearerTokenProvider.getBearerHeader(serviceName, configs);
+            conn.setRequestProperty("Authorization", bearer);
 
             int code = conn.getResponseCode();
             if (code >= 200 && code < 300) {
@@ -79,10 +81,13 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
     }
 
     private List<String> executeAndParseNames(URL url, String prefix) throws Exception {
+        String bearer = BearerTokenProvider.getBearerHeader(getSerivceName(), connectionProperties);
+
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
+        conn.setRequestProperty("Authorization", bearer);
 
         int code = conn.getResponseCode();
         InputStream in = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
