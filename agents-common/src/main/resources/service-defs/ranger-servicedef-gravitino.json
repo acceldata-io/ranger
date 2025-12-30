@@ -3,7 +3,7 @@
     "displayName": "gravitino",
     "label": "Gravitino",
     "description": "Gravitino",
-    "guid": "REPLACE-WITH-NEW-UUID",
+    "guid": "E4B47AF3-4505-443F-9408-1E985A0804BC",
     "implClass": "org.apache.ranger.services.gravitino.RangerServiceGravitino",
     "resources": [
       {
@@ -26,7 +26,7 @@
         "description": "Metalake - Collection of Catalogs"
       },
         {
-            "itemId": 1,
+            "itemId": 2,
             "name": "catalog",
             "type": "string",
             "level": 20,
@@ -45,7 +45,7 @@
             "description": "Catalog"
         },
         {
-            "itemId": 2,
+            "itemId": 3,
             "name": "schema",
             "type": "string",
             "level": 20,
@@ -64,7 +64,7 @@
             "description": "Schema"
         },
         {
-            "itemId": 3,
+            "itemId": 4,
             "name": "table",
             "type": "string",
             "level": 30,
