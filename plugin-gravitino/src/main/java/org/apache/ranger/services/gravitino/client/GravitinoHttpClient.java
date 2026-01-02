@@ -30,14 +30,17 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
                 return resp;
             }
 
-            URL url = new URL(baseUrl + "/api/v1/metalakes");
+            URL url = new URL(baseUrl + "/api/metalakes");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
+            conn.setRequestProperty("Content-Type", "application/json");
 
             String bearer = BearerTokenProvider.getBearerHeader(serviceName, configs);
-            conn.setRequestProperty("Authorization", bearer);
+            if (bearer != null && !bearer.isEmpty()) {
+                conn.setRequestProperty("Authorization", bearer);
+            }
 
             int code = conn.getResponseCode();
             if (code >= 200 && code < 300) {
@@ -63,7 +66,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = p.getProperty("gravitino.url");
 
-        URL  url = new URL(baseUrl + "/api/v1/metalakes");
+        URL  url = new URL(baseUrl + "/api/metalakes");
         return executeAndParseNames(url, prefix);
     }
 
@@ -76,7 +79,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         String baseUrl = p.getProperty("gravitino.url");
 
         // TODO: replace with correct endpoint and parse response JSON
-        URL url = new URL(baseUrl + "/api/v1/metalakes/" + metalake + "/catalogs");
+        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs");
         return executeAndParseNames(url, prefix);
     }
 
@@ -87,8 +90,10 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
-        conn.setRequestProperty("Authorization", bearer);
-
+        conn.setRequestProperty("Content-Type", "application/json");
+        if (bearer != null && !bearer.isEmpty()) {
+            conn.setRequestProperty("Authorization", bearer);
+        }
         int code = conn.getResponseCode();
         InputStream in = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
 

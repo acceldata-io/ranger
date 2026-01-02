@@ -52,6 +52,13 @@ public final class BearerTokenProvider {
 
     /** Returns full header value: "Bearer <token>" */
     public static String getBearerHeader(String serviceName, Map<String, String> configs) {
+        String tokenUrlRaw = trimToNull(configs.get("gravitino.auth.token.url"));
+
+        // Local testing escape hatch: skip auth entirely
+        if (tokenUrlRaw == null || "none".equalsIgnoreCase(tokenUrlRaw) || "noauth".equalsIgnoreCase(tokenUrlRaw)) {
+            return null;
+        }
+
         String tokenUrl = must(configs, "gravitino.auth.token.url");
         String clientId = must(configs, "gravitino.auth.client.id");
         String clientSecret = must(configs, "gravitino.auth.client.secret");
