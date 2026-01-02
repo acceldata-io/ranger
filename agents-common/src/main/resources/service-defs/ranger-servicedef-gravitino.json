@@ -48,7 +48,7 @@
             "itemId": 3,
             "name": "schema",
             "type": "string",
-            "level": 20,
+            "level": 30,
             "parent": "catalog",
             "mandatory": true,
             "isValidLeaf": true,
@@ -67,7 +67,7 @@
             "itemId": 4,
             "name": "table",
             "type": "string",
-            "level": 30,
+            "level": 40,
             "parent": "schema",
             "mandatory": true,
             "isValidLeaf": true,
@@ -83,6 +83,12 @@
             "description": "Table"
         }
     ],
+  "accessTypes": [
+    { "itemId": 1, "name": "select", "label": "Select", "category": "READ" },
+    { "itemId": 2, "name": "create", "label": "Create", "category": "CREATE" },
+    { "itemId": 3, "name": "drop",   "label": "Drop",   "category": "DELETE" },
+    { "itemId": 4, "name": "alter",  "label": "Alter",  "category": "UPDATE" }
+  ],
     "configs": [
         {
             "itemId": 1,
@@ -143,6 +149,20 @@
           "mandatory": false,
           "label": "Token Endpoint Read Timeout",
           "defaultValue": 5000
+        },
+        {
+          "itemId": 9,
+          "name": "username",
+          "type": "string",
+          "mandatory": true,
+          "label": "Username"
+        },
+        {
+          "itemId": 10,
+          "name": "password",
+          "type": "password",
+          "mandatory": false,
+          "label": "Password"
         }
     ]
 }
