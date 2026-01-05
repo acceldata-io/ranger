@@ -5,6 +5,10 @@
     "description": "Gravitino",
     "guid": "E4B47AF3-4505-443F-9408-1E985A0804BC",
     "implClass": "org.apache.ranger.services.gravitino.RangerServiceGravitino",
+    "options": {
+        "enableDenyAndExceptionsInPolicies": "true",
+        "enableTagBasedPolicies": "true"
+    },
     "resources": [
       {
         "itemId": 1,
@@ -23,7 +27,35 @@
           "ignoreCase": true
         },
         "label": "Metalake",
-        "description": "Metalake - Collection of Catalogs"
+        "description": "Metalake - Collection of Catalogs",
+        "accessTypeRestrictions": [
+          "create_catalog",
+          "use_catalog",
+          "create_schema",
+          "use_schema",
+          "create_table",
+          "select_table",
+          "modify_table",
+          "create_topic",
+          "produce_topic",
+          "consume_topic",
+          "create_fileset",
+          "read_fileset",
+          "write_fileset",
+          "create_model",
+          "use_model",
+          "create_model_version",
+          "manage_users",
+          "manage_groups",
+          "create_role",
+          "manage_grants",
+          "create_tag",
+          "apply_tag",
+          "create_policy",
+          "apply_policy",
+          "register_job_template",
+          "run_job"
+        ]
       },
         {
             "itemId": 2,
@@ -33,7 +65,7 @@
             "parent": "metalake",
             "mandatory": true,
             "isValidLeaf": true,
-            "lookupSupported": false,
+            "lookupSupported": true,
             "recursiveSupported": false,
             "excludesSupported": true,
             "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
@@ -42,7 +74,24 @@
                 "ignoreCase": true
             },
             "label": "Catalog",
-            "description": "Catalog"
+            "description": "Catalog (Relational, Messaging, Fileset, or Model)",
+            "accessTypeRestrictions": [
+              "use_catalog",
+              "create_schema",
+              "use_schema",
+              "create_table",
+              "select_table",
+              "modify_table",
+              "create_topic",
+              "produce_topic",
+              "consume_topic",
+              "create_fileset",
+              "read_fileset",
+              "write_fileset",
+              "create_model",
+              "use_model",
+              "create_model_version"
+            ]
         },
         {
             "itemId": 3,
@@ -52,7 +101,7 @@
             "parent": "catalog",
             "mandatory": true,
             "isValidLeaf": true,
-            "lookupSupported": false,
+            "lookupSupported": true,
             "recursiveSupported": false,
             "excludesSupported": true,
             "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
@@ -61,7 +110,22 @@
                 "ignoreCase": true
             },
             "label": "Schema",
-            "description": "Schema"
+            "description": "Schema within a Catalog",
+            "accessTypeRestrictions": [
+              "use_schema",
+              "create_table",
+              "create_topic",
+              "create_fileset",
+              "create_model",
+              "select_table",
+              "modify_table",
+              "produce_topic",
+              "consume_topic",
+              "read_fileset",
+              "write_fileset",
+              "use_model",
+              "create_model_version"
+            ]
         },
         {
             "itemId": 4,
@@ -71,7 +135,7 @@
             "parent": "schema",
             "mandatory": true,
             "isValidLeaf": true,
-            "lookupSupported": false,
+            "lookupSupported": true,
             "recursiveSupported": false,
             "excludesSupported": true,
             "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
@@ -80,14 +144,155 @@
                 "ignoreCase": true
             },
             "label": "Table",
-            "description": "Table"
+            "description": "Table in a Relational Catalog (Hive, MySQL, PostgreSQL, Iceberg, Doris)",
+            "accessTypeRestrictions": [
+              "select_table",
+              "modify_table"
+            ]
+        },
+        {
+            "itemId": 5,
+            "name": "topic",
+            "type": "string",
+            "level": 40,
+            "parent": "schema",
+            "mandatory": true,
+            "isValidLeaf": true,
+            "lookupSupported": true,
+            "recursiveSupported": false,
+            "excludesSupported": true,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": true,
+                "ignoreCase": true
+            },
+            "label": "Topic",
+            "description": "Topic in a Messaging Catalog (e.g., Kafka)",
+            "accessTypeRestrictions": [
+              "produce_topic",
+              "consume_topic"
+            ]
+        },
+        {
+            "itemId": 6,
+            "name": "fileset",
+            "type": "string",
+            "level": 40,
+            "parent": "schema",
+            "mandatory": true,
+            "isValidLeaf": true,
+            "lookupSupported": true,
+            "recursiveSupported": false,
+            "excludesSupported": true,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": true,
+                "ignoreCase": true
+            },
+            "label": "Fileset",
+            "description": "Fileset in a Fileset Catalog (HDFS, S3, etc.)",
+            "accessTypeRestrictions": [
+              "read_fileset",
+              "write_fileset"
+            ]
+        },
+        {
+            "itemId": 7,
+            "name": "model",
+            "type": "string",
+            "level": 40,
+            "parent": "schema",
+            "mandatory": true,
+            "isValidLeaf": true,
+            "lookupSupported": true,
+            "recursiveSupported": false,
+            "excludesSupported": true,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": true,
+                "ignoreCase": true
+            },
+            "label": "Model",
+            "description": "Model in a Model Catalog (ML models)",
+            "accessTypeRestrictions": [
+              "use_model",
+              "create_model_version"
+            ]
+        },
+        {
+            "itemId": 8,
+            "name": "model-version",
+            "type": "string",
+            "level": 50,
+            "parent": "model",
+            "mandatory": true,
+            "isValidLeaf": true,
+            "lookupSupported": true,
+            "recursiveSupported": false,
+            "excludesSupported": true,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": true,
+                "ignoreCase": true
+            },
+            "label": "Model Version",
+            "description": "Version of a Model in a Model Catalog",
+            "accessTypeRestrictions": [
+              "use_model"
+            ]
         }
     ],
   "accessTypes": [
-    { "itemId": 1, "name": "select", "label": "Select", "category": "READ" },
-    { "itemId": 2, "name": "create", "label": "Create", "category": "CREATE" },
-    { "itemId": 3, "name": "drop",   "label": "Drop",   "category": "DELETE" },
-    { "itemId": 4, "name": "alter",  "label": "Alter",  "category": "UPDATE" }
+        { "itemId": 1,  "name": "create_catalog",         "label": "Create Catalog",         "category": "CREATE" },
+        { "itemId": 2,  "name": "use_catalog",            "label": "Use Catalog",            "category": "READ" },
+        { "itemId": 3,  "name": "create_schema",          "label": "Create Schema",          "category": "CREATE", "impliedGrants": ["use_catalog"] },
+        { "itemId": 4,  "name": "use_schema",             "label": "Use Schema",             "category": "READ",   "impliedGrants": ["use_catalog"] },
+        { "itemId": 5,  "name": "create_table",           "label": "Create Table",           "category": "CREATE", "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 6,  "name": "select_table",           "label": "Select Table",           "category": "READ",   "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 7,  "name": "modify_table",           "label": "Modify Table",           "category": "UPDATE", "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 8,  "name": "create_topic",           "label": "Create Topic",           "category": "CREATE", "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 9,  "name": "produce_topic",          "label": "Produce Topic",          "category": "CREATE", "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 10, "name": "consume_topic",          "label": "Consume Topic",          "category": "READ",   "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 11, "name": "create_fileset",         "label": "Create Fileset",         "category": "CREATE", "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 12, "name": "read_fileset",           "label": "Read Fileset",           "category": "READ",   "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 13, "name": "write_fileset",          "label": "Write Fileset",          "category": "UPDATE", "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 14, "name": "create_model",           "label": "Create Model",           "category": "CREATE", "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 15, "name": "use_model",              "label": "Use Model",              "category": "READ",   "impliedGrants": ["use_schema", "use_catalog"] },
+        { "itemId": 16, "name": "create_model_version",   "label": "Create Model Version",   "category": "CREATE", "impliedGrants": ["use_model", "use_schema", "use_catalog"] },
+        { "itemId": 17, "name": "manage_users",           "label": "Manage Users",           "category": "MANAGE" },
+        { "itemId": 18, "name": "manage_groups",          "label": "Manage Groups",          "category": "MANAGE" },
+        { "itemId": 19, "name": "create_role",            "label": "Create Role",            "category": "CREATE" },
+        { "itemId": 20, "name": "manage_grants",          "label": "Manage Grants",          "category": "MANAGE" },
+        { "itemId": 21, "name": "create_tag",             "label": "Create Tag",             "category": "CREATE" },
+        { "itemId": 22, "name": "apply_tag",              "label": "Apply Tag",              "category": "UPDATE" },
+        { "itemId": 23, "name": "create_policy",          "label": "Create Policy",          "category": "CREATE" },
+        { "itemId": 24, "name": "apply_policy",           "label": "Apply Policy",           "category": "UPDATE" },
+        { "itemId": 25, "name": "register_job_template",  "label": "Register Job Template",  "category": "CREATE" },
+        { "itemId": 26, "name": "run_job",                "label": "Run Job",                "category": "UPDATE" }
+  ],
+  "policyConditions": [
+      {
+          "itemId": 1,
+          "name": "_expression",
+          "evaluator": "org.apache.ranger.plugin.conditionevaluator.RangerScriptConditionEvaluator",
+          "evaluatorOptions": {
+              "ui.isMultiline": "true",
+              "engineName": "JavaScript"
+          },
+          "uiHint": "{ \"isMultiline\":true }",
+          "label": "Enter boolean expression",
+          "description": "Boolean expression"
+      }
+  ],
+  "dataMaskDef": {},
+  "rowFilterDef": {},
+  "markerAccessTypes": [
+      { "itemId": 0, "name": "_CREATE", "label": "_CREATE" },
+      { "itemId": 1, "name": "_READ",   "label": "_READ" },
+      { "itemId": 2, "name": "_UPDATE", "label": "_UPDATE" },
+      { "itemId": 3, "name": "_DELETE", "label": "_DELETE" },
+      { "itemId": 4, "name": "_MANAGE", "label": "_MANAGE" },
+      { "itemId": 5, "name": "_ALL",    "label": "_ALL" }
   ],
     "configs": [
         {
