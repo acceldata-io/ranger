@@ -50,7 +50,7 @@ public class EmbeddedServiceDefsUtil {
 
 
 	// following servicedef list should be reviewed/updated whenever a new embedded service-def is added
-	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure";
+	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3";
 	private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
 	private Set<String> supportedServiceDefs;
 	public static final String EMBEDDED_SERVICEDEF_TAG_NAME  = "tag";
@@ -78,6 +78,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String EMBEDDED_SERVICEDEF_OZONE_NAME  = "ozone";
 	public static final String EMBEDDED_SERVICEDEF_KUDU_NAME  = "kudu";
 	public static final String EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME  = "nestedstructure";
+	public static final String EMBEDDED_SERVICEDEF_S3_NAME  = "s3";
 
 	public static final String PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS = "ranger.service.store.create.embedded.service-defs";
 
@@ -124,6 +125,7 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef ozoneServiceDef;
 	private RangerServiceDef kuduServiceDef;
 	private RangerServiceDef nestedStructureServiveDef;
+	private RangerServiceDef s3ServiceDef;
 
 	private RangerServiceDef tagServiceDef;
 	private RangerServiceDef gdsServiceDef;
@@ -173,6 +175,7 @@ public class EmbeddedServiceDefsUtil {
 			ozoneServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_OZONE_NAME);
 			kuduServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KUDU_NAME);
 			nestedStructureServiveDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME);
+			s3ServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_S3_NAME);
 
 			tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
 			gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
@@ -265,6 +268,8 @@ public class EmbeddedServiceDefsUtil {
 	public long getKuduServiceDefId() { return getId(kuduServiceDef); }
 
 	public long getNestedStructureServiceDefId() { return getId(nestedStructureServiveDef); }
+
+	public long getS3ServiceDefId() { return getId(s3ServiceDef); }
 
 	public long getTagServiceDefId() { return getId(tagServiceDef); }
 
