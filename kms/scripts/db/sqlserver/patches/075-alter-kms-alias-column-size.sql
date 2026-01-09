@@ -16,6 +16,10 @@
 -- ODP-5806: Increase ranger_keystore.kms_alias column size to avoid truncation
 --
 
-ALTER TABLE [dbo].[ranger_keystore] ALTER COLUMN [kms_alias] [varchar](512) NOT NULL;
+IF OBJECT_ID(N'dbo.ranger_keystore', N'U') IS NOT NULL
+   AND COL_LENGTH(N'dbo.ranger_keystore', N'kms_alias') IS NOT NULL
+BEGIN
+  ALTER TABLE [dbo].[ranger_keystore] ALTER COLUMN [kms_alias] [varchar](512) NOT NULL;
+END
 GO
 

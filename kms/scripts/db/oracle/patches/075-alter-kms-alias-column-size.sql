@@ -16,5 +16,18 @@
 -- ODP-5806: Increase ranger_keystore.kms_alias column size to avoid truncation
 --
 
-ALTER TABLE ranger_keystore MODIFY (kms_alias VARCHAR(512));
+DECLARE
+  v_count INTEGER := 0;
+BEGIN
+  SELECT COUNT(*)
+    INTO v_count
+    FROM user_tab_cols
+   WHERE table_name = UPPER('ranger_keystore')
+     AND column_name = UPPER('kms_alias');
+
+  IF v_count > 0 THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE ranger_keystore MODIFY (kms_alias VARCHAR2(512))';
+  END IF;
+END;
+/
 
