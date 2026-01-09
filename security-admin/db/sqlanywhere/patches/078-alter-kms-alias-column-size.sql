@@ -12,12 +12,19 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
+--
+-- ODP-5806: Increase ranger_keystore.kms_alias column size to avoid truncation
+--
 
-IF EXISTS(select * from SYS.SYSTABLES where tname = 'x_trx_log_v2') THEN
-	IF EXISTS(select * from SYS.SYSCOLUMNS where tname = 'x_trx_log_v2' and cname = 'action') THEN
-		CREATE INDEX IF NOT EXISTS x_trx_log_v2_action ON x_trx_log_v2(action);
-	END IF;
-END IF;
+BEGIN
+  IF EXISTS (
+    SELECT 1
+      FROM information_schema.columns
+     WHERE table_name = 'ranger_keystore'
+       AND column_name = 'kms_alias'
+  ) THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE ranger_keystore ALTER kms_alias VARCHAR(512)';
+  END IF;
+END;
 GO
-
 EXIT

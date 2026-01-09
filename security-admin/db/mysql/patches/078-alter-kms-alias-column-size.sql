@@ -12,18 +12,21 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
-GO
-IF OBJECT_ID('x_trx_log_v2') IS NOT NULL
-BEGIN
-	IF NOT EXISTS(SELECT * FROM sys.indexes WHERE name = 'x_trx_log_v2_action' AND object_id = OBJECT_ID('x_trx_log_v2'))
-	BEGIN
-		CREATE NONCLUSTERED INDEX [x_trx_log_v2_action] ON [x_trx_log_v2]
-		(
-			[action] ASC
-		)
-		WITH (SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF) ON [PRIMARY]
-	END
-END
-Go
+--
+-- ODP-5806: Increase ranger_keystore.kms_alias column size to avoid truncation
+--
 
-EXIT;
+DROP PROCEDURE IF EXISTS alter_kms_alias_column_size;
+
+DELIMITER ;;
+CREATE PROCEDURE alter_kms_alias_column_size() BEGIN
+  IF EXISTS (SELECT * FROM information_schema.tables WHERE table_schema=database() AND table_name = 'ranger_keystore') THEN
+    IF EXISTS (SELECT * FROM information_schema.columns WHERE table_schema=database() AND table_name = 'ranger_keystore' AND column_name = 'kms_alias') THEN
+      ALTER TABLE `ranger_keystore` MODIFY COLUMN `kms_alias` varchar(512) NOT NULL;
+    END IF;
+  END IF;
+END;;
+
+DELIMITER ;
+CALL alter_kms_alias_column_size();
+DROP PROCEDURE IF EXISTS alter_kms_alias_column_size;

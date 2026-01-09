@@ -12,18 +12,21 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
--- sync_source_info CLOB NOT NULL,
+--
+-- ODP-5806: Increase ranger_keystore.kms_alias column size to avoid truncation
+--
 
 DECLARE
-	v_index_exists number:=0;
-	v_table_exists number := 0;
+  v_count INTEGER := 0;
 BEGIN
-	SELECT COUNT(*) INTO v_table_exists FROM USER_TABLES WHERE TABLE_NAME = upper('x_trx_log_v2');
-	IF (v_table_exists > 0) THEN
-		SELECT COUNT(*) INTO v_index_exists FROM USER_INDEXES WHERE INDEX_NAME = upper('x_trx_log_v2_action') AND TABLE_NAME= upper('x_trx_log_v2');
-		IF (v_index_exists = 0) THEN
-			execute IMMEDIATE 'CREATE INDEX x_trx_log_v2_action ON x_trx_log_v2(action)';
-			commit;
-		END IF;
-	END IF;
-END;/
+  SELECT COUNT(*)
+    INTO v_count
+    FROM user_tab_cols
+   WHERE table_name = UPPER('ranger_keystore')
+     AND column_name = UPPER('kms_alias');
+
+  IF v_count > 0 THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE ranger_keystore MODIFY (kms_alias VARCHAR2(512))';
+  END IF;
+END;
+/

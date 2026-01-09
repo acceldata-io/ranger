@@ -37,7 +37,7 @@ public class XXRangerKeyStore extends XXDBBase implements java.io.Serializable {
     @GeneratedValue(strategy = GenerationType.AUTO, generator = "RANGER_KEYSTORE_SEQ")
     @Column(name = "ID")
     protected Long id;
-    @Column(name = "kms_alias", length = 255)
+    @Column(name = "kms_alias", length = 512)
     protected String alias;
     @Column(name = "kms_createdDate", length = 255)
     protected Long createdDate;
