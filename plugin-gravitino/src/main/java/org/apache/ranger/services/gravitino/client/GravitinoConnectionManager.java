@@ -25,9 +25,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * GravitinoConnectionManager - Manages connections to Gravitino servers.
+ * GravitinoConnectionManager - Manages connections to Xstore servers.
  * 
- * This class provides connection pooling and caching for Gravitino clients
+ * This class provides connection pooling and caching for Xstore clients
  * to improve performance and reduce connection overhead.
  */
 public class GravitinoConnectionManager {
@@ -41,7 +41,7 @@ public class GravitinoConnectionManager {
     }
     
     /**
-     * Get a Gravitino client for the specified service.
+     * Get a Xstore client for the specified service.
      * 
      * @param serviceName Name of the Ranger service
      * @param serviceType Type of service (gravitino)
@@ -54,13 +54,13 @@ public class GravitinoConnectionManager {
             String serviceType,
             Map<String, String> configs) throws Exception {
         
-        LOG.debug("Getting Gravitino client for service: {}", serviceName);
+        LOG.debug("Getting Xstore client for service: {}", serviceName);
         
         // For simplicity, create a new client each time to ensure fresh configs
         // In production, you might want to cache clients with proper invalidation
         GravitinoClient client = new GravitinoHttpClient(serviceName, configs);
         
-        LOG.debug("Created new Gravitino HTTP client for service: {}", serviceName);
+        LOG.debug("Created new Xstore HTTP client for service: {}", serviceName);
         return client;
     }
     
@@ -80,11 +80,11 @@ public class GravitinoConnectionManager {
         
         return clientCache.computeIfAbsent(serviceName, name -> {
             try {
-                LOG.info("Creating cached Gravitino client for service: {}", name);
+                LOG.info("Creating cached Xstore client for service: {}", name);
                 return new GravitinoHttpClient(name, configs);
             } catch (Exception e) {
-                LOG.error("Failed to create Gravitino client for service: {}", name, e);
-                throw new RuntimeException("Failed to create Gravitino client", e);
+                LOG.error("Failed to create Xstore client for service: {}", name, e);
+                throw new RuntimeException("Failed to create Xstore client", e);
             }
         });
     }
@@ -97,7 +97,7 @@ public class GravitinoConnectionManager {
     public static void invalidateClient(String serviceName) {
         GravitinoClient removed = clientCache.remove(serviceName);
         if (removed != null) {
-            LOG.info("Invalidated cached Gravitino client for service: {}", serviceName);
+            LOG.info("Invalidated cached Xstore client for service: {}", serviceName);
         }
     }
     
@@ -105,7 +105,7 @@ public class GravitinoConnectionManager {
      * Clear all cached clients.
      */
     public static void clearCache() {
-        LOG.info("Clearing all cached Gravitino clients");
+        LOG.info("Clearing all cached Xstore clients");
         clientCache.clear();
     }
 }

@@ -32,9 +32,9 @@ import java.net.URL;
 import java.util.*;
 
 /**
- * GravitinoHttpClient - HTTP client implementation for Gravitino API.
+ * GravitinoHttpClient - HTTP client implementation for Xstore API.
  * 
- * This client communicates with the Gravitino REST API to lookup resources
+ * This client communicates with the Xstore REST API to lookup resources
  * for policy configuration in Ranger Admin UI.
  */
 public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
@@ -49,7 +49,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
     }
     
     /**
-     * Test connection to Gravitino server.
+     * Test connection to Xstore server.
      */
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) {
         Map<String, Object> resp = new HashMap<>();
@@ -92,7 +92,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             HadoopException hE = new HadoopException(e.getMessage());
             hE.setStackTrace(e.getStackTrace());
             hE.generateResponseDataMap(false, BaseClient.getMessage(e),
-                    "Unable to connect to Gravitino", null, null);
+                    "Unable to connect to Xstore", null, null);
             throw hE;
         }
     }

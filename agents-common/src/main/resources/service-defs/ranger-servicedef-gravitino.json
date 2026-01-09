@@ -1,8 +1,8 @@
 {
     "name": "gravitino",
-    "displayName": "gravitino",
-    "label": "Gravitino",
-    "description": "Gravitino",
+    "displayName": "xstore",
+    "label": "Xstore",
+    "description": "Xstore",
     "guid": "E4B47AF3-4505-443F-9408-1E985A0804BC",
     "implClass": "org.apache.ranger.services.gravitino.RangerServiceGravitino",
     "options": {
@@ -300,14 +300,14 @@
             "name": "gravitino.url",
             "type": "string",
             "mandatory": true,
-            "label": "Gravitino URL"
+            "label": "Xstore URL"
         },
         {
           "itemId": 2,
           "name": "gravitino.auth.token.url",
           "type": "string",
           "mandatory": true,
-          "label": "Gravitino Auth URL"
+          "label": "Xstore Auth URL"
         },
         {
           "itemId": 3,

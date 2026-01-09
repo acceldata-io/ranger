@@ -28,8 +28,8 @@
     </parent>
 
     <artifactId>ranger-gravitino-plugin</artifactId>
-    <name>Gravitino Security Plugin</name>
-    <description>Ranger Plugin for Gravitino - Service Definition and Resource Lookup</description>
+    <name>Xstore Security Plugin</name>
+    <description>Ranger Plugin for Xstore - Service Definition and Resource Lookup</description>
     <packaging>jar</packaging>
 
     <properties>
