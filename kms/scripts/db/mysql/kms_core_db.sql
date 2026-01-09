@@ -33,7 +33,7 @@ CREATE TABLE `ranger_keystore` (
   `update_time` datetime DEFAULT NULL,
   `added_by_id` bigint(20) DEFAULT NULL,
   `upd_by_id` bigint(20) DEFAULT NULL,
-  `kms_alias` varchar(255) NOT NULL,
+  `kms_alias` varchar(512) NOT NULL,
   `kms_createdDate` bigint(20) DEFAULT NULL,
   `kms_cipher` varchar(255) DEFAULT NULL,
    `kms_bitLength` bigint(20) DEFAULT NULL,

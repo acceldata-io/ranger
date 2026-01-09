@@ -47,7 +47,7 @@ public class XXRangerKeyStore extends XXDBBase implements java.io.Serializable {
 		return id;
 	}
 	
-	@Column(name="kms_alias"  , length=255 )
+	@Column(name="kms_alias"  , length=512 )
 	protected String alias;
 	
 	public String getAlias() {
