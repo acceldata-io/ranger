@@ -48,7 +48,7 @@ public final class DerbyTestUtils {
         statement.execute("CREATE SEQUENCE RANGER_KEYSTORE_SEQ START WITH 1 INCREMENT BY 1");
         statement.execute("CREATE TABLE ranger_keystore(id VARCHAR(20) NOT NULL PRIMARY KEY, create_time DATE,"
             + "update_time DATE, added_by_id VARCHAR(20), upd_by_id VARCHAR(20),"
-            + "kms_alias VARCHAR(255) NOT NULL, kms_createdDate VARCHAR(20), kms_cipher VARCHAR(255),"
+            + "kms_alias VARCHAR(512) NOT NULL, kms_createdDate VARCHAR(20), kms_cipher VARCHAR(255),"
             + "kms_bitLength VARCHAR(20), kms_description VARCHAR(512), kms_version VARCHAR(20),"
             + "kms_attributes VARCHAR(1024), kms_encoded VARCHAR(2048))");
 
