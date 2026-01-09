@@ -16,23 +16,18 @@
 -- ODP-5806: Increase ranger_keystore.kms_alias column size to avoid truncation
 --
 
--- MySQL doesn't support "ALTER TABLE ... MODIFY COLUMN ... IF EXISTS", use dynamic SQL.
-SET @ranger_kms_sql := (
-  SELECT
-    IF(
-      EXISTS(
-        SELECT 1
-          FROM information_schema.columns
-         WHERE table_schema = DATABASE()
-           AND table_name = 'ranger_keystore'
-           AND column_name = 'kms_alias'
-      ),
-      'ALTER TABLE `ranger_keystore` MODIFY COLUMN `kms_alias` varchar(512) NOT NULL',
-      'SELECT 1'
-    )
-);
+DROP PROCEDURE IF EXISTS alter_kms_alias_column_size;
 
-PREPARE ranger_kms_stmt FROM @ranger_kms_sql;
-EXECUTE ranger_kms_stmt;
-DEALLOCATE PREPARE ranger_kms_stmt;
+DELIMITER ;;
+CREATE PROCEDURE alter_kms_alias_column_size() BEGIN
+  IF EXISTS (SELECT * FROM information_schema.tables WHERE table_schema=database() AND table_name = 'ranger_keystore') THEN
+    IF EXISTS (SELECT * FROM information_schema.columns WHERE table_schema=database() AND table_name = 'ranger_keystore' AND column_name = 'kms_alias') THEN
+      ALTER TABLE `ranger_keystore` MODIFY COLUMN `kms_alias` varchar(512) NOT NULL;
+    END IF;
+  END IF;
+END;;
+
+DELIMITER ;
+CALL alter_kms_alias_column_size();
+DROP PROCEDURE IF EXISTS alter_kms_alias_column_size;
 
