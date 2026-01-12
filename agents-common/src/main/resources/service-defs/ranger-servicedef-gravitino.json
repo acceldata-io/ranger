@@ -7,7 +7,8 @@
     "implClass": "org.apache.ranger.services.gravitino.RangerServiceGravitino",
     "options": {
         "enableDenyAndExceptionsInPolicies": "true",
-        "enableTagBasedPolicies": "true"
+        "enableTagBasedPolicies": "true",
+        "create.default.policy.per.hierarchy": "false"
     },
     "resources": [
       {
@@ -23,9 +24,11 @@
         "excludesSupported": true,
         "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
         "matcherOptions": {
-          "wildCard": true,
+          "wildCard": false,
           "ignoreCase": true
         },
+        "validationRegEx": "^[^*]+$",
+        "validationMessage": "Wildcard '*' is not allowed for Metalake",
         "label": "Metalake",
         "description": "Metalake - Collection of Catalogs",
         "accessTypeRestrictions": [
