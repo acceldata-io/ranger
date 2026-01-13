@@ -25,7 +25,12 @@ import java.util.Map;
  * Creates a {@link GravitinoAuth} implementation based on configuration.
  *
  * Supported:
- * - gravitino.auth.type = bearer | basic | none
+ * - gravitino.auth.type = bearer | basic | aksk | none
+ *
+ * Boot-time override (highest precedence):
+ * - if env var RANGER_GRAVITINO_AUTH_TYPE is set to aksk (or alias), AccessKeySecretKeyAuth is used
+ * - if env var RANGER_GRAVITINO_FORCE_AKSK is truthy, AccessKeySecretKeyAuth is used
+ * - if both access/secret env vars are present, AccessKeySecretKeyAuth is used
  *
  * Backward compatibility:
  * - if gravitino.auth.type is missing and gravitino.auth.token.url is set (and not "none"/"noauth"), bearer auth is used
@@ -46,9 +51,19 @@ public final class GravitinoAuthFactory {
     public static final String DEFAULT_BASIC_USERNAME = "admin";
     public static final String DEFAULT_BASIC_PASSWORD = "password";
 
+    // boot-time override (env)
+    public static final String ENV_AUTH_TYPE_OVERRIDE = "RANGER_GRAVITINO_AUTH_TYPE";
+    public static final String ENV_FORCE_AKSK = "RANGER_GRAVITINO_FORCE_AKSK";
+
     private GravitinoAuthFactory() {}
 
     public static GravitinoAuth create(String serviceName, Map<String, String> configs) {
+        // Highest precedence: allow platform/helm to enforce auth mode at boot-time,
+        // regardless of service configs set in Ranger.
+        if (shouldForceAccessKeySecretKeyAuthFromEnv()) {
+            return new AccessKeySecretKeyAuth();
+        }
+
         String type = trimToNull(configs.get(KEY_AUTH_TYPE));
         if (type == null) {
             // legacy behavior: if token url is configured, assume bearer auth
@@ -81,6 +96,12 @@ public final class GravitinoAuthFactory {
                         user != null ? user : DEFAULT_BASIC_USERNAME,
                         pass != null ? pass : DEFAULT_BASIC_PASSWORD
                 );
+            case "aksk":
+            case "accesskey":
+            case "access_key":
+            case "accesskeysecretkey":
+            case "access_key_secret_key":
+                return new AccessKeySecretKeyAuth();
             case "none":
             case "noauth":
                 return new NoAuth();
@@ -104,6 +125,64 @@ public final class GravitinoAuthFactory {
     private static String firstNonBlank(String a, String b) {
         String ta = trimToNull(a);
         return ta != null ? ta : trimToNull(b);
+    }
+
+    private static boolean shouldForceAccessKeySecretKeyAuthFromEnv() {
+        String overrideType = trimToNull(System.getenv(ENV_AUTH_TYPE_OVERRIDE));
+        if (overrideType != null) {
+            String t = overrideType.toLowerCase(Locale.ROOT).trim();
+            if (isAkskType(t)) {
+                return true;
+            }
+        }
+
+        if (isTruthy(System.getenv(ENV_FORCE_AKSK))) {
+            return true;
+        }
+
+        // If accessKey/secretKey are provided via env, prefer them automatically.
+        // This enables Helm secrets to configure auth without touching Ranger service configs.
+        String accessKey = trimToNull(firstNonBlank(
+                System.getenv(AccessKeySecretKeyAuth.ENV_ACCESS_KEY),
+                System.getenv(AccessKeySecretKeyAuth.ENV_ACCESS_KEY_ALT)
+        ));
+        String secretKey = trimToNull(firstNonBlank(
+                System.getenv(AccessKeySecretKeyAuth.ENV_SECRET_KEY),
+                System.getenv(AccessKeySecretKeyAuth.ENV_SECRET_KEY_ALT)
+        ));
+
+        return accessKey != null && secretKey != null;
+    }
+
+    private static boolean isAkskType(String t) {
+        switch (t) {
+            case "aksk":
+            case "accesskey":
+            case "access_key":
+            case "accesskeysecretkey":
+            case "access_key_secret_key":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static boolean isTruthy(String v) {
+        String t = trimToNull(v);
+        if (t == null) {
+            return false;
+        }
+
+        switch (t.toLowerCase(Locale.ROOT)) {
+            case "1":
+            case "true":
+            case "yes":
+            case "y":
+            case "on":
+                return true;
+            default:
+                return false;
+        }
     }
 }
 
