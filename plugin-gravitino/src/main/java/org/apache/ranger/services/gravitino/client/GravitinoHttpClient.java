@@ -22,7 +22,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.client.HadoopException;
-import org.apache.ranger.services.gravitino.client.auth.BearerTokenProvider;
+import org.apache.ranger.services.gravitino.client.auth.GravitinoAuth;
+import org.apache.ranger.services.gravitino.client.auth.GravitinoAuthFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,9 +44,12 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int CONNECT_TIMEOUT_MS = 10000;
     private static final int READ_TIMEOUT_MS = 30000;
+
+    private final GravitinoAuth auth;
     
     public GravitinoHttpClient(String serviceName, Map<String, String> connectionConfig) {
         super(serviceName, connectionConfig);
+        this.auth = GravitinoAuthFactory.create(serviceName, connectionConfig);
     }
     
     /**
@@ -71,11 +75,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
             conn.setReadTimeout(READ_TIMEOUT_MS);
             conn.setRequestProperty("Content-Type", "application/json");
-
-            String bearer = BearerTokenProvider.getBearerHeader(serviceName, configs);
-            if (bearer != null && !bearer.isEmpty()) {
-                conn.setRequestProperty("Authorization", bearer);
-            }
+            GravitinoAuthFactory.create(serviceName, configs).apply(conn);
 
             int code = conn.getResponseCode();
             if (code >= 200 && code < 300) {
@@ -205,18 +205,14 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
      * Execute HTTP request and parse identifiers from response.
      */
     private List<String> executeAndParseIdentifiers(URL url, String arrayField, String prefix) throws Exception {
-        String bearer = BearerTokenProvider.getBearerHeader(getSerivceName(), connectionProperties);
-
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
         conn.setReadTimeout(READ_TIMEOUT_MS);
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept", "application/json");
-        
-        if (bearer != null && !bearer.isEmpty()) {
-            conn.setRequestProperty("Authorization", bearer);
-        }
+
+        auth.apply(conn);
         
         int code = conn.getResponseCode();
         if (code < 200 || code >= 300) {
@@ -247,18 +243,14 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
      * Parse version list from response.
      */
     private List<String> executeAndParseVersions(URL url, String prefix) throws Exception {
-        String bearer = BearerTokenProvider.getBearerHeader(getSerivceName(), connectionProperties);
-
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
         conn.setReadTimeout(READ_TIMEOUT_MS);
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept", "application/json");
-        
-        if (bearer != null && !bearer.isEmpty()) {
-            conn.setRequestProperty("Authorization", bearer);
-        }
+
+        auth.apply(conn);
         
         int code = conn.getResponseCode();
         if (code < 200 || code >= 300) {
