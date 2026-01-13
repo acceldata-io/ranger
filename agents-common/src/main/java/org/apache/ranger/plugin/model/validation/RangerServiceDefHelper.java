@@ -213,6 +213,22 @@ public class RangerServiceDefHelper {
 		return _delegate.getRrnTemplate(resourceName);
 	}
 
+	public boolean isDataMaskSupported() {
+		return CollectionUtils.isNotEmpty(getResourceHierarchyKeys(RangerPolicy.POLICY_TYPE_DATAMASK));
+	}
+
+	public boolean isDataMaskSupported(Set<String> resourceKeys) {
+		return isDataMaskSupported() && getResourceHierarchyKeys(RangerPolicy.POLICY_TYPE_DATAMASK).contains(resourceKeys);
+	}
+
+	public boolean isRowFilterSupported() {
+		return CollectionUtils.isNotEmpty(getResourceHierarchyKeys(RangerPolicy.POLICY_TYPE_ROWFILTER));
+	}
+
+	public boolean isRowFilterSupported(Set<String> resourceKeys) {
+		return isRowFilterSupported() && getResourceHierarchyKeys(RangerPolicy.POLICY_TYPE_ROWFILTER).contains(resourceKeys);
+	}
+
 	public Set<List<RangerResourceDef>> filterHierarchies_containsOnlyMandatoryResources(Integer policyType) {
 		Set<List<RangerResourceDef>> hierarchies = getResourceHierarchies(policyType);
 		Set<List<RangerResourceDef>> result = new HashSet<List<RangerResourceDef>>(hierarchies.size());

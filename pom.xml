@@ -287,6 +287,7 @@
                 <module>agents-audit</module>
                 <module>agents-common</module>
                 <module>authz-api</module>
+                <module>authz-embedded</module>
                 <module>agents-cred</module>
                 <module>intg</module>
                 <module>agents-installer</module>
@@ -599,6 +600,7 @@
                 <module>agents-audit</module>
                 <module>agents-common</module>
                 <module>authz-api</module>
+                <module>authz-embedded</module>
                 <module>agents-cred</module>
                 <module>intg</module>
                 <module>agents-installer</module>
@@ -680,6 +682,7 @@
                 <module>agents-audit</module>
                 <module>agents-common</module>
                 <module>authz-api</module>
+                <module>authz-embedded</module>
                 <module>agents-cred</module>
                 <module>intg</module>
                 <module>agents-installer</module>
