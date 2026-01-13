@@ -13,74 +13,38 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-
-CREATE OR REPLACE FUNCTION getXportalUIdByLoginId(input_val IN VARCHAR2) RETURN NUMBER IS
-  myid NUMBER := 0;
-BEGIN
-  SELECT id INTO myid FROM x_portal_user WHERE login_id = input_val;
-  RETURN myid;
-EXCEPTION
-  WHEN NO_DATA_FOUND THEN
-    RETURN 0;
-END;/
-
-CREATE OR REPLACE FUNCTION getModulesIdByName(input_val IN VARCHAR2) RETURN NUMBER IS
-  myid NUMBER := 0;
-BEGIN
-  SELECT id INTO myid FROM x_modules_master WHERE module = input_val;
-  RETURN myid;
-EXCEPTION
-  WHEN NO_DATA_FOUND THEN
-    RETURN 0;
-END;/
-
 DECLARE
-  v_count NUMBER := 0;
-  v_admin_id NUMBER := 0;
-  v_rangerusersync_id NUMBER := 0;
-  v_rangertagsync_id NUMBER := 0;
-  v_module_id NUMBER := 0;
+    v_count NUMBER := 0;
+    v_admin_id NUMBER := 0;
+    v_usersync_id NUMBER := 0;
+    v_tagsync_id NUMBER := 0;
+    v_module_id NUMBER := 0;
 BEGIN
-  v_admin_id := getXportalUIdByLoginId('admin');
-  v_rangerusersync_id := getXportalUIdByLoginId('rangerusersync');
-  v_rangertagsync_id := getXportalUIdByLoginId('rangertagsync');
-
-  -- Insert module if not exists
-  SELECT COUNT(*) INTO v_count FROM x_modules_master WHERE module = 'Governed Data Sharing';
-  IF v_count = 0 THEN
-    INSERT INTO x_modules_master(create_time, update_time, added_by_id, upd_by_id, module, url)
-    VALUES(SYSDATE, SYSDATE, v_admin_id, v_admin_id, 'Governed Data Sharing', '');
-  END IF;
-
-  v_module_id := getModulesIdByName('Governed Data Sharing');
-
-  -- Add permission for admin
-  IF v_admin_id > 0 AND v_module_id > 0 THEN
-    SELECT COUNT(*) INTO v_count FROM x_user_module_perm WHERE user_id = v_admin_id AND module_id = v_module_id;
+    SELECT id INTO v_admin_id FROM x_portal_user WHERE login_id = 'admin';
+    BEGIN SELECT id INTO v_usersync_id FROM x_portal_user WHERE login_id = 'rangerusersync'; EXCEPTION WHEN NO_DATA_FOUND THEN v_usersync_id := 0; END;
+    BEGIN SELECT id INTO v_tagsync_id FROM x_portal_user WHERE login_id = 'rangertagsync'; EXCEPTION WHEN NO_DATA_FOUND THEN v_tagsync_id := 0; END;
+    SELECT COUNT(*) INTO v_count FROM x_modules_master WHERE module = 'Governed Data Sharing';
     IF v_count = 0 THEN
-      INSERT INTO x_user_module_perm(user_id, module_id, create_time, update_time, added_by_id, upd_by_id, is_allowed)
-      VALUES(v_admin_id, v_module_id, SYSDATE, SYSDATE, v_admin_id, v_admin_id, 1);
+        INSERT INTO x_modules_master VALUES(X_MODULES_MASTER_SEQ.NEXTVAL, SYSDATE, SYSDATE, v_admin_id, v_admin_id, 'Governed Data Sharing', '');
     END IF;
-  END IF;
-
-  -- Add permission for rangerusersync
-  IF v_rangerusersync_id > 0 AND v_module_id > 0 THEN
-    SELECT COUNT(*) INTO v_count FROM x_user_module_perm WHERE user_id = v_rangerusersync_id AND module_id = v_module_id;
-    IF v_count = 0 THEN
-      INSERT INTO x_user_module_perm(user_id, module_id, create_time, update_time, added_by_id, upd_by_id, is_allowed)
-      VALUES(v_rangerusersync_id, v_module_id, SYSDATE, SYSDATE, v_admin_id, v_admin_id, 1);
+    SELECT id INTO v_module_id FROM x_modules_master WHERE module = 'Governed Data Sharing';
+    IF v_admin_id > 0 AND v_module_id > 0 THEN
+        SELECT COUNT(*) INTO v_count FROM x_user_module_perm WHERE user_id = v_admin_id AND module_id = v_module_id;
+        IF v_count = 0 THEN
+            INSERT INTO x_user_module_perm (id,user_id,module_id,create_time,update_time,added_by_id,upd_by_id,is_allowed) VALUES (X_USER_MODULE_PERM_SEQ.NEXTVAL,v_admin_id,v_module_id,SYSDATE,SYSDATE,v_admin_id,v_admin_id,1);
+        END IF;
     END IF;
-  END IF;
-
-  -- Add permission for rangertagsync
-  IF v_rangertagsync_id > 0 AND v_module_id > 0 THEN
-    SELECT COUNT(*) INTO v_count FROM x_user_module_perm WHERE user_id = v_rangertagsync_id AND module_id = v_module_id;
-    IF v_count = 0 THEN
-      INSERT INTO x_user_module_perm(user_id, module_id, create_time, update_time, added_by_id, upd_by_id, is_allowed)
-      VALUES(v_rangertagsync_id, v_module_id, SYSDATE, SYSDATE, v_admin_id, v_admin_id, 1);
+    IF v_usersync_id > 0 AND v_module_id > 0 THEN
+        SELECT COUNT(*) INTO v_count FROM x_user_module_perm WHERE user_id = v_usersync_id AND module_id = v_module_id;
+        IF v_count = 0 THEN
+            INSERT INTO x_user_module_perm (id,user_id,module_id,create_time,update_time,added_by_id,upd_by_id,is_allowed) VALUES (X_USER_MODULE_PERM_SEQ.NEXTVAL,v_usersync_id,v_module_id,SYSDATE,SYSDATE,v_admin_id,v_admin_id,1);
+        END IF;
     END IF;
-  END IF;
-
-  COMMIT;
+    IF v_tagsync_id > 0 AND v_module_id > 0 THEN
+        SELECT COUNT(*) INTO v_count FROM x_user_module_perm WHERE user_id = v_tagsync_id AND module_id = v_module_id;
+        IF v_count = 0 THEN
+            INSERT INTO x_user_module_perm (id,user_id,module_id,create_time,update_time,added_by_id,upd_by_id,is_allowed) VALUES (X_USER_MODULE_PERM_SEQ.NEXTVAL,v_tagsync_id,v_module_id,SYSDATE,SYSDATE,v_admin_id,v_admin_id,1);
+        END IF;
+    END IF;
+    COMMIT;
 END;/
-
