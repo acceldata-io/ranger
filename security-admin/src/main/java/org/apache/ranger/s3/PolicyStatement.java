@@ -21,6 +21,7 @@ package org.apache.ranger.s3;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -54,6 +55,23 @@ public class PolicyStatement {
 
     public List<String> getAction() {
         return action;
+    }
+
+    @JsonProperty("Action")
+    public void setAction(Object action) {
+        if (action == null) {
+            this.action = new ArrayList<>();
+        } else if (action instanceof String) {
+            // Handle single action as string
+            this.action = new ArrayList<>();
+            this.action.add((String) action);
+        } else if (action instanceof List) {
+            // Handle multiple actions as list
+            this.action = (List<String>) action;
+        } else {
+            // Fallback
+            this.action = new ArrayList<>();
+        }
     }
 
     public void setAction(List<String> action) {
