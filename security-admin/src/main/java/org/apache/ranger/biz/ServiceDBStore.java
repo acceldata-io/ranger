@@ -1964,14 +1964,31 @@ public class ServiceDBStore extends AbstractServiceStore {
 			}
 
 			// Delete bucket policies for all affected buckets
+			// Clean up S3 bucket policies for all affected buckets
 			for (String bucket : affectedBuckets) {
 				try {
-					deleteBucketPolicy(s3, bucket);
-					if(LOG.isDebugEnabled()) {
-						LOG.debug("Deleted S3 bucket policy for bucket: " + bucket);
+					// When service is deleted, remove all Ranger statements for this service
+					// but preserve any manually created IAM statements
+					List<PolicyStatement> emptyRangerStatements = new ArrayList<>();
+					List<PolicyStatement> mergedStatements = mergeWithIAMStatements(s3, bucket, emptyRangerStatements);
+
+					if (mergedStatements.isEmpty()) {
+						// No IAM statements to preserve, delete entire policy
+						deleteBucketPolicy(s3, bucket);
+						if(LOG.isDebugEnabled()) {
+							LOG.debug("Deleted entire bucket policy (no IAM statements) for bucket: " + bucket);
+						}
+					} else {
+						// Preserve IAM statements
+						String finalPolicyJson = mapToS3BucketPolicyObject(mergedStatements);
+						putBucketPolicy(s3, bucket, finalPolicyJson);
+						if(LOG.isDebugEnabled()) {
+							LOG.debug("Updated bucket policy (preserved {} IAM statements) for bucket: " + bucket,
+									mergedStatements.size());
+						}
 					}
 				} catch (Exception e) {
-					LOG.error("Failed to delete S3 bucket policy for bucket: " + bucket, e);
+					LOG.error("Failed to update bucket policy for bucket: " + bucket, e);
 					// Continue with other buckets even if one fails
 				}
 			}
@@ -6831,6 +6848,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	// Process bucket policies
 	private void processPolicies(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, S3Client s3, IamClient iamClient) throws Exception {
 		for (Entry<String, Map<RangerPolicy, Set<String>>> entry : bucketMap.entrySet()) {
+			String bucketName = entry.getKey();
 			List<PolicyStatement> statements = new ArrayList<>();
 
 			for(Entry<RangerPolicy, Set<String>> policyEntry: entry.getValue().entrySet()) {
@@ -6843,7 +6861,9 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 						RangerS3Constants.DENY, s3Resources, iamClient));
 			}
 
-			String policyJson = mapToS3BucketPolicyObject(statements);
+			List<PolicyStatement> mergedStatements = mergeWithIAMStatements(s3, bucketName, statements);
+
+			String policyJson = mapToS3BucketPolicyObject(mergedStatements);
 			if (StringUtils.isNotEmpty(policyJson)) {
 				updateBucketPolicyIfChanged(s3, entry.getKey(), policyJson);
 			}
@@ -6851,17 +6871,27 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	}
 
 	// Update bucket policy if it has changed
-	private void updateBucketPolicyIfChanged(S3Client s3, String bucketName, String policyJson) throws Exception {
+	private void updateBucketPolicyIfChanged(S3Client s3, String bucketName, String newPolicyJson) throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
-		Object framedPolicyJson = objectMapper.readTree(policyJson);
-		String existingPolicy = getBucketPolicy(s3, bucketName);
-		if (!existingPolicy.isEmpty()) {
-			Object existingPolicyJson = objectMapper.readTree(existingPolicy);
-			if (!framedPolicyJson.equals(existingPolicyJson)) {
-				putBucketPolicy(s3, bucketName, policyJson);
-			}
+		Object newPolicy = objectMapper.readTree(newPolicyJson);
+		String currentPolicyJson = getBucketPolicy(s3, bucketName);
+		boolean shouldUpdate = false;
+		if (StringUtils.isEmpty(currentPolicyJson)) {
+			shouldUpdate = true;
+			LOG.info("No existing policy in IAM for bucket: {}. Creating new policy.", bucketName);
 		} else {
-			putBucketPolicy(s3, bucketName, policyJson); // New policy if none exists
+			Object currentPolicy = objectMapper.readTree(currentPolicyJson);
+			shouldUpdate = !newPolicy.equals(currentPolicy);
+
+			if (!shouldUpdate) {
+				LOG.info("Policy unchanged for bucket: {}. Skipping update.", bucketName);
+			}
+		}
+
+		if (shouldUpdate) {
+			LOG.info("Updating bucket policy in IAM for: {}", bucketName);
+			putBucketPolicy(s3, bucketName, newPolicyJson);
+			LOG.info("Successfully updated bucket policy for: {}", bucketName);
 		}
 	}
 
@@ -6933,6 +6963,191 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		}
 		return awsAccounts;
 	}
+
+	/**
+	 * Merge Ranger policy statements with existing IAM statements
+	 *
+	 * @param s3 S3 client
+	 * @param bucketName Name of the S3 bucket
+	 * @param rangerStatements Policy statements created from Ranger DB policies
+	 * @return Merged list of statements (IAM existing + Ranger)
+	 * @throws Exception if merge fails
+	 */
+	private List<PolicyStatement> mergeWithIAMStatements(S3Client s3, String bucketName,
+														 List<PolicyStatement> rangerStatements) throws Exception {
+
+		ObjectMapper objectMapper = new ObjectMapper();
+		List<PolicyStatement> mergedStatements = new ArrayList<>();
+
+		// Step 1: Get existing IAM policy JSON
+		String existingIAMPolicyJson = getBucketPolicy(s3, bucketName);
+
+		if (StringUtils.isNotEmpty(existingIAMPolicyJson)) {
+			try {
+				// Step 2: Parse IAM JSON to extract statements
+				S3BucketPolicy existingIAMPolicy = objectMapper.readValue(
+						existingIAMPolicyJson, S3BucketPolicy.class);
+
+				if (existingIAMPolicy.getStatement() != null) {
+					List<PolicyStatement> iamStatements = existingIAMPolicy.getStatement();
+
+					LOG.info("Found {} existing statements in IAM for bucket: {}",
+							iamStatements.size(), bucketName);
+
+					// Step 3: Identify IAM statements that are NOT in Ranger
+					List<PolicyStatement> iamOnlyStatements = extractIAMOnlyStatements(
+							iamStatements, rangerStatements);
+
+					LOG.info("Preserving {} IAM-only statements for bucket: {}",
+							iamOnlyStatements.size(), bucketName);
+
+					// Step 4: Add IAM-only statements first
+					mergedStatements.addAll(iamOnlyStatements);
+				}
+			} catch (Exception e) {
+				LOG.error("Failed to parse existing IAM policy for bucket: {}. " +
+						"Proceeding with Ranger statements only.", bucketName, e);
+			}
+		} else {
+			LOG.info("No existing IAM policy found for bucket: {}. " +
+					"Creating new policy with Ranger statements.", bucketName);
+		}
+
+		// Step 5: Add all Ranger statements
+		mergedStatements.addAll(rangerStatements);
+
+		LOG.info("Merged policy for bucket: {} contains {} total statements " +
+						"({} IAM-only + {} Ranger-managed)",
+				bucketName, mergedStatements.size(),
+				mergedStatements.size() - rangerStatements.size(),
+				rangerStatements.size());
+
+		return mergedStatements;
+	}
+
+	/**
+	 * Extract statements from IAM that are NOT present in Ranger statements
+	 * This identifies manually created IAM statements that should be preserved
+	 *
+	 * @param iamStatements Statements from IAM policy
+	 * @param rangerStatements Statements from Ranger policies
+	 * @return List of statements that exist only in IAM (not in Ranger)
+	 */
+	private List<PolicyStatement> extractIAMOnlyStatements(
+			List<PolicyStatement> iamStatements,
+			List<PolicyStatement> rangerStatements) {
+
+		List<PolicyStatement> iamOnlyStatements = new ArrayList<>();
+
+		if (CollectionUtils.isEmpty(iamStatements)) {
+			return iamOnlyStatements;
+		}
+
+		for (PolicyStatement iamStmt : iamStatements) {
+			boolean existsInRanger = false;
+
+			// Check if this IAM statement matches any Ranger statement
+			for (PolicyStatement rangerStmt : rangerStatements) {
+				if (statementsMatch(iamStmt, rangerStmt)) {
+					existsInRanger = true;
+					LOG.debug("IAM statement matches Ranger statement - will be replaced: {}",
+							iamStmt.getResource());
+					break;
+				}
+			}
+
+			// If not in Ranger, it's an IAM-only statement - preserve it
+			if (!existsInRanger) {
+				iamOnlyStatements.add(iamStmt);
+				LOG.debug("Preserving IAM-only statement: {}", iamStmt.getResource());
+			}
+		}
+
+		return iamOnlyStatements;
+	}
+	/**
+	 * Compare two policy statements for equivalence
+	 * Used to determine if an IAM statement matches a Ranger statement
+	 *
+	 * @param stmt1 First statement
+	 * @param stmt2 Second statement
+	 * @return true if statements are functionally equivalent
+	 */
+	private boolean statementsMatch(PolicyStatement stmt1, PolicyStatement stmt2) {
+		if (stmt1 == null || stmt2 == null) {
+			return false;
+		}
+
+		// Compare effect (Allow/Deny)
+		if (!StringUtils.equals(stmt1.getEffect(), stmt2.getEffect())) {
+			return false;
+		}
+
+		// Compare resource path
+		if (!StringUtils.equals(stmt1.getResource(), stmt2.getResource())) {
+			return false;
+		}
+
+		// Compare actions (order doesn't matter)
+		if (!compareActions(stmt1.getAction(), stmt2.getAction())) {
+			return false;
+		}
+
+		// Compare principals (order doesn't matter)
+		if (!comparePrincipals(stmt1.getPrincipal(), stmt2.getPrincipal())) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Compare action lists (order-independent)
+	 */
+	private boolean compareActions(List<String> actions1, List<String> actions2) {
+		if (actions1 == null && actions2 == null) {
+			return true;
+		}
+		if (actions1 == null || actions2 == null) {
+			return false;
+		}
+
+		Set<String> set1 = new HashSet<>(actions1);
+		Set<String> set2 = new HashSet<>(actions2);
+
+		return set1.equals(set2);
+	}
+
+	/**
+	 * Compare principal maps (order-independent)
+	 */
+	private boolean comparePrincipals(Map<String, List<String>> principal1,
+									  Map<String, List<String>> principal2) {
+
+		if (principal1 == null && principal2 == null) {
+			return true;
+		}
+		if (principal1 == null || principal2 == null) {
+			return false;
+		}
+
+		// Get AWS principals
+		List<String> awsPrincipals1 = principal1.get(RangerS3Constants.AWS);
+		List<String> awsPrincipals2 = principal2.get(RangerS3Constants.AWS);
+
+		if (awsPrincipals1 == null && awsPrincipals2 == null) {
+			return true;
+		}
+		if (awsPrincipals1 == null || awsPrincipals2 == null) {
+			return false;
+		}
+
+		Set<String> set1 = new HashSet<>(awsPrincipals1);
+		Set<String> set2 = new HashSet<>(awsPrincipals2);
+
+		return set1.equals(set2);
+	}
+
 
 	private String mapToS3BucketPolicyObject(List<PolicyStatement> statements) {
 		S3BucketPolicy s3BucketPolicy = new S3BucketPolicy();
