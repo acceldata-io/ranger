@@ -1,10 +1,10 @@
 {
-    "name": "gravitino",
+    "name": "xstore",
     "displayName": "xstore",
     "label": "Xstore",
     "description": "Xstore",
     "guid": "E4B47AF3-4505-443F-9408-1E985A0804BC",
-    "implClass": "org.apache.ranger.services.gravitino.RangerServiceGravitino",
+    "implClass": "org.apache.ranger.services.xstore.RangerServiceXstore",
     "options": {
         "enableDenyAndExceptionsInPolicies": "true",
         "enableTagBasedPolicies": "true",
@@ -300,35 +300,35 @@
     "configs": [
         {
             "itemId": 1,
-            "name": "gravitino.url",
+            "name": "xstore.url",
             "type": "string",
             "mandatory": true,
             "label": "Xstore URL"
         },
         {
           "itemId": 2,
-          "name": "gravitino.auth.token.url",
+          "name": "xstore.auth.token.url",
           "type": "string",
           "mandatory": true,
           "label": "Xstore Auth URL"
         },
         {
           "itemId": 3,
-          "name": "gravitino.auth.client.id",
+          "name": "xstore.auth.client.id",
           "type": "string",
           "mandatory": true,
           "label": "Client ID"
         },
         {
           "itemId": 4,
-          "name": "gravitino.auth.client.secret",
+          "name": "xstore.auth.client.secret",
           "type": "password",
           "mandatory": true,
           "label": "Client Secret"
         },
         {
           "itemId": 5,
-          "name": "gravitino.auth.scope",
+          "name": "xstore.auth.scope",
           "type": "string",
           "mandatory": false,
           "label": "Token Scope (Optional)",
@@ -336,7 +336,7 @@
         },
         {
           "itemId": 6,
-          "name": "gravitino.auth.token.cache.skew.ms",
+          "name": "xstore.auth.token.cache.skew.ms",
           "type": "number",
           "mandatory": false,
           "label": "Token Refresh Safety Window",
@@ -344,7 +344,7 @@
         },
         {
           "itemId": 7,
-          "name": "gravitino.auth.token.connect.timeout.ms",
+          "name": "xstore.auth.token.connect.timeout.ms",
           "type": "number",
           "mandatory": false,
           "label": "Token Endpoint Connect Timeout",
@@ -352,7 +352,7 @@
         },
         {
           "itemId": 8,
-          "name": "gravitino.auth.token.read.timeout.ms",
+          "name": "xstore.auth.token.read.timeout.ms",
           "type": "number",
           "mandatory": false,
           "label": "Token Endpoint Read Timeout",
