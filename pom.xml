@@ -74,6 +74,12 @@
         <java.version.required>1.8</java.version.required>
         <javac.source.version>1.8</javac.source.version>
         <javac.target.version>1.8</javac.target.version>
+        <!--
+          Many Ranger scripts historically use `ambari-python-wrap` (Ambari helper).
+          For local builds (and non-Ambari environments), default to python3.
+          You can override at build time with: -Dpython.command.invoker=ambari-python-wrap
+        -->
+        <python.command.invoker>python3</python.command.invoker>
         <distMgmtStagingId>apache.staging.https</distMgmtStagingId>
         <distMgmtStagingName>Apache Release Distribution Repository</distMgmtStagingName>
         <distMgmtStagingUrl>https://repository.apache.org/service/local/staging/deploy/maven2</distMgmtStagingUrl>
@@ -190,7 +196,7 @@
         <owasp-java-html-sanitizer.version>20211018.2</owasp-java-html-sanitizer.version>
         <paranamer.version>2.3</paranamer.version>
         <presto.version>333</presto.version>
-        <trino.version>472.3.3.6.2-1</trino.version>
+        <trino.version>472.3.3.6.2-102</trino.version>
         <poi.version>5.2.2</poi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protobuf-java.version>3.25.5</protobuf-java.version>
@@ -321,8 +327,6 @@
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
                 -->
-                <module>unixauthpam</module>
-                <module>unixauthnative</module>
                 <module>distro</module>
             </modules>
         </profile>
@@ -794,6 +798,11 @@
             <name>jetbrains-intellij-dependencies</name>
             <url>https://packages.jetbrains.team/maven/p/ij/intellij-dependencies</url>
         </repository>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>repo.maven.apache.org</url>
+        </repository>
     </repositories>
     <dependencyManagement>
         <dependencies>
@@ -925,17 +934,17 @@
                 <groupId>org.glassfish.jaxb</groupId>
                 <artifactId>jaxb-runtime</artifactId>
                 <version>${jaxb.api.version}</version>
-	</dependency>
-	<dependency>
-    <groupId>com.sun.jersey</groupId>
-    <artifactId>jersey-bundle</artifactId>
-    <version>1.19.4</version>
-</dependency>
-	<dependency>
-    <groupId>com.sun.xml.bind</groupId>
-    <artifactId>jaxb-impl</artifactId>
-    <version>2.3.3</version>
-</dependency>
+            </dependency>
+            <dependency>
+            <groupId>com.sun.jersey</groupId>
+            <artifactId>jersey-bundle</artifactId>
+            <version>1.19.4</version>
+            </dependency>
+                <dependency>
+                <groupId>com.sun.xml.bind</groupId>
+                <artifactId>jaxb-impl</artifactId>
+                <version>2.3.3</version>
+            </dependency>
             <dependency>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>

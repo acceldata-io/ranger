@@ -27,6 +27,15 @@ RUN apt-get update && \
     pip3 install apache-ranger && \
     pip3 install requests
 
+# Ranger build/scripts expect `ambari-python-wrap` (Ambari helper) to exist.
+# Provide a lightweight shim that simply invokes python3.
+RUN printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'PYTHON_BIN="${PYTHON_BIN:-python3}"' \
+    'exec "${PYTHON_BIN}" "$@"' \
+    > /usr/local/bin/ambari-python-wrap && chmod +x /usr/local/bin/ambari-python-wrap
+
 # Set environment variables
 ENV JAVA_HOME      /usr/lib/jvm/java-${RANGER_BASE_JAVA_VERSION}-openjdk-${TARGETARCH}
 ENV RANGER_DIST    /home/ranger/dist
