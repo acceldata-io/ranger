@@ -44,6 +44,9 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int CONNECT_TIMEOUT_MS = 10000;
     private static final int READ_TIMEOUT_MS = 30000;
+    private static final String KEY_XSTORE_URL = "xstore.url";
+    // TODO: remove gravitino.url fallback once legacy configs are dropped.
+    private static final String KEY_GRAVITINO_URL = "gravitino.url";
 
     private final GravitinoAuth auth;
     
@@ -61,11 +64,16 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         try {
             GravitinoHttpClient client = new GravitinoHttpClient(serviceName, configs);
             Properties p = client.getConfigHolder().getRangerSection();
-            String baseUrl = p.getProperty("gravitino.url");
+            String baseUrl = resolveBaseUrl(p);
             
             if (baseUrl == null || baseUrl.isEmpty()) {
-                BaseClient.generateResponseDataMap(false, "Missing gravitino.url",
-                        "Missing gravitino.url", null, "gravitino.url", resp);
+                BaseClient.generateResponseDataMap(
+                        false,
+                        "Missing xstore.url",
+                        "Missing xstore.url (or gravitino.url)",
+                        null,
+                        KEY_XSTORE_URL,
+                        resp);
                 return resp;
             }
 
@@ -100,7 +108,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
     @Override
     public List<String> listMetalakes(String prefix) throws Exception {
         Properties p = getConfigHolder().getRangerSection();
-        String baseUrl = p.getProperty("gravitino.url");
+        String baseUrl = resolveBaseUrl(p);
 
         URL url = new URL(baseUrl + "/api/metalakes");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
@@ -112,7 +120,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             return Collections.emptyList();
         }
         Properties p = getConfigHolder().getRangerSection();
-        String baseUrl = p.getProperty("gravitino.url");
+        String baseUrl = resolveBaseUrl(p);
 
         URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
@@ -124,7 +132,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             return Collections.emptyList();
         }
         Properties p = getConfigHolder().getRangerSection();
-        String baseUrl = p.getProperty("gravitino.url");
+        String baseUrl = resolveBaseUrl(p);
 
         URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + "/schemas");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
@@ -137,7 +145,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             return Collections.emptyList();
         }
         Properties p = getConfigHolder().getRangerSection();
-        String baseUrl = p.getProperty("gravitino.url");
+        String baseUrl = resolveBaseUrl(p);
 
         URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
                 "/schemas/" + schema + "/tables");
@@ -151,7 +159,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             return Collections.emptyList();
         }
         Properties p = getConfigHolder().getRangerSection();
-        String baseUrl = p.getProperty("gravitino.url");
+        String baseUrl = resolveBaseUrl(p);
 
         URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
                 "/schemas/" + schema + "/topics");
@@ -165,7 +173,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             return Collections.emptyList();
         }
         Properties p = getConfigHolder().getRangerSection();
-        String baseUrl = p.getProperty("gravitino.url");
+        String baseUrl = resolveBaseUrl(p);
 
         URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
                 "/schemas/" + schema + "/filesets");
@@ -179,7 +187,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             return Collections.emptyList();
         }
         Properties p = getConfigHolder().getRangerSection();
-        String baseUrl = p.getProperty("gravitino.url");
+        String baseUrl = resolveBaseUrl(p);
 
         URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
                 "/schemas/" + schema + "/models");
@@ -194,11 +202,27 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             return Collections.emptyList();
         }
         Properties p = getConfigHolder().getRangerSection();
-        String baseUrl = p.getProperty("gravitino.url");
+        String baseUrl = resolveBaseUrl(p);
 
         URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
                 "/schemas/" + schema + "/models/" + model + "/versions");
         return executeAndParseVersions(url, prefix);
+    }
+
+    private static String resolveBaseUrl(Properties p) {
+        String baseUrl = trimToNull(p.getProperty(KEY_XSTORE_URL));
+        if (baseUrl == null) {
+            baseUrl = trimToNull(p.getProperty(KEY_GRAVITINO_URL));
+        }
+        return baseUrl;
+    }
+
+    private static String trimToNull(String v) {
+        if (v == null) {
+            return null;
+        }
+        String t = v.trim();
+        return t.isEmpty() ? null : t;
     }
     
     /**
