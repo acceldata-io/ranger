@@ -25,6 +25,7 @@ import java.util.Map;
  * Creates a {@link GravitinoAuth} implementation based on configuration.
  *
  * Supported:
+ * - xstore.auth.type = bearer | basic | aksk | none
  * - gravitino.auth.type = bearer | basic | aksk | none
  *
  * Boot-time override (highest precedence):
@@ -33,18 +34,23 @@ import java.util.Map;
  * - if both access/secret env vars are present, AccessKeySecretKeyAuth is used
  *
  * Backward compatibility:
- * - if gravitino.auth.type is missing and gravitino.auth.token.url is set (and not "none"/"noauth"), bearer auth is used
+ * - if auth.type is missing and auth.token.url is set (and not "none"/"noauth"), bearer auth is used
  */
 public final class GravitinoAuthFactory {
     // type selector
+    // TODO: remove gravitino.auth.* fallbacks once legacy configs are dropped.
     public static final String KEY_AUTH_TYPE = "gravitino.auth.type";
+    public static final String KEY_AUTH_TYPE_XSTORE = "xstore.auth.type";
 
     // bearer (oauth client credentials) - keys owned by BearerTokenProvider
     public static final String KEY_TOKEN_URL = "gravitino.auth.token.url";
+    public static final String KEY_TOKEN_URL_XSTORE = "xstore.auth.token.url";
 
     // basic
     public static final String KEY_BASIC_USERNAME = "gravitino.auth.basic.username";
     public static final String KEY_BASIC_PASSWORD = "gravitino.auth.basic.password";
+    public static final String KEY_BASIC_USERNAME_XSTORE = "xstore.auth.basic.username";
+    public static final String KEY_BASIC_PASSWORD_XSTORE = "xstore.auth.basic.password";
     // backward-compat / UI-friendly aliases (already present in current service-def)
     public static final String KEY_BASIC_USERNAME_ALIAS = "username";
     public static final String KEY_BASIC_PASSWORD_ALIAS = "password";
@@ -64,18 +70,24 @@ public final class GravitinoAuthFactory {
             return new AccessKeySecretKeyAuth();
         }
 
-        String type = trimToNull(configs.get(KEY_AUTH_TYPE));
+        String type = trimToNull(firstNonBlank(configs.get(KEY_AUTH_TYPE_XSTORE), configs.get(KEY_AUTH_TYPE)));
         if (type == null) {
             // legacy behavior: if token url is configured, assume bearer auth
-            String tokenUrl = trimToNull(configs.get(KEY_TOKEN_URL));
+            String tokenUrl = trimToNull(firstNonBlank(configs.get(KEY_TOKEN_URL_XSTORE), configs.get(KEY_TOKEN_URL)));
             if (tokenUrl != null && !isNoAuthValue(tokenUrl)) {
                 return new BearerTokenAuth(serviceName, configs);
             }
 
             // weak heuristic: if basic username is set, assume basic auth
-            String user = firstNonBlank(configs.get(KEY_BASIC_USERNAME), configs.get(KEY_BASIC_USERNAME_ALIAS));
+            String user = firstNonBlank(
+                    configs.get(KEY_BASIC_USERNAME_XSTORE),
+                    configs.get(KEY_BASIC_USERNAME),
+                    configs.get(KEY_BASIC_USERNAME_ALIAS));
             if (user != null) {
-                String pass = firstNonBlank(configs.get(KEY_BASIC_PASSWORD), configs.get(KEY_BASIC_PASSWORD_ALIAS));
+                String pass = firstNonBlank(
+                        configs.get(KEY_BASIC_PASSWORD_XSTORE),
+                        configs.get(KEY_BASIC_PASSWORD),
+                        configs.get(KEY_BASIC_PASSWORD_ALIAS));
                 return new BasicAuth(user, pass != null ? pass : DEFAULT_BASIC_PASSWORD);
             }
 
@@ -90,8 +102,14 @@ public final class GravitinoAuthFactory {
             case "oauth2":
                 return new BearerTokenAuth(serviceName, configs);
             case "basic":
-                String user = firstNonBlank(configs.get(KEY_BASIC_USERNAME), configs.get(KEY_BASIC_USERNAME_ALIAS));
-                String pass = firstNonBlank(configs.get(KEY_BASIC_PASSWORD), configs.get(KEY_BASIC_PASSWORD_ALIAS));
+                String user = firstNonBlank(
+                        configs.get(KEY_BASIC_USERNAME_XSTORE),
+                        configs.get(KEY_BASIC_USERNAME),
+                        configs.get(KEY_BASIC_USERNAME_ALIAS));
+                String pass = firstNonBlank(
+                        configs.get(KEY_BASIC_PASSWORD_XSTORE),
+                        configs.get(KEY_BASIC_PASSWORD),
+                        configs.get(KEY_BASIC_PASSWORD_ALIAS));
                 return new BasicAuth(
                         user != null ? user : DEFAULT_BASIC_USERNAME,
                         pass != null ? pass : DEFAULT_BASIC_PASSWORD
@@ -123,8 +141,19 @@ public final class GravitinoAuthFactory {
     }
 
     private static String firstNonBlank(String a, String b) {
+        return firstNonBlank(a, b, null);
+    }
+
+    private static String firstNonBlank(String a, String b, String c) {
         String ta = trimToNull(a);
-        return ta != null ? ta : trimToNull(b);
+        if (ta != null) {
+            return ta;
+        }
+        String tb = trimToNull(b);
+        if (tb != null) {
+            return tb;
+        }
+        return trimToNull(c);
     }
 
     private static boolean shouldForceAccessKeySecretKeyAuthFromEnv() {

@@ -52,21 +52,37 @@ public final class BearerTokenProvider {
 
     /** Returns full header value: "Bearer <token>" */
     public static String getBearerHeader(String serviceName, Map<String, String> configs) {
-        String tokenUrlRaw = trimToNull(configs.get("gravitino.auth.token.url"));
+        // TODO: remove gravitino.auth.* fallbacks once legacy configs are dropped.
+        String tokenUrlRaw = trimToNull(firstNonBlank(
+                configs.get("xstore.auth.token.url"),
+                configs.get("gravitino.auth.token.url")
+        ));
 
         // Local testing escape hatch: skip auth entirely
         if (tokenUrlRaw == null || "none".equalsIgnoreCase(tokenUrlRaw) || "noauth".equalsIgnoreCase(tokenUrlRaw)) {
             return null;
         }
 
-        String tokenUrl = must(configs, "gravitino.auth.token.url");
-        String clientId = must(configs, "gravitino.auth.client.id");
-        String clientSecret = must(configs, "gravitino.auth.client.secret");
-        String scope = trimToNull(configs.get("gravitino.auth.scope"));
+        String tokenUrl = must(configs, "xstore.auth.token.url", "gravitino.auth.token.url");
+        String clientId = must(configs, "xstore.auth.client.id", "gravitino.auth.client.id");
+        String clientSecret = must(configs, "xstore.auth.client.secret", "gravitino.auth.client.secret");
+        String scope = trimToNull(firstNonBlank(
+                configs.get("xstore.auth.scope"),
+                configs.get("gravitino.auth.scope")
+        ));
 
-        long skewMs = parseLong(configs.get("gravitino.auth.token.cache.skew.ms"), DEFAULT_SKEW_MS);
-        int connectTimeoutMs = (int) parseLong(configs.get("gravitino.auth.token.connect.timeout.ms"), DEFAULT_CONNECT_TIMEOUT_MS);
-        int readTimeoutMs = (int) parseLong(configs.get("gravitino.auth.token.read.timeout.ms"), DEFAULT_READ_TIMEOUT_MS);
+        long skewMs = parseLong(firstNonBlank(
+                configs.get("xstore.auth.token.cache.skew.ms"),
+                configs.get("gravitino.auth.token.cache.skew.ms")
+        ), DEFAULT_SKEW_MS);
+        int connectTimeoutMs = (int) parseLong(firstNonBlank(
+                configs.get("xstore.auth.token.connect.timeout.ms"),
+                configs.get("gravitino.auth.token.connect.timeout.ms")
+        ), DEFAULT_CONNECT_TIMEOUT_MS);
+        int readTimeoutMs = (int) parseLong(firstNonBlank(
+                configs.get("xstore.auth.token.read.timeout.ms"),
+                configs.get("gravitino.auth.token.read.timeout.ms")
+        ), DEFAULT_READ_TIMEOUT_MS);
 
         Key key = new Key(serviceName, tokenUrl, clientId);
 
@@ -138,7 +154,7 @@ public final class BearerTokenProvider {
             }
         } catch (Exception e) {
             HadoopException he = new HadoopException("Unable to fetch bearer token", e);
-            he.generateResponseDataMap(false, BaseClient.getMessage(e), "Unable to fetch bearer token", null, "gravitino.auth.token.url");
+            he.generateResponseDataMap(false, BaseClient.getMessage(e), "Unable to fetch bearer token", null, "xstore.auth.token.url");
             throw he;
         }
     }
@@ -167,12 +183,21 @@ public final class BearerTokenProvider {
         return (v != null && v.isTextual()) ? v.asText() : null;
     }
 
-    private static String must(Map<String, String> configs, String key) {
-        String v = configs.get(key);
+    private static String must(Map<String, String> configs, String key, String fallbackKey) {
+        String v = trimToNull(configs.get(key));
+        if (v == null) {
+            v = trimToNull(configs.get(fallbackKey));
+        }
         if (v == null || v.trim().isEmpty()) {
-            throw new IllegalArgumentException("Missing config: " + key);
+            throw new IllegalArgumentException(
+                    "Missing config: " + key + " (or " + fallbackKey + ")");
         }
         return v.trim();
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        String ta = trimToNull(a);
+        return ta != null ? ta : trimToNull(b);
     }
 
     private static String trimToNull(String v) {
