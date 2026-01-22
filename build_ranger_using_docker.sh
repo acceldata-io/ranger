@@ -111,8 +111,16 @@ RUN useradd -ms /bin/bash builder
 RUN usermod -g root builder
 RUN mkdir -p /scripts
 
-RUN echo "#!/bin/bash" > /scripts/mvn.sh
-RUN echo 'set -x; if [ "\$1" = "mvn" ]; then usermod -u \$(stat -c "%u" pom.xml) builder; gosu builder bash -c '"'"'ln -sf /.m2 \$HOME'"'"'; exec gosu builder "\$@"; fi; exec "\$@" ' >> /scripts/mvn.sh
+RUN cat <<'EOF' > /scripts/mvn.sh
+#!/bin/bash
+set -x
+if [ "$1" = "mvn" ]; then
+    usermod -u "$(stat -c "%u" pom.xml)" builder
+    gosu builder bash -c 'ln -sf /.m2 $HOME'
+    exec gosu builder "$@"
+fi
+exec "$@"
+EOF
 
 RUN chmod -R 777 /scripts
 RUN chmod -R 777 /tools
