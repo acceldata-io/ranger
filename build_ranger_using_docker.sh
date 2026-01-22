@@ -56,7 +56,7 @@ if [ $build_image -eq 1 ]; then
     docker rmi -f $image_name
 
 docker build -t $image_name - <<Dockerfile
-FROM centos
+FROM centos:centos7
 
 RUN mkdir /tools
 WORKDIR /tools

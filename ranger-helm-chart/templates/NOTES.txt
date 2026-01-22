@@ -1,0 +1,24 @@
+Apache Ranger has been installed.
+
+1. Get the application URL by running these commands:
+{{- $svc := index .Values.Service "ranger-admin" }}
+{{- if contains "NodePort" $svc.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services ranger-admin)
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" $svc.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        Watch the status with: kubectl get svc --namespace {{ .Release.Namespace }} -w ranger-admin
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} ranger-admin --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:6080
+{{- else if contains "ClusterIP" $svc.type }}
+  kubectl port-forward svc/ranger-admin 6080:6080 --namespace {{ .Release.Namespace }}
+  echo "Visit http://127.0.0.1:6080 to access Ranger Admin"
+{{- end }}
+
+2. Default credentials (from install.properties):
+   Username: admin
+   Password: (as configured in install.properties secret)
+
+IMPORTANT: Before installing, ensure you have created the ranger-install-properties secret:
+  ./create-ranger-secret.sh <namespace> <db-host> <db-root-password> <ranger-admin-password>

@@ -1,0 +1,3 @@
+{{- if not .Values.global.renderedOnlySaRoles }}
+{{- template "common.Service.tpl" . }}
+{{- end }}

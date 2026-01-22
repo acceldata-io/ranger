@@ -1,0 +1,202 @@
+# Default values for Apache Ranger
+# This chart uses the helm-library-chart for resource generation
+# Configuration follows the secret-driven install.properties approach
+
+global:
+  annotations: {}
+  labels: {}
+  appData:
+    dataplane: TO_BE_UPDATED
+    tenant: TO_BE_UPDATED
+
+##
+## Ranger Install Properties Secret
+## This secret must contain install.properties file
+## Create using create-ranger-secret.sh script
+##
+rangerConfig:
+  # Name of the secret containing install.properties for Ranger Admin
+  installPropertiesSecret: ranger-install-properties
+
+##
+## Ranger Usersync Configuration (Optional)
+## Syncs users/groups from LDAP/AD/Unix to Ranger
+##
+rangerUsersync:
+  # Name of the secret containing install.properties for Usersync
+  installPropertiesSecret: ranger-usersync-install-properties
+
+##
+## Service Configuration
+##
+Service:
+  ranger-admin:
+    name: ranger-admin
+    type: ClusterIP
+    ports:
+      - port: 6080
+        targetPort: 6080
+        protocol: TCP
+        name: http
+    selector:
+      app: ranger-admin
+  
+  ranger-authorization-matrix:
+    enabled: false
+    name: ranger-authorization-matrix
+    type: ClusterIP
+    ports:
+      - port: 8080
+        targetPort: 8080
+        protocol: TCP
+        name: http
+    selector:
+      app: ranger-authorization-matrix
+
+##
+## Deployments Configuration
+##
+Deployments:
+  # Ranger Admin - Core component (always enabled)
+  ranger-admin:
+    name: ranger-admin
+    replicas: 1
+    strategy:
+      type: Recreate
+    imagePullSecrets:
+      - name: registry-ecr-secret
+    
+    labels:
+      app: ranger-admin
+    
+    podLabels:
+      app: ranger-admin
+    
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+    
+    containers:
+      main:
+        image:
+          registry: 191579300362.dkr.ecr.us-east-1.amazonaws.com
+          repository: acceldata/xdp/dp/ranger
+          tag: "3.0.0"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 6080
+            name: http
+            protocol: TCP
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        volumeMounts:
+          - name: install-config
+            mountPath: /opt/ranger/admin/install.properties
+            subPath: install.properties
+    
+    volumes:
+      - name: install-config
+        secret:
+          secretName: '{{ .Values.rangerConfig.installPropertiesSecret }}'
+
+  # Ranger Usersync - Optional component for syncing users from LDAP/AD/Unix
+  ranger-usersync:
+    enabled: false
+    name: ranger-usersync
+    replicas: 1
+    imagePullSecrets:
+      - name: registry-ecr-secret
+    
+    labels:
+      app: ranger-usersync
+    
+    podLabels:
+      app: ranger-usersync
+    
+    containers:
+      main:
+        image:
+          registry: 191579300362.dkr.ecr.us-east-1.amazonaws.com
+          repository: acceldata/xdp/dp/ranger-usersync
+          tag: "3.0.0"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+        volumeMounts:
+          - name: usersync-config
+            mountPath: /opt/ranger/usersync/install.properties
+            subPath: install.properties
+    
+    volumes:
+      - name: usersync-config
+        secret:
+          secretName: '{{ .Values.rangerUsersync.installPropertiesSecret }}'
+
+  # Ranger Authorization Matrix - Optional visualization dashboard
+  ranger-authorization-matrix:
+    enabled: false
+    name: ranger-authorization-matrix
+    replicas: 1
+    imagePullSecrets:
+      - name: registry-ecr-secret
+    
+    labels:
+      app: ranger-authorization-matrix
+    
+    podLabels:
+      app: ranger-authorization-matrix
+    
+    containers:
+      main:
+        image:
+          registry: 191579300362.dkr.ecr.us-east-1.amazonaws.com
+          repository: acceldata/xdp/dp/ranger-authorization-matrix
+          tag: "latest"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+        env:
+          RANGER_URL: "http://ranger-admin:6080"
+          UVICORN_HOST: "0.0.0.0"
+          UVICORN_PORT: "8080"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          timeoutSeconds: 1
+          failureThreshold: 60
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 300
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 300
+          failureThreshold: 3
