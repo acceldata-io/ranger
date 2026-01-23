@@ -87,7 +87,8 @@ public class S3ResourceMgr {
                                 String bucketName = userInput.substring(0, userInput.indexOf("/"));
                                 String path = userInput.substring(userInput.indexOf("/") + 1);
                                 ListObjectsV2Request.Builder listObjectsRequestBuilder = ListObjectsV2Request.builder()
-                                        .bucket(bucketName);
+                                        .bucket(bucketName)
+                                        .maxKeys(RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS);
                                 if(!path.isEmpty()) {
                                     listObjectsRequestBuilder.prefix(path.replace("*", ""));  // Replace '*' to use only the prefix part
                                 }
@@ -102,6 +103,15 @@ public class S3ResourceMgr {
                                             resultListInner.add(bucketName+"/"+key);
                                     }
                                     });
+
+                                // Short-circuit if we've reached the maximum number of results
+                                if (resultListInner.size() >= RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS) {
+                                    if (LOG.isDebugEnabled()) {
+                                        LOG.debug("Reached maximum autocomplete results limit of {}, stopping pagination", 
+                                                RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS);
+                                    }
+                                    break;
+                                }
 
                                 // If the response is truncated, set the next continuation token for the next request
                                 String nextContinuationToken = listObjectsResponse.nextContinuationToken();
