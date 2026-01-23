@@ -1,3 +1,0 @@
-{{- if not .Values.global.renderedOnlySaRoles }}
-{{- template "common.Deployments.tpl" . }}
-{{- end }}
