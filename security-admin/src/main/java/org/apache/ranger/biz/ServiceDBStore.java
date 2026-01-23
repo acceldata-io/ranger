@@ -6809,7 +6809,10 @@ public class ServiceDBStore extends AbstractServiceStore {
 			for (RangerPolicyResource resource : policy.getResources().values()) {
 				if (resource.getValues() != null) {
 					for (String path : resource.getValues()) {
-						if (path.startsWith("*") || path.equals("*")) {
+						if (StringUtils.isEmpty(path)) {
+							continue;
+						}
+						if (path.startsWith("*")) {
 							// Wildcard affects default bucket
 							affectedBuckets.add(defaultBucket);
 						} else {
@@ -6846,7 +6849,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		if (affectedBuckets.size() == 1) {
 			// Single bucket - use exact prefix match
 			String bucket = affectedBuckets.iterator().next();
-			filter.setParam(SearchFilter.RESOURCE_PREFIX + "path", bucket + "*");
+			filter.setParam(SearchFilter.RESOURCE_PREFIX + RangerS3Constants.PATH, bucket + "*");
 		} else {
 			// Multiple buckets - unfortunately SearchFilter doesn't support OR conditions
 			// across different resource values, so we fall back to getting all policies
@@ -7084,7 +7087,13 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 							}
 						}
 						
-						String accountId = entityArn.split(":")[4]; // Account ID is the 5th segment of the ARN
+						// Parse ARN to extract account ID
+						// Expected ARN format: arn:aws:iam::123456789012:user/username or arn:aws:iam::123456789012:role/rolename
+						String[] arnParts = entityArn.split(":");
+						if (arnParts.length < 5) {
+							throw new IllegalArgumentException("Invalid ARN format: " + entityArn);
+						}
+						String accountId = arnParts[4]; // Account ID is the 5th segment of the ARN
 						awsAccounts.add(RangerS3Constants.S3_AWS_ACCOUNT_URN + accountId + ":" + entityType + "/" + entity);
 					} catch (Exception e) {
                         LOG.error("Failed to retrieve account ID for entity '{}': {}", entity, e.getMessage());
