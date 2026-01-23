@@ -27,9 +27,12 @@ import org.apache.ranger.services.gravitino.client.auth.GravitinoAuthFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -47,6 +50,8 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
     private static final String KEY_XSTORE_URL = "xstore.url";
     // TODO: remove gravitino.url fallback once legacy configs are dropped.
     private static final String KEY_GRAVITINO_URL = "gravitino.url";
+    private static final Set<String> SENSITIVE_HEADERS = new HashSet<>(
+            Arrays.asList("authorization", "cookie", "set-cookie"));
 
     private final GravitinoAuth auth;
     
@@ -84,12 +89,14 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             conn.setReadTimeout(READ_TIMEOUT_MS);
             conn.setRequestProperty("Content-Type", "application/json");
             GravitinoAuthFactory.create(serviceName, configs).apply(conn);
+            logRequest(conn, url, "connectionTest");
 
             int code = conn.getResponseCode();
             if (code >= 200 && code < 300) {
                 BaseClient.generateResponseDataMap(true, "Connection test successful",
                         "Connection test successful", null, null, resp);
             } else {
+                logNonSuccessResponse(conn, url, code, "connectionTest");
                 BaseClient.generateResponseDataMap(false, "Connection test failed (HTTP " + code + ")",
                         "Connection test failed (HTTP " + code + ")", null, null, resp);
             }
@@ -237,10 +244,12 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         conn.setRequestProperty("Accept", "application/json");
 
         auth.apply(conn);
+        logRequest(conn, url, "lookup");
         
         int code = conn.getResponseCode();
         if (code < 200 || code >= 300) {
             LOG.warn("Request to {} failed with status {}", url, code);
+            logNonSuccessResponse(conn, url, code, "lookup");
             return Collections.emptyList();
         }
         
@@ -275,10 +284,12 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         conn.setRequestProperty("Accept", "application/json");
 
         auth.apply(conn);
+        logRequest(conn, url, "lookup");
         
         int code = conn.getResponseCode();
         if (code < 200 || code >= 300) {
             LOG.warn("Request to {} failed with status {}", url, code);
+            logNonSuccessResponse(conn, url, code, "lookup");
             return Collections.emptyList();
         }
         
@@ -324,5 +335,63 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             return true;
         }
         return name.toLowerCase().startsWith(prefix.toLowerCase());
+    }
+
+    private static void logRequest(HttpURLConnection conn, URL url, String context) {
+        if (!LOG.isDebugEnabled()) {
+            return;
+        }
+        String method = conn.getRequestMethod();
+        Map<String, List<String>> headers = filterHeaders(conn.getRequestProperties());
+        LOG.debug("Gravitino request [{}]: {} {} headers={}", context, method, url, headers);
+    }
+
+    private static void logNonSuccessResponse(HttpURLConnection conn, URL url, int code, String context) {
+        if (!LOG.isWarnEnabled()) {
+            return;
+        }
+        String body = readErrorBody(conn, 2048);
+        Map<String, List<String>> headers = filterHeaders(conn.getHeaderFields());
+        if (body == null || body.isEmpty()) {
+            LOG.warn("Gravitino response [{}]: {} status={} headers={}", context, url, code, headers);
+        } else {
+            LOG.warn("Gravitino response [{}]: {} status={} headers={} body={}", context, url, code, headers, body);
+        }
+    }
+
+    private static Map<String, List<String>> filterHeaders(Map<String, List<String>> headers) {
+        if (headers == null || headers.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, List<String>> filtered = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+            String key = entry.getKey();
+            if (key == null) {
+                continue;
+            }
+            if (SENSITIVE_HEADERS.contains(key.toLowerCase())) {
+                continue;
+            }
+            filtered.put(key, entry.getValue());
+        }
+        return filtered;
+    }
+
+    private static String readErrorBody(HttpURLConnection conn, int maxChars) {
+        InputStream errorStream = conn.getErrorStream();
+        if (errorStream == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(errorStream, StandardCharsets.UTF_8))) {
+            int read;
+            char[] buffer = new char[256];
+            while ((read = reader.read(buffer)) != -1 && sb.length() < maxChars) {
+                sb.append(buffer, 0, Math.min(read, maxChars - sb.length()));
+            }
+        } catch (Exception e) {
+            return "";
+        }
+        return sb.toString().replaceAll("\\s+", " ").trim();
     }
 }

@@ -31,11 +31,6 @@ for bin in curl tar python3 docker; do
   fi
 done
 
-if ! command -v aws >/dev/null 2>&1; then
-  echo "ERROR: Missing required command: aws (AWS CLI)"
-  exit 1
-fi
-
 MAVEN_VERSION="${MAVEN_VERSION:-3.9.6}"
 MAVEN_TAR="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
 MAVEN_URL="https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_TAR}"
@@ -48,6 +43,30 @@ if [[ ! -d "${MAVEN_HOME}" ]]; then
 fi
 
 export PATH="${MAVEN_HOME}/bin:${PATH}"
+
+ECR_LOGIN="${ECR_LOGIN:-true}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
+
+ecr_login() {
+  local registry="${1}"
+  local region="${2:-us-east-1}"
+
+  echo "Logging in to ECR: ${registry}"
+
+  if ! command -v aws >/dev/null 2>&1; then
+    echo "ERROR: AWS CLI is not installed or not in PATH"
+    echo "Install AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+    return 1
+  fi
+
+  if aws ecr get-login-password --region "${region}" | docker login --username AWS --password-stdin "${registry}"; then
+    echo "ECR login successful"
+    return 0
+  fi
+
+  echo "ERROR: ECR login failed"
+  return 1
+}
 
 echo "Building Ranger distro with Maven..."
 mvn clean -DskipTests -DskipDocs -Dpython.command.invoker=python3 -pl distro -am package
@@ -78,9 +97,11 @@ docker build \
 ECR_REPO="191579300362.dkr.ecr.us-east-1.amazonaws.com/acceldata/xdp/dp"
 ECR_IMAGE="${ECR_REPO}:${IMAGE_TAG}"
 
-echo "Logging in to ECR..."
-aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin "191579300362.dkr.ecr.us-east-1.amazonaws.com"
+if [[ "${ECR_LOGIN}" == "true" ]]; then
+  if ! ecr_login "191579300362.dkr.ecr.us-east-1.amazonaws.com" "${AWS_REGION}"; then
+    exit 1
+  fi
+fi
 
 echo "Tagging and pushing image to ECR..."
 docker tag "${LOCAL_IMAGE}" "${ECR_IMAGE}"
