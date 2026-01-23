@@ -6986,7 +6986,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			try  {
 				// Define a map to associate entity types with the respective IAM call
 				Map<String, Function<String, String>> entityArnExtractor = new HashMap<>();
-				entityArnExtractor.put("user", entity -> iamClient.getUser(GetUserRequest.builder().userName(entity).build()).user().arn());
+				entityArnExtractor.put("user", entity -> iamClient.getUser(GetUserRequest.builder().build()).user().arn());
 				entityArnExtractor.put("role", entity -> iamClient.getRole(GetRoleRequest.builder().roleName(entity).build()).role().arn());
 				for (String entity : entities) {
 					try {
