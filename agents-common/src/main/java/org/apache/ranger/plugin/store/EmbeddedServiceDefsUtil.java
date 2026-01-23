@@ -49,7 +49,7 @@ public class EmbeddedServiceDefsUtil {
     private static final Logger LOG = LoggerFactory.getLogger(EmbeddedServiceDefsUtil.class);
 
     // following servicedef list should be reviewed/updated whenever a new embedded service-def is added
-    public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST        = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,polaris";
+    public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST        = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,polaris,s3";
     public static final String EMBEDDED_SERVICEDEF_TAG_NAME             = "tag";
     public static final String EMBEDDED_SERVICEDEF_GDS_NAME             = "gds";
     public static final String EMBEDDED_SERVICEDEF_HDFS_NAME            = "hdfs";
@@ -76,6 +76,7 @@ public class EmbeddedServiceDefsUtil {
     public static final String EMBEDDED_SERVICEDEF_KUDU_NAME            = "kudu";
     public static final String EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME = "nestedstructure";
     public static final String EMBEDDED_SERVICEDEF_POLARIS_NAME         = "polaris";
+    public static final String EMBEDDED_SERVICEDEF_S3_NAME              = "s3";
 
     public static final String PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS = "ranger.service.store.create.embedded.service-defs";
     public static final String HDFS_IMPL_CLASS_NAME                  = "org.apache.ranger.services.hdfs.RangerServiceHdfs";
@@ -125,6 +126,8 @@ public class EmbeddedServiceDefsUtil {
     private       RangerServiceDef        kuduServiceDef;
     private       RangerServiceDef        nestedStructureServiveDef;
     private       RangerServiceDef        polarisServiceDef;
+    private       RangerServiceDef        s3ServiceDef;
+
     private       RangerServiceDef        tagServiceDef;
     private       RangerServiceDef        gdsServiceDef;
 
@@ -165,6 +168,10 @@ public class EmbeddedServiceDefsUtil {
             /* TAG service-def must be created before any other service-def */
             tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
 
+            /*
+             * Maintaining the following service-def create-order is critical for the
+             * the legacy service-defs (HDFS/HBase/Hive/Knox/Storm) to be assigned IDs
+             * that were used in earlier version (0.4) */
             hdfsServiceDef            = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HDFS_NAME);
             hBaseServiceDef           = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HBASE_NAME);
             hiveServiceDef            = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HIVE_NAME);
@@ -189,6 +196,7 @@ public class EmbeddedServiceDefsUtil {
             kuduServiceDef            = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KUDU_NAME);
             nestedStructureServiveDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME);
             polarisServiceDef         = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_POLARIS_NAME);
+            s3ServiceDef              = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_S3_NAME);
 
             gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
 
@@ -294,6 +302,10 @@ public class EmbeddedServiceDefsUtil {
 
     public long getPolarisServiceDefId() {
         return getId(polarisServiceDef);
+    }
+
+    public long getS3ServiceDefId() {
+        return getId(s3ServiceDef);
     }
 
     public long getTagServiceDefId() {
