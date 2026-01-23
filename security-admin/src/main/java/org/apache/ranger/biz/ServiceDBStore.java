@@ -6800,7 +6800,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 	 *
 	 * @param policy Policy to extract buckets from
 	 * @param defaultBucket Default bucket name from service config
-	 * @return Set of affected bucket names
+	 * @return Set of affected bucket names, or null if the policy affects all buckets (wildcard)
 	 */
 	private Set<String> extractAffectedBuckets(RangerPolicy policy, String defaultBucket) {
 		Set<String> affectedBuckets = new HashSet<>();
@@ -6813,10 +6813,10 @@ public class ServiceDBStore extends AbstractServiceStore {
 							continue;
 						}
 						if (path.startsWith("*")) {
-							// Wildcard affects default bucket
-							affectedBuckets.add(defaultBucket);
+							// Wildcard affects all buckets - cannot optimize with filtering
+							return null;
 						} else {
-							// Extract bucket name from path (bucket/prefix format)
+							// Extract bucket name from path (supports "bucket" or "bucket/prefix" format)
 							String bucket = path.split("/", 2)[0];
 							affectedBuckets.add(bucket);
 						}
@@ -6825,7 +6825,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			}
 		}
 		
-		// If no buckets found, default to the configured bucket
+		// If no buckets found, use default bucket
 		if (affectedBuckets.isEmpty()) {
 			affectedBuckets.add(defaultBucket);
 		}
@@ -6837,23 +6837,30 @@ public class ServiceDBStore extends AbstractServiceStore {
 	 * Create a SearchFilter to filter policies by affected buckets
 	 * Optimization: Reduces O(N) scan by filtering at DB/cache level
 	 *
-	 * @param affectedBuckets Set of bucket names to filter by
-	 * @return SearchFilter configured with bucket resource filters
+	 * @param affectedBuckets Set of bucket names to filter by, or null for no filtering
+	 * @return SearchFilter configured with bucket resource filters, or empty filter if optimization cannot be applied
 	 */
 	private SearchFilter createFilterForBuckets(Set<String> affectedBuckets) {
 		SearchFilter filter = new SearchFilter();
 		
-		// Use resource filtering with OR logic across buckets
+		// If null, it means wildcard - fetch all policies
+		if (affectedBuckets == null) {
+			LOG.debug("Wildcard policy detected, fetching all policies for service");
+			return filter;
+		}
+		
+		// Use resource filtering for single bucket
 		// Note: SearchFilter supports resource filtering via RESOURCE_PREFIX
-		// For S3, we filter on "path" resource which contains bucket names
+		// For S3, we filter on "path" resource which contains bucket names or bucket/prefix paths
 		if (affectedBuckets.size() == 1) {
-			// Single bucket - use exact prefix match
+			// Single bucket - use prefix match to get all policies affecting this bucket
+			// This matches "bucket", "bucket/", "bucket/path" etc.
 			String bucket = affectedBuckets.iterator().next();
-			filter.setParam(SearchFilter.RESOURCE_PREFIX + RangerS3Constants.PATH, bucket + "*");
+			filter.setParam(SearchFilter.RESOURCE_PREFIX + RangerS3Constants.PATH, bucket);
+			LOG.debug("Filtering policies for single bucket: {}", bucket);
 		} else {
-			// Multiple buckets - unfortunately SearchFilter doesn't support OR conditions
-			// across different resource values, so we fall back to getting all policies
-			// but still benefit from the IAM caching optimization
+			// Multiple buckets - SearchFilter doesn't support OR conditions across different resource values
+			// Fall back to getting all policies but still benefit from the IAM caching optimization
 			LOG.debug("Multiple affected buckets {}, fetching all policies for service", affectedBuckets);
 		}
 		
@@ -6959,8 +6966,10 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
         if (LOG.isDebugEnabled()) {
             LOG.debug(" ======> ServiceDBStore.processPolicies()");
         }
-		// Optimization: Create IAM identity cache to avoid redundant lookups
-		Map<String, String> iamIdentityCache = new HashMap<>();
+		// Optimization: Create IAM identity cache to avoid redundant IAM API lookups
+		// Cache key format: "entityType:entityName" -> "entityArn"
+		// Example: "user:john" -> "arn:aws:iam::123456789012:user/john"
+		Map<String, String> iamArnCache = new HashMap<>();
 		
 		for (Entry<String, Map<RangerPolicy, Set<String>>> entry : bucketMap.entrySet()) {
 			String bucketName = entry.getKey();
@@ -6971,9 +6980,9 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 							.map(s3path -> RangerS3Constants.S3_RESOURCE_PATH_ARN + s3path)
 							.collect(Collectors.toList());
 				statements.addAll(createBucketPolicyStatement(policyEntry.getKey().getPolicyItems(),
-						RangerS3Constants.ALLOW, s3Resources, iamClient, iamIdentityCache));
+						RangerS3Constants.ALLOW, s3Resources, iamClient, iamArnCache));
 				statements.addAll(createBucketPolicyStatement(policyEntry.getKey().getDenyPolicyItems(),
-						RangerS3Constants.DENY, s3Resources, iamClient, iamIdentityCache));
+						RangerS3Constants.DENY, s3Resources, iamClient, iamArnCache));
 			}
 
 			List<PolicyStatement> mergedStatements = mergeWithIAMStatements(s3, bucketName, statements);
@@ -7015,7 +7024,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		}
 	}
 
-	private List<PolicyStatement> createBucketPolicyStatement(List<RangerPolicyItem> policyItems, String effect, List<String> s3Resources, IamClient iamClient, Map<String, String> iamIdentityCache) {
+	private List<PolicyStatement> createBucketPolicyStatement(List<RangerPolicyItem> policyItems, String effect, List<String> s3Resources, IamClient iamClient, Map<String, String> iamArnCache) {
 		List<PolicyStatement> statements = new ArrayList<>();
         if (LOG.isDebugEnabled()) {
             LOG.debug(" ======> ServiceDBStore.createBucketPolicyStatement()");
@@ -7030,7 +7039,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 						accessTypes.add(access.getType());
 					}
 					PolicyStatement statement = prepareBucketPolicyStatement(s3Resource, accessTypes, effect,
-							policyItem.getUsers(), policyItem.getGroups(), policyItem.getRoles(), iamClient, iamIdentityCache);
+							policyItem.getUsers(), policyItem.getGroups(), policyItem.getRoles(), iamClient, iamArnCache);
 					statements.add(statement);
 				}
 			}
@@ -7039,16 +7048,16 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		return statements;
 	}
 
-	private PolicyStatement prepareBucketPolicyStatement(String s3Resources, List<String> accessTypes, String effect, List<String> users, List<String> groups, List<String> roles, IamClient iamClient, Map<String, String> iamIdentityCache) {
+	private PolicyStatement prepareBucketPolicyStatement(String s3Resources, List<String> accessTypes, String effect, List<String> users, List<String> groups, List<String> roles, IamClient iamClient, Map<String, String> iamArnCache) {
 		PolicyStatement statement = new PolicyStatement();
 		statement.setEffect(effect);
 
 		// Set multiple AWS account IDs in the Principal
 		Map<String, List<String>> principal = new HashMap<>();
 		List<String> awsAccounts = new ArrayList<>();
-		awsAccounts = addAccounts(awsAccounts, users, "user", iamClient, iamIdentityCache);
-		awsAccounts = addAccounts(awsAccounts, groups, "group", iamClient, iamIdentityCache);
-		awsAccounts = addAccounts(awsAccounts, roles, "role", iamClient, iamIdentityCache);
+		awsAccounts = addAccounts(awsAccounts, users, "user", iamClient, iamArnCache);
+		awsAccounts = addAccounts(awsAccounts, groups, "group", iamClient, iamArnCache);
+		awsAccounts = addAccounts(awsAccounts, roles, "role", iamClient, iamArnCache);
 
 		principal.put(RangerS3Constants.AWS, awsAccounts);
 		statement.setPrincipal(principal);
@@ -7057,7 +7066,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		return statement;
     }
 
-	private List<String> addAccounts(List<String> awsAccounts, List<String> entities, String entityType, IamClient iamClient, Map<String, String> iamIdentityCache) {
+	private List<String> addAccounts(List<String> awsAccounts, List<String> entities, String entityType, IamClient iamClient, Map<String, String> iamArnCache) {
 		if (CollectionUtils.isNotEmpty(entities)) {
 			if ("group".equalsIgnoreCase(entityType)) {
 				LOG.error("Group entityType is not supported for Ranger S3 IAM sync; operation cannot proceed");
@@ -7072,12 +7081,12 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 					try {
 						// Optimization: Check cache first to avoid redundant IAM API calls
 						String cacheKey = entityType + ":" + entity;
-						String entityArn = iamIdentityCache.get(cacheKey);
+						String entityArn = iamArnCache.get(cacheKey);
 						
 						if (entityArn == null) {
 							// Cache miss - fetch from IAM
 							entityArn = entityArnExtractor.get(entityType).apply(entity);
-							iamIdentityCache.put(cacheKey, entityArn);
+							iamArnCache.put(cacheKey, entityArn);
 							if (LOG.isDebugEnabled()) {
 								LOG.debug("Cached IAM identity for {}: {}", cacheKey, entityArn);
 							}
