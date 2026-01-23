@@ -6882,7 +6882,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	}
 
 	// Process bucket policies
-	private void processPolicies(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, S3Client s3, IamClient iamClient) throws Exception {
+	void processPolicies(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, S3Client s3, IamClient iamClient) throws Exception {
         if (LOG.isDebugEnabled()) {
             LOG.debug(" ======> ServiceDBStore.processPolicies()");
         }

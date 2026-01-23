@@ -3103,4 +3103,209 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		Assert.assertEquals(1, result.size());
 		Assert.assertEquals("arn:aws:s3:::shared-bucket/*", result.get(0).getResource());
 	}
+
+	@Test
+	public void testProcessPolicies_SingleBucket() throws Exception {
+		// Setup: Create bucket map with one bucket and one policy
+		Map<String, Map<RangerPolicy, java.util.Set<String>>> bucketMap = new HashMap<>();
+		Map<RangerPolicy, java.util.Set<String>> policyMap = new HashMap<>();
+		
+		RangerPolicy policy = createS3Policy(1L, "test-policy", "test-bucket/data/*", 
+											java.util.Arrays.asList("user1"), 
+											java.util.Arrays.asList("s3:GetObject"));
+		
+		java.util.Set<String> paths = new java.util.HashSet<>();
+		paths.add("test-bucket/data/*");
+		policyMap.put(policy, paths);
+		bucketMap.put("test-bucket", policyMap);
+
+		// Mock AWS clients
+		software.amazon.awssdk.services.s3.S3Client s3Client = Mockito.mock(software.amazon.awssdk.services.s3.S3Client.class);
+		software.amazon.awssdk.services.iam.IamClient iamClient = Mockito.mock(software.amazon.awssdk.services.iam.IamClient.class);
+		
+		// Mock IAM user lookup
+		software.amazon.awssdk.services.iam.model.GetUserResponse userResponse = 
+			software.amazon.awssdk.services.iam.model.GetUserResponse.builder()
+				.user(software.amazon.awssdk.services.iam.model.User.builder()
+					.arn("arn:aws:iam::123456789012:user/user1")
+					.build())
+				.build();
+		Mockito.when(iamClient.getUser(Mockito.any(software.amazon.awssdk.services.iam.model.GetUserRequest.class)))
+			.thenReturn(userResponse);
+
+		// Mock S3 getBucketPolicy to return no existing policy
+		Mockito.when(s3Client.getBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest.class)))
+			.thenThrow(software.amazon.awssdk.services.s3.model.NoSuchBucketPolicyException.class);
+		
+		// Mock S3 putBucketPolicy
+		Mockito.when(s3Client.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class)))
+			.thenReturn(software.amazon.awssdk.services.s3.model.PutBucketPolicyResponse.builder().build());
+
+		// Execute: processPolicies should process the bucket map
+		serviceDBStore.processPolicies(bucketMap, s3Client, iamClient);
+
+		// Assert: putBucketPolicy should be called once
+		Mockito.verify(s3Client, Mockito.times(1))
+			.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class));
+	}
+
+	@Test
+	public void testProcessPolicies_MultipleBuckets() throws Exception {
+		// Setup: Create bucket map with multiple buckets
+		Map<String, Map<RangerPolicy, java.util.Set<String>>> bucketMap = new HashMap<>();
+		
+		// Bucket 1
+		Map<RangerPolicy, java.util.Set<String>> policyMap1 = new HashMap<>();
+		RangerPolicy policy1 = createS3Policy(1L, "policy-1", "bucket1/data/*", 
+											  java.util.Arrays.asList("user1"), 
+											  java.util.Arrays.asList("s3:GetObject"));
+		java.util.Set<String> paths1 = new java.util.HashSet<>();
+		paths1.add("bucket1/data/*");
+		policyMap1.put(policy1, paths1);
+		bucketMap.put("bucket1", policyMap1);
+		
+		// Bucket 2
+		Map<RangerPolicy, java.util.Set<String>> policyMap2 = new HashMap<>();
+		RangerPolicy policy2 = createS3Policy(2L, "policy-2", "bucket2/logs/*", 
+											  java.util.Arrays.asList("user2"), 
+											  java.util.Arrays.asList("s3:PutObject"));
+		java.util.Set<String> paths2 = new java.util.HashSet<>();
+		paths2.add("bucket2/logs/*");
+		policyMap2.put(policy2, paths2);
+		bucketMap.put("bucket2", policyMap2);
+
+		// Mock AWS clients
+		software.amazon.awssdk.services.s3.S3Client s3Client = Mockito.mock(software.amazon.awssdk.services.s3.S3Client.class);
+		software.amazon.awssdk.services.iam.IamClient iamClient = Mockito.mock(software.amazon.awssdk.services.iam.IamClient.class);
+		
+		// Mock IAM user lookups
+		software.amazon.awssdk.services.iam.model.GetUserResponse userResponse1 = 
+			software.amazon.awssdk.services.iam.model.GetUserResponse.builder()
+				.user(software.amazon.awssdk.services.iam.model.User.builder()
+					.arn("arn:aws:iam::123456789012:user/user1")
+					.build())
+				.build();
+		software.amazon.awssdk.services.iam.model.GetUserResponse userResponse2 = 
+			software.amazon.awssdk.services.iam.model.GetUserResponse.builder()
+				.user(software.amazon.awssdk.services.iam.model.User.builder()
+					.arn("arn:aws:iam::123456789012:user/user2")
+					.build())
+				.build();
+		
+		Mockito.when(iamClient.getUser(Mockito.any(software.amazon.awssdk.services.iam.model.GetUserRequest.class)))
+			.thenReturn(userResponse1, userResponse2);
+
+		// Mock S3 getBucketPolicy to return no existing policy
+		Mockito.when(s3Client.getBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest.class)))
+			.thenThrow(software.amazon.awssdk.services.s3.model.NoSuchBucketPolicyException.class);
+		
+		// Mock S3 putBucketPolicy
+		Mockito.when(s3Client.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class)))
+			.thenReturn(software.amazon.awssdk.services.s3.model.PutBucketPolicyResponse.builder().build());
+
+		// Execute: processPolicies should process both buckets
+		serviceDBStore.processPolicies(bucketMap, s3Client, iamClient);
+
+		// Assert: putBucketPolicy should be called twice (once for each bucket)
+		Mockito.verify(s3Client, Mockito.times(2))
+			.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class));
+	}
+
+	@Test
+	public void testProcessPolicies_WithDenyPolicies() throws Exception {
+		// Setup: Create bucket map with both allow and deny policies
+		Map<String, Map<RangerPolicy, java.util.Set<String>>> bucketMap = new HashMap<>();
+		Map<RangerPolicy, java.util.Set<String>> policyMap = new HashMap<>();
+		
+		// Create policy with both allow and deny items
+		RangerPolicy policy = new RangerPolicy();
+		policy.setId(1L);
+		policy.setName("test-policy");
+		policy.setService("s3-service");
+		policy.setIsEnabled(true);
+
+		// Allow items
+		List<RangerPolicyItem> allowItems = new ArrayList<>();
+		RangerPolicyItem allowItem = new RangerPolicyItem();
+		allowItem.setUsers(java.util.Arrays.asList("user1"));
+		List<RangerPolicyItemAccess> allowAccesses = new ArrayList<>();
+		RangerPolicyItemAccess allowAccess = new RangerPolicyItemAccess();
+		allowAccess.setType("s3:GetObject");
+		allowAccess.setIsAllowed(true);
+		allowAccesses.add(allowAccess);
+		allowItem.setAccesses(allowAccesses);
+		allowItems.add(allowItem);
+		policy.setPolicyItems(allowItems);
+
+		// Deny items
+		List<RangerPolicyItem> denyItems = new ArrayList<>();
+		RangerPolicyItem denyItem = new RangerPolicyItem();
+		denyItem.setUsers(java.util.Arrays.asList("user2"));
+		List<RangerPolicyItemAccess> denyAccesses = new ArrayList<>();
+		RangerPolicyItemAccess denyAccess = new RangerPolicyItemAccess();
+		denyAccess.setType("s3:DeleteObject");
+		denyAccess.setIsAllowed(true);
+		denyAccesses.add(denyAccess);
+		denyItem.setAccesses(denyAccesses);
+		denyItems.add(denyItem);
+		policy.setDenyPolicyItems(denyItems);
+
+		// Resources
+		Map<String, RangerPolicyResource> resources = new HashMap<>();
+		RangerPolicyResource pathResource = new RangerPolicyResource();
+		pathResource.setValues(java.util.Collections.singletonList("test-bucket/*"));
+		resources.put("path", pathResource);
+		policy.setResources(resources);
+		
+		java.util.Set<String> paths = new java.util.HashSet<>();
+		paths.add("test-bucket/*");
+		policyMap.put(policy, paths);
+		bucketMap.put("test-bucket", policyMap);
+
+		// Mock AWS clients
+		software.amazon.awssdk.services.s3.S3Client s3Client = Mockito.mock(software.amazon.awssdk.services.s3.S3Client.class);
+		software.amazon.awssdk.services.iam.IamClient iamClient = Mockito.mock(software.amazon.awssdk.services.iam.IamClient.class);
+		
+		// Mock IAM user lookups
+		software.amazon.awssdk.services.iam.model.GetUserResponse userResponse = 
+			software.amazon.awssdk.services.iam.model.GetUserResponse.builder()
+				.user(software.amazon.awssdk.services.iam.model.User.builder()
+					.arn("arn:aws:iam::123456789012:user/user1")
+					.build())
+				.build();
+		Mockito.when(iamClient.getUser(Mockito.any(software.amazon.awssdk.services.iam.model.GetUserRequest.class)))
+			.thenReturn(userResponse);
+
+		// Mock S3 getBucketPolicy to return no existing policy
+		Mockito.when(s3Client.getBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest.class)))
+			.thenThrow(software.amazon.awssdk.services.s3.model.NoSuchBucketPolicyException.class);
+		
+		// Mock S3 putBucketPolicy
+		Mockito.when(s3Client.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class)))
+			.thenReturn(software.amazon.awssdk.services.s3.model.PutBucketPolicyResponse.builder().build());
+
+		// Execute: processPolicies should handle both allow and deny items
+		serviceDBStore.processPolicies(bucketMap, s3Client, iamClient);
+
+		// Assert: putBucketPolicy should be called once
+		Mockito.verify(s3Client, Mockito.times(1))
+			.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class));
+	}
+
+	@Test
+	public void testProcessPolicies_EmptyBucketMap() throws Exception {
+		// Setup: Empty bucket map
+		Map<String, Map<RangerPolicy, java.util.Set<String>>> bucketMap = new HashMap<>();
+
+		// Mock AWS clients
+		software.amazon.awssdk.services.s3.S3Client s3Client = Mockito.mock(software.amazon.awssdk.services.s3.S3Client.class);
+		software.amazon.awssdk.services.iam.IamClient iamClient = Mockito.mock(software.amazon.awssdk.services.iam.IamClient.class);
+
+		// Execute: processPolicies with empty map should not throw
+		serviceDBStore.processPolicies(bucketMap, s3Client, iamClient);
+
+		// Assert: putBucketPolicy should never be called
+		Mockito.verify(s3Client, Mockito.never())
+			.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class));
+	}
 }
