@@ -540,7 +540,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 
 		// While creating, value of version should be 1.
 		serviceDef.setVersion(Long.valueOf(1));
-		
+
 		if (populateExistingBaseFields) {
 			svcDefServiceWithAssignedId.setPopulateExistingBaseFields(true);
 			daoMgr.getXXServiceDef().setIdentityInsert(true);
@@ -559,7 +559,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		}
 		Long serviceDefId = serviceDef.getId();
 		XXServiceDef createdSvcDef = daoMgr.getXXServiceDef().getById(serviceDefId);
-		
+
 		XXServiceConfigDefDao xxServiceConfigDao = daoMgr.getXXServiceConfigDef();
 		for(int i = 0; i < configs.size(); i++) {
 			RangerServiceConfigDef config = configs.get(i);
@@ -570,14 +570,14 @@ public class ServiceDBStore extends AbstractServiceStore {
 			xConfig.setOrder(i);
 			xConfig = xxServiceConfigDao.create(xConfig);
 		}
-		
+
 		XXResourceDefDao xxResDefDao = daoMgr.getXXResourceDef();
 		for(int i = 0; i < resources.size(); i++) {
 			RangerResourceDef resource = resources.get(i);
 
 			XXResourceDef parent = xxResDefDao.findByNameAndServiceDefId(resource.getParent(), serviceDefId);
 			Long parentId = (parent != null) ? parent.getId() : null;
-			
+
 			XXResourceDef xResource = new XXResourceDef();
 			xResource = serviceDefService.populateRangerResourceDefToXX(resource, xResource, createdSvcDef,
 					RangerServiceDefService.OPERATION_CREATE_CONTEXT);
@@ -585,7 +585,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			xResource.setParent(parentId);
 			xResource = xxResDefDao.create(xResource);
 		}
-		
+
 		XXAccessTypeDefDao xxATDDao = daoMgr.getXXAccessTypeDef();
 		for(int i = 0; i < accessTypes.size(); i++) {
 			RangerAccessTypeDef accessType = accessTypes.get(i);
@@ -595,7 +595,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 					RangerServiceDefService.OPERATION_CREATE_CONTEXT);
 			xAccessType.setOrder(i);
 			xAccessType = xxATDDao.create(xAccessType);
-			
+
 			Collection<String> impliedGrants = accessType.getImpliedGrants();
 			XXAccessTypeDefGrantsDao xxATDGrantDao = daoMgr.getXXAccessTypeDefGrants();
 			for(String impliedGrant : impliedGrants) {
@@ -605,7 +605,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 				xImpliedGrant = xxATDGrantDao.create(xImpliedGrant);
 			}
 		}
-		
+
 		XXPolicyConditionDefDao xxPolCondDao = daoMgr.getXXPolicyConditionDef();
 		for (int i = 0; i < policyConditions.size(); i++) {
 			RangerPolicyConditionDef policyCondition = policyConditions.get(i);
@@ -617,7 +617,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			xPolicyCondition.setOrder(i);
 			xPolicyCondition = xxPolCondDao.create(xPolicyCondition);
 		}
-		
+
 		XXContextEnricherDefDao xxContextEnricherDao = daoMgr.getXXContextEnricherDef();
 		for (int i = 0; i < contextEnrichers.size(); i++) {
 			RangerContextEnricherDef contextEnricher = contextEnrichers.get(i);
@@ -629,13 +629,13 @@ public class ServiceDBStore extends AbstractServiceStore {
 			xContextEnricher.setOrder(i);
 			xContextEnricher = xxContextEnricherDao.create(xContextEnricher);
 		}
-		
+
 		XXEnumDefDao xxEnumDefDao = daoMgr.getXXEnumDef();
 		for(RangerEnumDef vEnum : enums) {
 			XXEnumDef xEnum = new XXEnumDef();
 			xEnum = serviceDefService.populateRangerEnumDefToXX(vEnum, xEnum, createdSvcDef, RangerServiceDefService.OPERATION_CREATE_CONTEXT);
 			xEnum = xxEnumDefDao.create(xEnum);
-			
+
 			List<RangerEnumElementDef> elements = vEnum.getElements();
 			XXEnumElementDefDao xxEnumEleDefDao = daoMgr.getXXEnumElementDef();
 			for(int i = 0; i < elements.size(); i++) {
@@ -2050,7 +2050,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			RangerPolicy policy = policyService.getPopulatedViewObject(xxPolicy);
 			policies.add(policy);
 		}
-		
+
 		return policies;
 	}
 
@@ -3735,12 +3735,12 @@ public class ServiceDBStore extends AbstractServiceStore {
 		if(configs == null) {
 			return null;
 		}
-		
+
 		List<XXServiceConfigDef> svcConfDefList = daoMgr.getXXServiceConfigDef()
 				.findByServiceDefName(service.getType());
 		for(XXServiceConfigDef svcConfDef : svcConfDefList ) {
 			String confField = configs.get(svcConfDef.getName());
-			
+
 			if(svcConfDef.getIsMandatory() && stringUtil.isEmpty(confField)) {
 				throw restErrorUtil.createRESTException(
 						"Please provide value of mandatory: "+ svcConfDef.getName(),
@@ -4720,7 +4720,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			throw restErrorUtil.createRESTException("Provided zone/service map is empty!!");
 		}
 	}
-	
+
 	public Map<String, RangerPolicy> setPolicyMapKeyValue(Map<String, RangerPolicy> policiesMap, RangerPolicy policy){
 		if (StringUtils.isNotEmpty(policy.getName().trim())
 				&& StringUtils.isNotEmpty(policy.getService().trim())
@@ -4739,7 +4739,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		}
 		return policiesMap;
 	}
-	
+
 	public Map<String, RangerPolicy> createPolicyMap(Map<String, String> zoneMappingMap, List<String> sourceZones,
 			String destinationZoneName, Map<String, String> servicesMappingMap, List<String> sourceServices,
 			List<String> destinationServices, RangerPolicy policy, Map<String, RangerPolicy> policiesMap) {
@@ -5343,7 +5343,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		updateServiceWithCustomProperty();
 		LOG.info("<== ServiceDBStore.getServiceUpgraded()");
 	}
-	private void updateServiceWithCustomProperty() {		
+	private void updateServiceWithCustomProperty() {
 			LOG.info("Adding custom properties to services");
 			SearchFilter filter = new SearchFilter();
 			try {
@@ -6589,13 +6589,13 @@ public class ServiceDBStore extends AbstractServiceStore {
 			}
 
 			String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
-			
+
 			// Optimization: Extract affected buckets and filter policies
 			Set<String> affectedBuckets = extractAffectedBuckets(rangerPolicy, bucketName);
 			SearchFilter filter = createFilterForBuckets(affectedBuckets);
 			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, filter);
-			
-			LOG.info("Filtered policies for affected buckets {}: {} policies (instead of all policies)", 
+
+			LOG.info("Filtered policies for affected buckets {}: {} policies (instead of all policies)",
 					affectedBuckets, servicePolicies.size());
 
             if (LOG.isDebugEnabled()) {
@@ -6667,16 +6667,16 @@ public class ServiceDBStore extends AbstractServiceStore {
 
 			if (affectedPolicies.isEmpty()) {
 				for (Entry<String, RangerPolicyResource> affectedResources : rangerPolicy.getResources().entrySet()) {
-					List<String> affectedBuckets = affectedResources.getValue().getValues().stream()
+					List<String> affectedResourcesBuckets = affectedResources.getValue().getValues().stream()
 							.map(s3path -> s3path.split("/", 2)[0]) // Extract bucket name
 							.distinct() // Ensure unique bucket names
 							.collect(Collectors.toList());
 
-					if (affectedBuckets.isEmpty()) {
+					if (affectedResourcesBuckets.isEmpty()) {
 						deleteBucketPolicy(s3, bucketName);
 					} else {
-						for (String bucketPart : affectedBuckets) {
-							deleteBucketPolicy(s3, bucketPart);
+						for (String resourceBucketPart : affectedResourcesBuckets) {
+							deleteBucketPolicy(s3, resourceBucketPart);
 						}
 					}
 				}
@@ -6801,7 +6801,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 	 */
 	private Set<String> extractAffectedBuckets(RangerPolicy policy, String defaultBucket) {
 		Set<String> affectedBuckets = new HashSet<>();
-		
+
 		if (policy.getResources() != null) {
 			for (RangerPolicyResource resource : policy.getResources().values()) {
 				if (resource.getValues() != null) {
@@ -6821,12 +6821,12 @@ public class ServiceDBStore extends AbstractServiceStore {
 				}
 			}
 		}
-		
+
 		// If no buckets found, use default bucket
 		if (affectedBuckets.isEmpty()) {
 			affectedBuckets.add(defaultBucket);
 		}
-		
+
 		return affectedBuckets;
 	}
 
@@ -6839,13 +6839,13 @@ public class ServiceDBStore extends AbstractServiceStore {
 	 */
 	private SearchFilter createFilterForBuckets(Set<String> affectedBuckets) {
 		SearchFilter filter = new SearchFilter();
-		
+
 		// If null, it means wildcard - fetch all policies
 		if (affectedBuckets == null) {
 			LOG.debug("Wildcard policy detected, fetching all policies for service");
 			return filter;
 		}
-		
+
 		// Use resource filtering for single bucket
 		// Note: SearchFilter supports resource filtering via RESOURCE_PREFIX
 		// For S3, we filter on "path" resource which contains bucket names or bucket/prefix paths
@@ -6860,7 +6860,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			// Fall back to getting all policies but still benefit from the IAM caching optimization
 			LOG.debug("Multiple affected buckets {}, fetching all policies for service", affectedBuckets);
 		}
-		
+
 		return filter;
 	}
 
@@ -6967,7 +6967,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		// Cache key format: "entityType:entityName" -> "entityArn"
 		// Example: "user:john" -> "arn:aws:iam::123456789012:user/john"
 		Map<String, String> iamArnCache = new HashMap<>();
-		
+
 		for (Entry<String, Map<RangerPolicy, Set<String>>> entry : bucketMap.entrySet()) {
 			String bucketName = entry.getKey();
 			List<PolicyStatement> statements = new ArrayList<>();
@@ -7074,13 +7074,13 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 				Map<String, Function<String, String>> entityArnExtractor = new HashMap<>();
 				entityArnExtractor.put("user", entity -> iamClient.getUser(GetUserRequest.builder().build()).user().arn());
 				entityArnExtractor.put("role", entity -> iamClient.getRole(GetRoleRequest.builder().roleName(entity).build()).role().arn());
-				
+
 				for (String entity : entities) {
 					try {
 						// Optimization: Check cache first to avoid redundant IAM API calls
 						String cacheKey = entityType + ":" + entity;
 						String entityArn = iamArnCache.get(cacheKey);
-						
+
 						if (entityArn == null) {
 							// Cache miss - fetch from IAM
 							entityArn = entityArnExtractor.get(entityType).apply(entity);
@@ -7093,7 +7093,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 								LOG.debug("Using cached IAM identity for {}", cacheKey);
 							}
 						}
-						
+
 						// Parse ARN to extract account ID
 						// Expected ARN format: arn:aws:iam::123456789012:user/username or arn:aws:iam::123456789012:role/rolename
 						String[] arnParts = entityArn.split(":");
