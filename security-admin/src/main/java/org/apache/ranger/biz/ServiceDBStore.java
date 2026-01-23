@@ -541,7 +541,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 
 		// While creating, value of version should be 1.
 		serviceDef.setVersion(Long.valueOf(1));
-		
+
 		if (populateExistingBaseFields) {
 			svcDefServiceWithAssignedId.setPopulateExistingBaseFields(true);
 			daoMgr.getXXServiceDef().setIdentityInsert(true);
@@ -560,7 +560,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		}
 		Long serviceDefId = serviceDef.getId();
 		XXServiceDef createdSvcDef = daoMgr.getXXServiceDef().getById(serviceDefId);
-		
+
 		XXServiceConfigDefDao xxServiceConfigDao = daoMgr.getXXServiceConfigDef();
 		for(int i = 0; i < configs.size(); i++) {
 			RangerServiceConfigDef config = configs.get(i);
@@ -571,14 +571,14 @@ public class ServiceDBStore extends AbstractServiceStore {
 			xConfig.setOrder(i);
 			xConfig = xxServiceConfigDao.create(xConfig);
 		}
-		
+
 		XXResourceDefDao xxResDefDao = daoMgr.getXXResourceDef();
 		for(int i = 0; i < resources.size(); i++) {
 			RangerResourceDef resource = resources.get(i);
 
 			XXResourceDef parent = xxResDefDao.findByNameAndServiceDefId(resource.getParent(), serviceDefId);
 			Long parentId = (parent != null) ? parent.getId() : null;
-			
+
 			XXResourceDef xResource = new XXResourceDef();
 			xResource = serviceDefService.populateRangerResourceDefToXX(resource, xResource, createdSvcDef,
 					RangerServiceDefService.OPERATION_CREATE_CONTEXT);
@@ -586,7 +586,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			xResource.setParent(parentId);
 			xResource = xxResDefDao.create(xResource);
 		}
-		
+
 		XXAccessTypeDefDao xxATDDao = daoMgr.getXXAccessTypeDef();
 		for(int i = 0; i < accessTypes.size(); i++) {
 			RangerAccessTypeDef accessType = accessTypes.get(i);
@@ -596,7 +596,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 					RangerServiceDefService.OPERATION_CREATE_CONTEXT);
 			xAccessType.setOrder(i);
 			xAccessType = xxATDDao.create(xAccessType);
-			
+
 			Collection<String> impliedGrants = accessType.getImpliedGrants();
 			XXAccessTypeDefGrantsDao xxATDGrantDao = daoMgr.getXXAccessTypeDefGrants();
 			for(String impliedGrant : impliedGrants) {
@@ -606,7 +606,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 				xImpliedGrant = xxATDGrantDao.create(xImpliedGrant);
 			}
 		}
-		
+
 		XXPolicyConditionDefDao xxPolCondDao = daoMgr.getXXPolicyConditionDef();
 		for (int i = 0; i < policyConditions.size(); i++) {
 			RangerPolicyConditionDef policyCondition = policyConditions.get(i);
@@ -618,7 +618,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			xPolicyCondition.setOrder(i);
 			xPolicyCondition = xxPolCondDao.create(xPolicyCondition);
 		}
-		
+
 		XXContextEnricherDefDao xxContextEnricherDao = daoMgr.getXXContextEnricherDef();
 		for (int i = 0; i < contextEnrichers.size(); i++) {
 			RangerContextEnricherDef contextEnricher = contextEnrichers.get(i);
@@ -630,13 +630,13 @@ public class ServiceDBStore extends AbstractServiceStore {
 			xContextEnricher.setOrder(i);
 			xContextEnricher = xxContextEnricherDao.create(xContextEnricher);
 		}
-		
+
 		XXEnumDefDao xxEnumDefDao = daoMgr.getXXEnumDef();
 		for(RangerEnumDef vEnum : enums) {
 			XXEnumDef xEnum = new XXEnumDef();
 			xEnum = serviceDefService.populateRangerEnumDefToXX(vEnum, xEnum, createdSvcDef, RangerServiceDefService.OPERATION_CREATE_CONTEXT);
 			xEnum = xxEnumDefDao.create(xEnum);
-			
+
 			List<RangerEnumElementDef> elements = vEnum.getElements();
 			XXEnumElementDefDao xxEnumEleDefDao = daoMgr.getXXEnumElementDef();
 			for(int i = 0; i < elements.size(); i++) {
@@ -2051,7 +2051,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			RangerPolicy policy = policyService.getPopulatedViewObject(xxPolicy);
 			policies.add(policy);
 		}
-		
+
 		return policies;
 	}
 
@@ -3736,12 +3736,12 @@ public class ServiceDBStore extends AbstractServiceStore {
 		if(configs == null) {
 			return null;
 		}
-		
+
 		List<XXServiceConfigDef> svcConfDefList = daoMgr.getXXServiceConfigDef()
 				.findByServiceDefName(service.getType());
 		for(XXServiceConfigDef svcConfDef : svcConfDefList ) {
 			String confField = configs.get(svcConfDef.getName());
-			
+
 			if(svcConfDef.getIsMandatory() && stringUtil.isEmpty(confField)) {
 				throw restErrorUtil.createRESTException(
 						"Please provide value of mandatory: "+ svcConfDef.getName(),
@@ -4721,7 +4721,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			throw restErrorUtil.createRESTException("Provided zone/service map is empty!!");
 		}
 	}
-	
+
 	public Map<String, RangerPolicy> setPolicyMapKeyValue(Map<String, RangerPolicy> policiesMap, RangerPolicy policy){
 		if (StringUtils.isNotEmpty(policy.getName().trim())
 				&& StringUtils.isNotEmpty(policy.getService().trim())
@@ -4740,7 +4740,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		}
 		return policiesMap;
 	}
-	
+
 	public Map<String, RangerPolicy> createPolicyMap(Map<String, String> zoneMappingMap, List<String> sourceZones,
 			String destinationZoneName, Map<String, String> servicesMappingMap, List<String> sourceServices,
 			List<String> destinationServices, RangerPolicy policy, Map<String, RangerPolicy> policiesMap) {
@@ -5344,7 +5344,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		updateServiceWithCustomProperty();
 		LOG.info("<== ServiceDBStore.getServiceUpgraded()");
 	}
-	private void updateServiceWithCustomProperty() {		
+	private void updateServiceWithCustomProperty() {
 			LOG.info("Adding custom properties to services");
 			SearchFilter filter = new SearchFilter();
 			try {
@@ -6668,16 +6668,16 @@ public class ServiceDBStore extends AbstractServiceStore {
 
 			if (affectedPolicies.isEmpty()) {
 				for (Entry<String, RangerPolicyResource> affectedResources : rangerPolicy.getResources().entrySet()) {
-					List<String> affectedBuckets = affectedResources.getValue().getValues().stream()
+					List<String> affectedResourcesBuckets = affectedResources.getValue().getValues().stream()
 							.map(s3path -> s3path.split("/", 2)[0]) // Extract bucket name
 							.distinct() // Ensure unique bucket names
 							.collect(Collectors.toList());
 
-					if (affectedBuckets.isEmpty()) {
+					if (affectedResourcesBuckets.isEmpty()) {
 						deleteBucketPolicy(s3, bucketName);
 					} else {
-						for (String bucketPart : affectedBuckets) {
-							deleteBucketPolicy(s3, bucketPart);
+						for (String resourceBucketPart : affectedResourcesBuckets) {
+							deleteBucketPolicy(s3, resourceBucketPart);
 						}
 					}
 				}

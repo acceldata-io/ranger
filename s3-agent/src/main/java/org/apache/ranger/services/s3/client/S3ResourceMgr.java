@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class S3ResourceMgr {
     private static final Logger LOG = LoggerFactory.getLogger(S3ResourceMgr.class);
@@ -96,11 +97,11 @@ public class S3ResourceMgr {
                                 ListObjectsV2Response listObjectsResponse;
                                 do {
                                     listObjectsResponse = s3.listObjectsV2(listObjectsRequest);
-                                    for (var s3Object : listObjectsResponse.contents()) {
+                                    for (S3Object s3Object : listObjectsResponse.contents()) {
                                         // Check if we've reached the limit before adding more results
                                         if (resultListInner.size() >= RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS) {
                                             if (LOG.isDebugEnabled()) {
-                                                LOG.debug("Reached maximum autocomplete results limit of {}, stopping pagination", 
+                                                LOG.debug("Reached maximum autocomplete results limit of {}, stopping pagination",
                                                         RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS);
                                             }
                                             break;
