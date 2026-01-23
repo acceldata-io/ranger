@@ -1698,7 +1698,11 @@ public class ServiceREST {
 				if(LOG.isDebugEnabled()) {
 					LOG.debug("<== ServiceREST.createPolicy(" + policy + "): " + ret);
 				}
-				if (policy.getServiceType().equalsIgnoreCase(RangerS3Constants.S3)) {
+				if (StringUtils.isBlank(policy.getServiceType())) {
+					LOG.error("Policy {} missing serviceType; cannot determine service behavior", policy.getId());
+					throw new IllegalStateException("Policy serviceType is missing");
+				}
+				if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerS3Constants.S3)) {
 					svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_CREATE);
 				}
 				return ret;
@@ -1707,7 +1711,11 @@ public class ServiceREST {
 
 			if(ret == null) {
 				ret = createPolicyUnconditionally(policy);
-				if (policy.getServiceType().equalsIgnoreCase(RangerS3Constants.S3)) {
+				if (StringUtils.isBlank(policy.getServiceType())) {
+					LOG.error("Policy {} missing serviceType; cannot determine service behavior", policy.getId());
+					throw new IllegalStateException("Policy serviceType is missing");
+				}
+				if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerS3Constants.S3)) {
 					svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_CREATE);
 				}
 			}
@@ -1854,7 +1862,11 @@ public class ServiceREST {
 			bizUtil.blockAuditorRoleUser();
 
 			ret = svcStore.updatePolicy(policy);
-			if (policy.getServiceType().equalsIgnoreCase(RangerS3Constants.S3)) {
+			if (StringUtils.isBlank(policy.getServiceType())) {
+				LOG.error("Policy {} missing serviceType; cannot determine service behavior", policy.getId());
+				throw new IllegalStateException("Policy serviceType is missing");
+			}
+			if (StringUtils.equalsIgnoreCase(RangerS3Constants.S3, policy.getServiceType())) {
 				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_UPDATE);
 			}
 		} catch(WebApplicationException excp) {
@@ -1895,7 +1907,11 @@ public class ServiceREST {
 			ensureAdminAccess(policy);
 			bizUtil.blockAuditorRoleUser();
 			svcStore.deletePolicy(policy);
-			if (policy.getServiceType().equalsIgnoreCase(RangerS3Constants.S3)) {
+			if (StringUtils.isBlank(policy.getServiceType())) {
+				LOG.error("Policy {} missing serviceType; cannot determine service behavior", policy.getId());
+				throw new IllegalStateException("Policy serviceType is missing");
+			}
+			if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerS3Constants.S3)) {
 				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_DELETE);
 			}
 		} catch(WebApplicationException excp) {

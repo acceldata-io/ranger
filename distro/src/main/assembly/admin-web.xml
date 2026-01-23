@@ -570,6 +570,7 @@
           <include>software.amazon.awssdk:s3</include>
           <include>software.amazon.awssdk:auth</include>
           <include>software.amazon.awssdk:regions</include>
+          <include>software.amazon.awssdk:iam</include>
         </includes>
       </binaries>
     </moduleSet>

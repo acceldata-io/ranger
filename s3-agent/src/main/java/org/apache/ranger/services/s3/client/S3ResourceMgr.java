@@ -41,7 +41,7 @@ public class S3ResourceMgr {
 
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) throws Exception {
         Map<String, Object> ret;
-        LOG.debug("==> S3ResourceMgr.connectionTest ServiceName: "+ serviceName + "Configs" + configs );
+        LOG.debug("==> S3ResourceMgr.connectionTest ServiceName: "+ serviceName );
 
         try {
             ret = S3ClientConnectionMgr.connectionTest(serviceName, configs);
@@ -62,7 +62,7 @@ public class S3ResourceMgr {
         Map<String, List<String>> resourceMap = context.getResources();
         final List<String> pathList = new ArrayList<>();
 
-        LOG.info("==> S3ResourceMgr.connectionTest ServiceName:{}", serviceName);
+        LOG.debug("==> S3ResourceMgr.getS3Resources ServiceName:{}", serviceName);
 
         if (resourceMap != null && resource != null && resourceMap.get(PATH) !=null && !resourceMap.get(PATH).isEmpty()) {
             pathList.addAll(resourceMap.get(PATH));
