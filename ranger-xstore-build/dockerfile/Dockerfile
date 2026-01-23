@@ -57,6 +57,8 @@ COPY ranger-xstore-build/dockerfile/scripts/create-ranger-services.py ${RANGER_S
 # Copy Ranger admin distro from build context (no network download)
 COPY target/${RANGER_ADMIN_TAR} /home/ranger/dist/ranger-admin.tar.gz
 
+RUN chmod +x ${RANGER_SCRIPTS}/*.sh ${RANGER_SCRIPTS}/*.py
+
 RUN set -eux; \
     RANGER_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-admin.tar.gz | head -1 | cut -d/ -f1)"; \
     tar xvfz /home/ranger/dist/ranger-admin.tar.gz --directory="${RANGER_HOME}"; \
