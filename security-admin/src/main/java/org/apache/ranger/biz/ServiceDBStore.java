@@ -6788,7 +6788,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 	}
 
 	// Combine policies based on action and service policies
-	private List<RangerPolicy> combinePolicies(List<RangerPolicy> servicePolicies, RangerPolicy rangerPolicy, String action) {
+	List<RangerPolicy> combinePolicies(List<RangerPolicy> servicePolicies, RangerPolicy rangerPolicy, String action) {
 		// Create a new list to avoid modifying the original list
 		List<RangerPolicy> combinedPolicies = new ArrayList<>(servicePolicies);
         if (LOG.isDebugEnabled()) {
@@ -6838,7 +6838,7 @@ existing bucket path (this goes an update bucketPolicy)
 Case 4: No Change - existing default bucket with * or with path but not in affected path
  */
 
-	private List<RangerPolicy> populateBucketMap(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, List<RangerPolicy> combinedPolicies,
+	List<RangerPolicy> populateBucketMap(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, List<RangerPolicy> combinedPolicies,
 												 String bucketName, RangerPolicy affectedPolicy) {
 
 		List<RangerPolicy> affectedPolicies = new ArrayList<>();
@@ -7022,7 +7022,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	 * @return Merged list of statements (IAM existing + Ranger)
 	 * @throws Exception if merge fails
 	 */
-	private List<PolicyStatement> mergeWithIAMStatements(S3Client s3, String bucketName,
+	List<PolicyStatement> mergeWithIAMStatements(S3Client s3, String bucketName,
 														 List<PolicyStatement> rangerStatements) throws Exception {
 
 		ObjectMapper objectMapper = new ObjectMapper();
@@ -7082,7 +7082,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	 * @param rangerStatements Statements from Ranger policies
 	 * @return List of statements that exist only in IAM (not in Ranger)
 	 */
-	private List<PolicyStatement> extractIAMOnlyStatements(
+	List<PolicyStatement> extractIAMOnlyStatements(
 			List<PolicyStatement> iamStatements,
 			List<PolicyStatement> rangerStatements) {
         if (LOG.isDebugEnabled()) {
@@ -7129,7 +7129,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	 * @param stmt2 Second statement
 	 * @return true if statements are functionally equivalent
 	 */
-	private boolean statementsMatch(PolicyStatement stmt1, PolicyStatement stmt2) {
+	boolean statementsMatch(PolicyStatement stmt1, PolicyStatement stmt2) {
 		if (stmt1 == null || stmt2 == null) {
 			return false;
 		}
