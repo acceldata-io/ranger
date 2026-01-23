@@ -101,7 +101,18 @@ public class RangerServiceS3 extends RangerBaseService {
             String 	lookUpUser = configs.get(RangerS3Constants.USER_NAME);
             String  bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
 
-            if (defaultPolicy.getName().contains("all") && StringUtils.isNotBlank(lookUpUser)) {
+            // Validate that required configs are present before modifying the default policy
+            if (StringUtils.isBlank(lookUpUser)) {
+                LOG.warn("Username config is missing or empty; skipping default policy modification for policy: " + defaultPolicy.getName());
+                continue;
+            }
+
+            if (StringUtils.isBlank(bucketName)) {
+                LOG.warn("Bucket name config is missing or empty; skipping default policy modification for policy: " + defaultPolicy.getName());
+                continue;
+            }
+
+            if (defaultPolicy.getName().contains("all")) {
                 // Update the resource path value to use bucket name instead of wildcard
                 RangerPolicy.RangerPolicyResource pathPolicyResource = defaultPolicy.getResources().get(RangerS3Constants.PATH);
                 if (pathPolicyResource != null) {
