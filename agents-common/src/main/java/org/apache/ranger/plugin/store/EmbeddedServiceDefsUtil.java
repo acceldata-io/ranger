@@ -78,8 +78,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String EMBEDDED_SERVICEDEF_OZONE_NAME  = "ozone";
 	public static final String EMBEDDED_SERVICEDEF_KUDU_NAME  = "kudu";
 	public static final String EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME  = "nestedstructure";
-	public static final String EMBEDDED_SERVICEDEF_GRAVITINO_NAME  = "gravitino";
-
+	public static final String EMBEDDED_SERVICEDEF_XSTORE_NAME  = "xstore";
 	public static final String PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS = "ranger.service.store.create.embedded.service-defs";
 
 	public static final String HDFS_IMPL_CLASS_NAME  = "org.apache.ranger.services.hdfs.RangerServiceHdfs";
@@ -125,7 +124,7 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef ozoneServiceDef;
 	private RangerServiceDef kuduServiceDef;
 	private RangerServiceDef nestedStructureServiveDef;
-	private RangerServiceDef gravitinoServiceDef;
+	private RangerServiceDef xstoreServiceDef;
 
 	private RangerServiceDef tagServiceDef;
 	private RangerServiceDef gdsServiceDef;
@@ -175,7 +174,7 @@ public class EmbeddedServiceDefsUtil {
 			ozoneServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_OZONE_NAME);
 			kuduServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KUDU_NAME);
 			nestedStructureServiveDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME);
-			gravitinoServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GRAVITINO_NAME);
+			xstoreServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_XSTORE_NAME);
 			tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
 			gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
 
