@@ -50,34 +50,30 @@ fi
 export PATH="${MAVEN_HOME}/bin:${PATH}"
 
 echo "Building Ranger distro with Maven..."
-mvn -DskipTests -DskipDocs -Dpython.command.invoker=python3 -pl distro -am package
+mvn clean -DskipTests -DskipDocs -Dpython.command.invoker=python3 -pl distro -am package
 
-ADMIN_TAR_PATH="$(ls -t distro/target/ranger-*-admin.tar.gz | head -1)"
+ADMIN_TAR_PATH="$(ls -t target/ranger-*-admin.tar.gz 2>/dev/null | head -1 || true)"
 if [[ -z "${ADMIN_TAR_PATH}" || ! -f "${ADMIN_TAR_PATH}" ]]; then
-  echo "ERROR: Ranger admin tar not found in distro/target."
+  echo "ERROR: Ranger admin tar not found in target."
   exit 1
 fi
 
-RANGER_DOCKER_DIR="${SCRIPT_DIR}/ranger-helm-chart/dockerfile"
+RANGER_DOCKER_DIR="${SCRIPT_DIR}/ranger-xstore-build/dockerfile"
 if [[ ! -d "${RANGER_DOCKER_DIR}" ]]; then
   echo "ERROR: Ranger docker build directory not found: ${RANGER_DOCKER_DIR}"
   exit 1
 fi
 
-echo "Syncing latest Ranger admin tar into docker build context..."
-rm -f "${RANGER_DOCKER_DIR}/ranger-admin-tar/"*.tar.gz
-cp -f "${ADMIN_TAR_PATH}" "${RANGER_DOCKER_DIR}/ranger-admin-tar/"
-
 ADMIN_TAR_NAME="$(basename "${ADMIN_TAR_PATH}")"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
-LOCAL_IMAGE="ranger-admin:${IMAGE_TAG}"
+LOCAL_IMAGE="ranger-admin-xstore:${IMAGE_TAG}"
 
 echo "Building Ranger docker image..."
 docker build \
   -f "${RANGER_DOCKER_DIR}/Dockerfile" \
   --build-arg "RANGER_ADMIN_TAR=${ADMIN_TAR_NAME}" \
   -t "${LOCAL_IMAGE}" \
-  "${RANGER_DOCKER_DIR}"
+  "${SCRIPT_DIR}"
 
 ECR_REPO="191579300362.dkr.ecr.us-east-1.amazonaws.com/acceldata/xdp/dp"
 ECR_IMAGE="${ECR_REPO}:${IMAGE_TAG}"

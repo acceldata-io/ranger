@@ -1,0 +1,33 @@
+services:
+  ranger-db:
+    image: postgres:15
+    container_name: ranger-db
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: rangerR0cks!
+      POSTGRES_DB: ranger
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./compose/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d ranger -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  ranger-admin:
+    # build:
+    #   context: ./dockerfile
+    #   dockerfile: Dockerfile
+    #   target: ranger
+    image: repo1.acceldata.dev:8086/xdp-images/ranger:archit-250-3362-1.4
+    container_name: ranger-admin
+    depends_on:
+      ranger-db:
+        condition: service_healthy
+    ports:
+      - "6080:6080"
+    restart: unless-stopped
+
