@@ -116,7 +116,7 @@ public class S3ResourceMgr {
                     if (callableObj != null) {
                         synchronized (s3) {
                             resultList = TimedEventUtil.timedTask(callableObj, timeLookup,
-                                    TimeUnit.SECONDS);
+                                    TimeUnit.MILLISECONDS);
                         }
                     }
                 }

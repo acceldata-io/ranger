@@ -6599,14 +6599,11 @@ public class ServiceDBStore extends AbstractServiceStore {
 			RangerPolicy existingPolicyFromDB = null;
 
             if (LOG.isDebugEnabled()) {
-                LOG.debug("====> existingPolicyFromDB old version of policies in databnase");
+                LOG.debug("====> existingPolicyFromDB old version of policies in database");
             }
 
             if (rangerPolicy.getId() != null && !action.equalsIgnoreCase(RangerConstants.ACTION_DELETE)) {
 
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("====> Enter if rangerPolicy.getId() not null");
-                }
 				existingPolicyFromDB = servicePolicies.stream()
 						.filter(policy -> policy.getId() != null && policy.getId().equals(rangerPolicy.getId()))
 						.findFirst()
@@ -6641,7 +6638,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 			else if (action.equalsIgnoreCase(RangerConstants.ACTION_DELETE))
 			{
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("====> User called DELETE POLICY ACTION");
+                    LOG.debug("====> DELETE POLICY ACTION invoked");
                 }
 			}
 			else
