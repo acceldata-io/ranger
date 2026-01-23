@@ -88,7 +88,7 @@ public class S3ResourceMgr {
                                 String path = userInput.substring(userInput.indexOf("/") + 1);
                                 ListObjectsV2Request.Builder listObjectsRequestBuilder = ListObjectsV2Request.builder()
                                         .bucket(bucketName)
-                                        .maxKeys(RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS);
+                                        .maxKeys(RangerS3Constants.S3_LIST_OBJECTS_MAX_KEYS);
                                 if(!path.isEmpty()) {
                                     listObjectsRequestBuilder.prefix(path.replace("*", ""));  // Replace '*' to use only the prefix part
                                 }
@@ -96,20 +96,24 @@ public class S3ResourceMgr {
                                 ListObjectsV2Response listObjectsResponse;
                                 do {
                                     listObjectsResponse = s3.listObjectsV2(listObjectsRequest);
-                                    listObjectsResponse.contents().forEach(s3Object -> {
-                                    String key = s3Object.key();
-                                    String prefixPath = path.replace("*", "");
-                                    if (key.startsWith(prefixPath) && !pathList.contains(prefixPath)) {
+                                    for (var s3Object : listObjectsResponse.contents()) {
+                                        // Check if we've reached the limit before adding more results
+                                        if (resultListInner.size() >= RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS) {
+                                            if (LOG.isDebugEnabled()) {
+                                                LOG.debug("Reached maximum autocomplete results limit of {}, stopping pagination", 
+                                                        RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS);
+                                            }
+                                            break;
+                                        }
+                                        String key = s3Object.key();
+                                        String prefixPath = path.replace("*", "");
+                                        if (key.startsWith(prefixPath) && !pathList.contains(prefixPath)) {
                                             resultListInner.add(bucketName+"/"+key);
+                                        }
                                     }
-                                    });
 
                                 // Short-circuit if we've reached the maximum number of results
                                 if (resultListInner.size() >= RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS) {
-                                    if (LOG.isDebugEnabled()) {
-                                        LOG.debug("Reached maximum autocomplete results limit of {}, stopping pagination", 
-                                                RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS);
-                                    }
                                     break;
                                 }
 

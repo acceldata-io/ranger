@@ -35,4 +35,5 @@ public class RangerS3Constants {
     public static final String S3_RESOURCE_PATH_ARN = "arn:aws:s3:::";
     public static final String S3_AWS_ACCOUNT_URN = "arn:aws:iam::";
     public static final int MAX_AUTOCOMPLETE_RESULTS = 100;
+    public static final int S3_LIST_OBJECTS_MAX_KEYS = 500;
 }
