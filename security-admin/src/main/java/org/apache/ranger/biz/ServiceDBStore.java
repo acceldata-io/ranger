@@ -6984,7 +6984,8 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	private List<String> addAccounts(List<String> awsAccounts, List<String> entities, String entityType, IamClient iamClient) {
 		if (CollectionUtils.isNotEmpty(entities)) {
 			if ("group".equalsIgnoreCase(entityType)) {
-				LOG.error("Group entityType is not supported for Ranger S3 IAM sync; operation cannot proceed");
+				LOG.warn("Group entityType is not supported for S3 bucket policies; skipping groups from principal list");
+				return awsAccounts;
 			}
 			try  {
 				// Define a map to associate entity types with the respective IAM call
