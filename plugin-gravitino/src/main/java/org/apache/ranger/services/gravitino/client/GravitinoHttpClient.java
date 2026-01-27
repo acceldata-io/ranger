@@ -241,7 +241,6 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
         conn.setReadTimeout(READ_TIMEOUT_MS);
         conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Accept", "application/json");
 
         auth.apply(conn);
         logRequest(conn, url, "lookup");
@@ -281,7 +280,6 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
         conn.setReadTimeout(READ_TIMEOUT_MS);
         conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Accept", "application/json");
 
         auth.apply(conn);
         logRequest(conn, url, "lookup");
