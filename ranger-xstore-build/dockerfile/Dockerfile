@@ -1,7 +1,7 @@
 ######################################################################
 # Ranger Base image...
 ######################################################################
-FROM repo1.acceldata.dev:8086/xdp-images/ranger:archit-250-3362-1.15-amd AS ranger-base
+FROM ubuntu:22.04 AS ranger-base
 
 # Install tzdata, Python, Java 11, python-requests
 RUN apt-get update -y && \
