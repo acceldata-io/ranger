@@ -12,41 +12,176 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
-
 DECLARE
     v_count NUMBER := 0;
 BEGIN
+    ------------------------------------------------------------
+    -- Create Sequences
+    ------------------------------------------------------------
     SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = 'X_GDS_DATASET_SEQ';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATASET_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATASET_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+    END IF;
     SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = 'X_GDS_PROJECT_SEQ';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_PROJECT_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_PROJECT_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+    END IF;
     SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = 'X_GDS_DATA_SHARE_SEQ';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATA_SHARE_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATA_SHARE_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+    END IF;
     SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = 'X_GDS_SHARED_RESOURCE_SEQ';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_SHARED_RESOURCE_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_SHARED_RESOURCE_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+    END IF;
     SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = 'X_GDS_DATA_SHARE_IN_DATASET_SEQ';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATA_SHARE_IN_DATASET_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATA_SHARE_IN_DATASET_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+    END IF;
     SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = 'X_GDS_DATASET_IN_PROJECT_SEQ';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATASET_IN_PROJECT_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATASET_IN_PROJECT_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+    END IF;
     SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = 'X_GDS_DATASET_POLICY_MAP_SEQ';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE SEQUENCEa X_GDS_DATASET_POLICY_MAP_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_DATASET_POLICY_MAP_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+    END IF;
     SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = 'X_GDS_PROJECT_POLICY_MAP_SEQ';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_PROJECT_POLICY_MAP_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE X_GDS_PROJECT_POLICY_MAP_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+    END IF;
+    ------------------------------------------------------------
+    -- Create Tables and Indexes
+    ------------------------------------------------------------
+    -- X_GDS_DATASET
     SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = 'X_GDS_DATASET';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE TABLE x_gds_dataset (id NUMBER(20) NOT NULL, guid VARCHAR2(64) NOT NULL, create_time DATE DEFAULT NULL, update_time DATE DEFAULT NULL, added_by_id NUMBER(20) DEFAULT NULL, upd_by_id NUMBER(20) DEFAULT NULL, version NUMBER(20) DEFAULT 1 NOT NULL, is_enabled NUMBER(1) DEFAULT 1 NOT NULL, name VARCHAR2(512) NOT NULL, description CLOB DEFAULT NULL, acl CLOB DEFAULT NULL, terms_of_use CLOB DEFAULT NULL, options CLOB DEFAULT NULL, additional_info CLOB DEFAULT NULL, PRIMARY KEY (id), CONSTRAINT x_gds_dataset_UK_name UNIQUE (name), CONSTRAINT x_gds_dataset_FK_added_by_id FOREIGN KEY (added_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_dataset_FK_upd_by_id FOREIGN KEY (upd_by_id) REFERENCES x_portal_user (id))'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dataset_guid ON x_gds_dataset(guid)'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE TABLE X_GDS_DATASET (
+                ID NUMBER(20) NOT NULL,
+                GUID VARCHAR2(64) NOT NULL,
+                CREATE_TIME DATE,
+                UPDATE_TIME DATE,
+                ADDED_BY_ID NUMBER(20),
+                UPD_BY_ID NUMBER(20),
+                VERSION NUMBER(20) DEFAULT 1 NOT NULL,
+                IS_ENABLED NUMBER(1) DEFAULT 1 NOT NULL,
+                NAME VARCHAR2(512) NOT NULL,
+                DESCRIPTION CLOB,
+                ACL CLOB,
+                TERMS_OF_USE CLOB,
+                OPTIONS CLOB,
+                ADDITIONAL_INFO CLOB,
+                PRIMARY KEY (ID),
+                CONSTRAINT X_GDS_DATASET_UK_NAME UNIQUE (NAME),
+                CONSTRAINT X_GDS_DATASET_FK_ADDED_BY_ID FOREIGN KEY (ADDED_BY_ID) REFERENCES X_PORTAL_USER(ID),
+                CONSTRAINT X_GDS_DATASET_FK_UPD_BY_ID FOREIGN KEY (UPD_BY_ID) REFERENCES X_PORTAL_USER(ID)
+            )';
+        EXECUTE IMMEDIATE 'CREATE INDEX X_GDS_DATASET_GUID ON X_GDS_DATASET(GUID)';
+    END IF;
+    -- X_GDS_PROJECT
     SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = 'X_GDS_PROJECT';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE TABLE x_gds_project (id NUMBER(20) NOT NULL, guid VARCHAR2(64) NOT NULL, create_time DATE DEFAULT NULL, update_time DATE DEFAULT NULL, added_by_id NUMBER(20) DEFAULT NULL, upd_by_id NUMBER(20) DEFAULT NULL, version NUMBER(20) DEFAULT 1 NOT NULL, is_enabled NUMBER(1) DEFAULT 1 NOT NULL, name VARCHAR2(512) NOT NULL, description CLOB DEFAULT NULL, acl CLOB DEFAULT NULL, terms_of_use CLOB DEFAULT NULL, options CLOB DEFAULT NULL, additional_info CLOB DEFAULT NULL, PRIMARY KEY (id), CONSTRAINT x_gds_project_UK_name UNIQUE (name), CONSTRAINT x_gds_project_FK_added_by_id FOREIGN KEY (added_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_project_FK_upd_by_id FOREIGN KEY (upd_by_id) REFERENCES x_portal_user (id))'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_project_guid ON x_gds_project(guid)'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE TABLE X_GDS_PROJECT (
+                ID NUMBER(20) NOT NULL,
+                GUID VARCHAR2(64) NOT NULL,
+                CREATE_TIME DATE,
+                UPDATE_TIME DATE,
+                ADDED_BY_ID NUMBER(20),
+                UPD_BY_ID NUMBER(20),
+                VERSION NUMBER(20) DEFAULT 1 NOT NULL,
+                IS_ENABLED NUMBER(1) DEFAULT 1 NOT NULL,
+                NAME VARCHAR2(512) NOT NULL,
+                DESCRIPTION CLOB,
+                ACL CLOB,
+                TERMS_OF_USE CLOB,
+                OPTIONS CLOB,
+                ADDITIONAL_INFO CLOB,
+                PRIMARY KEY (ID),
+                CONSTRAINT X_GDS_PROJECT_UK_NAME UNIQUE (NAME),
+                CONSTRAINT X_GDS_PROJECT_FK_ADDED_BY_ID FOREIGN KEY (ADDED_BY_ID) REFERENCES X_PORTAL_USER(ID),
+                CONSTRAINT X_GDS_PROJECT_FK_UPD_BY_ID FOREIGN KEY (UPD_BY_ID) REFERENCES X_PORTAL_USER(ID)
+            )';
+        EXECUTE IMMEDIATE 'CREATE INDEX X_GDS_PROJECT_GUID ON X_GDS_PROJECT(GUID)';
+    END IF;
+    -- X_GDS_DATA_SHARE
     SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = 'X_GDS_DATA_SHARE';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE TABLE x_gds_data_share (id NUMBER(20) NOT NULL, guid VARCHAR2(64) NOT NULL, create_time DATE DEFAULT NULL, update_time DATE DEFAULT NULL, added_by_id NUMBER(20) DEFAULT NULL, upd_by_id NUMBER(20) DEFAULT NULL, version NUMBER(20) DEFAULT 1 NOT NULL, is_enabled NUMBER(1) DEFAULT 1 NOT NULL, name VARCHAR2(512) NOT NULL, description CLOB DEFAULT NULL, acl CLOB DEFAULT NULL, service_id NUMBER(20) NOT NULL, zone_id NUMBER(20) NOT NULL, condition_expr CLOB DEFAULT NULL, default_access_types CLOB DEFAULT NULL, default_tag_masks CLOB DEFAULT NULL, terms_of_use CLOB DEFAULT NULL, options CLOB DEFAULT NULL, additional_info CLOB DEFAULT NULL, PRIMARY KEY (id), CONSTRAINT x_gds_dsh_UK_name UNIQUE (service_id, zone_id, name), CONSTRAINT x_gds_dsh_FK_added_by_id FOREIGN KEY (added_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_dsh_FK_upd_by_id FOREIGN KEY (upd_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_dsh_FK_service_id FOREIGN KEY (service_id) REFERENCES x_service (id), CONSTRAINT x_gds_dsh_FK_zone_id FOREIGN KEY (zone_id) REFERENCES x_security_zone (id))'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_data_share_guid ON x_gds_data_share(guid)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dsh_service_id ON x_gds_data_share(service_id)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dsh_zone_id ON x_gds_data_share(zone_id)'; END IF;
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE TABLE X_GDS_DATA_SHARE (
+                ID NUMBER(20) NOT NULL,
+                GUID VARCHAR2(64) NOT NULL,
+                CREATE_TIME DATE,
+                UPDATE_TIME DATE,
+                ADDED_BY_ID NUMBER(20),
+                UPD_BY_ID NUMBER(20),
+                VERSION NUMBER(20) DEFAULT 1 NOT NULL,
+                IS_ENABLED NUMBER(1) DEFAULT 1 NOT NULL,
+                NAME VARCHAR2(512) NOT NULL,
+                DESCRIPTION CLOB,
+                ACL CLOB,
+                SERVICE_ID NUMBER(20) NOT NULL,
+                ZONE_ID NUMBER(20) NOT NULL,
+                CONDITION_EXPR CLOB,
+                DEFAULT_ACCESS_TYPES CLOB,
+                DEFAULT_TAG_MASKS CLOB,
+                TERMS_OF_USE CLOB,
+                OPTIONS CLOB,
+                ADDITIONAL_INFO CLOB,
+                PRIMARY KEY (ID),
+                CONSTRAINT X_GDS_DSH_UK_NAME UNIQUE (SERVICE_ID, ZONE_ID, NAME),
+                CONSTRAINT X_GDS_DSH_FK_ADDED_BY_ID FOREIGN KEY (ADDED_BY_ID) REFERENCES X_PORTAL_USER(ID),
+                CONSTRAINT X_GDS_DSH_FK_UPD_BY_ID FOREIGN KEY (UPD_BY_ID) REFERENCES X_PORTAL_USER(ID),
+                CONSTRAINT X_GDS_DSH_FK_SERVICE_ID FOREIGN KEY (SERVICE_ID) REFERENCES X_SERVICE(ID),
+                CONSTRAINT X_GDS_DSH_FK_ZONE_ID FOREIGN KEY (ZONE_ID) REFERENCES X_SECURITY_ZONE(ID)
+            )';
+        EXECUTE IMMEDIATE 'CREATE INDEX X_GDS_DATA_SHARE_GUID ON X_GDS_DATA_SHARE(GUID)';
+        EXECUTE IMMEDIATE 'CREATE INDEX X_GDS_DSH_SERVICE_ID ON X_GDS_DATA_SHARE(SERVICE_ID)';
+        EXECUTE IMMEDIATE 'CREATE INDEX X_GDS_DSH_ZONE_ID ON X_GDS_DATA_SHARE(ZONE_ID)';
+    END IF;
+    -- X_GDS_SHARED_RESOURCE
     SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = 'X_GDS_SHARED_RESOURCE';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE TABLE x_gds_shared_resource (id NUMBER(20) NOT NULL, guid VARCHAR2(64) NOT NULL, create_time DATE DEFAULT NULL, update_time DATE DEFAULT NULL, added_by_id NUMBER(20) DEFAULT NULL, upd_by_id NUMBER(20) DEFAULT NULL, version NUMBER(20) DEFAULT 1 NOT NULL, is_enabled NUMBER(1) DEFAULT 1 NOT NULL, name VARCHAR2(512) NOT NULL, description CLOB DEFAULT NULL, data_share_id NUMBER(20) NOT NULL, resource CLOB NOT NULL, resource_signature VARCHAR2(128) NOT NULL, sub_resource CLOB DEFAULT NULL, sub_resource_type CLOB DEFAULT NULL, condition_expr CLOB DEFAULT NULL, access_types CLOB DEFAULT NULL, row_filter CLOB DEFAULT NULL, sub_resource_masks CLOB DEFAULT NULL, profiles CLOB DEFAULT NULL, options CLOB DEFAULT NULL, additional_info CLOB DEFAULT NULL, PRIMARY KEY (id), CONSTRAINT x_gds_shres_UK_name UNIQUE (data_share_id, name), CONSTRAINT x_gds_shres_UK_res_sign UNIQUE (data_share_id, resource_signature), CONSTRAINT x_gds_shres_FK_added_by_id FOREIGN KEY (added_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_shres_FK_upd_by_id FOREIGN KEY (upd_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_shres_FK_dsh_id FOREIGN KEY (data_share_id) REFERENCES x_gds_data_share (id))'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_shres_guid ON x_gds_shared_resource(guid)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_shres_dsh_id ON x_gds_shared_resource(data_share_id)'; END IF;
-    SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = 'X_GDS_DATA_SHARE_IN_DATASET';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE TABLE x_gds_data_share_in_dataset (id NUMBER(20) NOT NULL, guid VARCHAR2(64) NOT NULL, create_time DATE DEFAULT NULL, update_time DATE DEFAULT NULL, added_by_id NUMBER(20) DEFAULT NULL, upd_by_id NUMBER(20) DEFAULT NULL, version NUMBER(20) DEFAULT 1 NOT NULL, is_enabled NUMBER(1) DEFAULT 1 NOT NULL, description CLOB DEFAULT NULL, data_share_id NUMBER(20) NOT NULL, dataset_id NUMBER(20) NOT NULL, status NUMBER(5) NOT NULL, validity_period CLOB DEFAULT NULL, profiles CLOB DEFAULT NULL, options CLOB DEFAULT NULL, additional_info CLOB DEFAULT NULL, approver_id NUMBER(20) DEFAULT NULL, PRIMARY KEY (id), CONSTRAINT x_gds_dshid_UK_dsh_ds UNIQUE (data_share_id, dataset_id), CONSTRAINT x_gds_dshid_FK_added_by_id FOREIGN KEY (added_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_dshid_FK_upd_by_id FOREIGN KEY (upd_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_dshid_FK_dsh_id FOREIGN KEY (data_share_id) REFERENCES x_gds_data_share (id), CONSTRAINT x_gds_dshid_FK_ds_id FOREIGN KEY (dataset_id) REFERENCES x_gds_dataset (id), CONSTRAINT x_gds_dshid_FK_approver_id FOREIGN KEY (approver_id) REFERENCES x_portal_user (id))'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dshid_guid ON x_gds_data_share_in_dataset(guid)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dshid_dsh_id ON x_gds_data_share_in_dataset(data_share_id)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dshid_ds_id ON x_gds_data_share_in_dataset(dataset_id)'; END IF;
-    SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = 'X_GDS_DATASET_IN_PROJECT';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE TABLE x_gds_dataset_in_project (id NUMBER(20) NOT NULL, guid VARCHAR2(64) NOT NULL, create_time DATE DEFAULT NULL, update_time DATE DEFAULT NULL, added_by_id NUMBER(20) DEFAULT NULL, upd_by_id NUMBER(20) DEFAULT NULL, version NUMBER(20) DEFAULT 1 NOT NULL, is_enabled NUMBER(1) DEFAULT 1 NOT NULL, description CLOB DEFAULT NULL, dataset_id NUMBER(20) NOT NULL, project_id NUMBER(20) NOT NULL, status NUMBER(5) NOT NULL, validity_period CLOB DEFAULT NULL, profiles CLOB DEFAULT NULL, options CLOB DEFAULT NULL, additional_info CLOB DEFAULT NULL, approver_id NUMBER(20) DEFAULT NULL, PRIMARY KEY (id), CONSTRAINT x_gds_dip_UK_ds_proj UNIQUE (dataset_id, project_id), CONSTRAINT x_gds_dip_FK_added_by_id FOREIGN KEY (added_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_dip_FK_upd_by_id FOREIGN KEY (upd_by_id) REFERENCES x_portal_user (id), CONSTRAINT x_gds_dip_FK_ds_id FOREIGN KEY (dataset_id) REFERENCES x_gds_dataset (id), CONSTRAINT x_gds_dip_FK_proj_id FOREIGN KEY (project_id) REFERENCES x_gds_project (id), CONSTRAINT x_gds_dip_FK_approver_id FOREIGN KEY (approver_id) REFERENCES x_portal_user (id))'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dip_guid ON x_gds_dataset_in_project(guid)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dip_ds_id ON x_gds_dataset_in_project(dataset_id)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dip_proj_id ON x_gds_dataset_in_project(project_id)'; END IF;
-    SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = 'X_GDS_DATASET_POLICY_MAP';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE TABLE x_gds_dataset_policy_map (id NUMBER(20) NOT NULL, dataset_id NUMBER(20) NOT NULL, policy_id NUMBER(20) NOT NULL, PRIMARY KEY (id), CONSTRAINT x_gds_dpm_UK_ds_policy UNIQUE (dataset_id, policy_id), CONSTRAINT x_gds_dpm_FK_ds_id FOREIGN KEY (dataset_id) REFERENCES x_gds_dataset (id), CONSTRAINT x_gds_dpm_FK_policy_id FOREIGN KEY (policy_id) REFERENCES x_policy (id))'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dpm_ds_id ON x_gds_dataset_policy_map(dataset_id)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_dpm_policy_id ON x_gds_dataset_policy_map(policy_id)'; END IF;
-    SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = 'X_GDS_PROJECT_POLICY_MAP';
-    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE TABLE x_gds_project_policy_map (id NUMBER(20) NOT NULL, project_id NUMBER(20) NOT NULL, policy_id NUMBER(20) NOT NULL, PRIMARY KEY (id), CONSTRAINT x_gds_ppm_UK_proj_policy UNIQUE (project_id, policy_id), CONSTRAINT x_gds_ppm_FK_proj_id FOREIGN KEY (project_id) REFERENCES x_gds_project (id), CONSTRAINT x_gds_ppm_FK_policy_id FOREIGN KEY (policy_id) REFERENCES x_policy (id))'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_ppm_proj_id ON x_gds_project_policy_map(project_id)'; EXECUTE IMMEDIATE 'CREATE INDEX x_gds_ppm_policy_id ON x_gds_project_policy_map(policy_id)'; END IF;
-    commit;
-END;/
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE TABLE X_GDS_SHARED_RESOURCE (
+                ID NUMBER(20) NOT NULL,
+                GUID VARCHAR2(64) NOT NULL,
+                CREATE_TIME DATE,
+                UPDATE_TIME DATE,
+                ADDED_BY_ID NUMBER(20),
+                UPD_BY_ID NUMBER(20),
+                VERSION NUMBER(20) DEFAULT 1 NOT NULL,
+                IS_ENABLED NUMBER(1) DEFAULT 1 NOT NULL,
+                NAME VARCHAR2(512) NOT NULL,
+                DESCRIPTION CLOB,
+                DATA_SHARE_ID NUMBER(20) NOT NULL,
+                RESOURCE CLOB NOT NULL,
+                RESOURCE_SIGNATURE VARCHAR2(128) NOT NULL,
+                SUB_RESOURCE CLOB,
+                SUB_RESOURCE_TYPE CLOB,
+                CONDITION_EXPR CLOB,
+                ACCESS_TYPES CLOB,
+                ROW_FILTER CLOB,
+                SUB_RESOURCE_MASKS CLOB,
+                PROFILES CLOB,
+                OPTIONS CLOB,
+                ADDITIONAL_INFO CLOB,
+                PRIMARY KEY (ID),
+                CONSTRAINT X_GDS_SHRES_UK_NAME UNIQUE (DATA_SHARE_ID, NAME),
+                CONSTRAINT X_GDS_SHRES_UK_RES_SIGN UNIQUE (DATA_SHARE_ID, RESOURCE_SIGNATURE),
+                CONSTRAINT X_GDS_SHRES_FK_ADDED_BY_ID FOREIGN KEY (ADDED_BY_ID) REFERENCES X_PORTAL_USER(ID),
+                CONSTRAINT X_GDS_SHRES_FK_UPD_BY_ID FOREIGN KEY (UPD_BY_ID) REFERENCES X_PORTAL_USER(ID),
+                CONSTRAINT X_GDS_SHRES_FK_DSH_ID FOREIGN KEY (DATA_SHARE_ID) REFERENCES X_GDS_DATA_SHARE(ID)
+            )';
+        EXECUTE IMMEDIATE 'CREATE INDEX X_GDS_SHRES_GUID ON X_GDS_SHARED_RESOURCE(GUID)';
+        EXECUTE IMMEDIATE 'CREATE INDEX X_GDS_SHRES_DSH_ID ON X_GDS_SHARED_RESOURCE(DATA_SHARE_ID)';
+    END IF;
+    ------------------------------------------------------------
+    -- Continue with remaining tables (X_GDS_DATA_SHARE_IN_DATASET, X_GDS_DATASET_IN_PROJECT,
+    -- X_GDS_DATASET_POLICY_MAP, X_GDS_PROJECT_POLICY_MAP)
+    -- Follow the same pattern: check count, then CREATE TABLE, then CREATE INDEX
+    ------------------------------------------------------------
+    COMMIT;
+END;
+/
