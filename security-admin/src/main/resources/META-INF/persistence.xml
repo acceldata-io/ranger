@@ -84,6 +84,19 @@
 		<properties>
 			<property name="eclipselink.logging.level" value="WARNING"/>
 			<property name="eclipselink.jdbc.batch-writing" value="jdbc"/>
+			
+			<!-- Oracle 19c Compatibility Settings -->
+			<!-- Use Oracle12Platform for Oracle 12c/18c/19c/21c compatibility -->
+			<property name="eclipselink.target-database" value="org.eclipse.persistence.platform.database.Oracle12Platform"/>
+			
+			<!-- Enable native SQL for better Oracle compatibility -->
+			<property name="eclipselink.jdbc.native-sql" value="true"/>
+			
+			<!-- Force uppercase column names for Oracle -->
+			<property name="eclipselink.jdbc.uppercase-columns" value="true"/>
+			
+			<!-- Improve Oracle JDBC behavior -->
+			<property name="eclipselink.target-database-properties" value="oracle.jdbc.J2EE13Compliant=true"/>
 		</properties>
 	</persistence-unit>
 
