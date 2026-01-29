@@ -1,0 +1,179 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# syntax=docker/dockerfile:1.4
+# Enable BuildKit for cache mounts (faster repeated builds)
+
+######################################################################
+# Ranger Build Base Image
+# This image includes:
+# - Prerequisites (Java, Python, build tools)
+# - Maven installation
+# - Pre-populated M2 repository with all Ranger dependencies
+######################################################################
+FROM 191579300362.dkr.ecr.us-east-1.amazonaws.com/internal/argoworkflow:builder-openjdk11-node-aws-20250701  AS ranger-build-base
+
+# Install prerequisites
+RUN apt-get update -y && \
+    DEBIAN_FRONTEND="noninteractive" apt-get -y install \
+    curl \
+    git \
+    openjdk-11-jdk \
+    python3 \
+    python3-pip \
+    xmlstarlet \
+    tar \
+    gzip \
+    unzip \
+    make \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Maven
+ARG MAVEN_VERSION=3.9.6
+ARG MAVEN_HOME=/opt/maven
+RUN curl -fsSL https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o /tmp/maven.tar.gz && \
+    tar -xzf /tmp/maven.tar.gz -C /opt && \
+    mv /opt/apache-maven-${MAVEN_VERSION} ${MAVEN_HOME} && \
+    rm /tmp/maven.tar.gz
+
+# Set environment variables
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+ENV MAVEN_HOME=${MAVEN_HOME}
+ENV PATH="${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${PATH}"
+ENV MAVEN_OPTS="-Xmx2048m -XX:MaxPermSize=512m"
+
+# Create builder user (fixed UID/GID 1000 for BuildKit cache mount compatibility)
+RUN groupadd -r -g 1000 builder && \
+    useradd -r -u 1000 -g builder -m -s /bin/bash builder
+
+# Create M2 directory structure
+RUN mkdir -p /home/builder/.m2 && \
+    chown -R builder:builder /home/builder/.m2
+
+# Set working directory and ensure builder owns it
+RUN mkdir -p /ranger && chown -R builder:builder /ranger
+WORKDIR /ranger
+
+# Switch to builder user
+USER builder
+
+# Verify installations
+RUN java -version && \
+    mvn -version && \
+    python3 --version
+
+# Copy all pom.xml files recursively
+# This preserves the directory structure needed for Maven to resolve dependencies
+COPY --chown=builder:builder pom.xml /ranger/pom.xml
+COPY --chown=builder:builder distro/ /ranger/distro/
+COPY --chown=builder:builder security-admin/ /ranger/security-admin/
+COPY --chown=builder:builder plugin-gravitino/ /ranger/plugin-gravitino/
+COPY --chown=builder:builder agents-common/ /ranger/agents-common/
+COPY --chown=builder:builder ranger-util/ /ranger/ranger-util/
+COPY --chown=builder:builder ranger-plugin-classloader/ /ranger/ranger-plugin-classloader/
+COPY --chown=builder:builder jisql/ /ranger/jisql/
+COPY --chown=builder:builder unixauthservice/ /ranger/unixauthservice/
+COPY --chown=builder:builder unixauthclient/ /ranger/unixauthclient/
+COPY --chown=builder:builder credentialbuilder/ /ranger/credentialbuilder/
+
+# Ensure builder owns /ranger directory (needed for creating stub directories)
+# Switch to root temporarily to fix ownership
+USER root
+RUN chown -R builder:builder /ranger
+USER builder
+
+# Create stub directories with minimal pom.xml for missing modules
+# This allows Maven validation to pass without copying all source code
+RUN echo "=== Creating stub directories for missing modules ===" && \
+    MISSING_MODULES="ugsync-util agents-audit agents-cred intg agents-installer embeddedwebserver ranger-common-ha kms hbase-agent hdfs-agent hive-agent knox-agent plugin-yarn plugin-ozone plugin-kafka plugin-solr plugin-nifi plugin-nifi-registry ugsync unixauthnative plugin-kms tagsync ranger-hdfs-plugin-shim ranger-hive-plugin-shim ranger-hbase-plugin-shim ranger-knox-plugin-shim ranger-yarn-plugin-shim ranger-ozone-plugin-shim ranger-kafka-plugin-shim ranger-solr-plugin-shim ranger-kms-plugin-shim ranger-examples ranger-tools plugin-schema-registry ranger-authn ranger-metrics plugin-trino" && \
+    for module in $MISSING_MODULES; do \
+        if [ ! -d "/ranger/$module" ]; then \
+            mkdir -p "/ranger/$module" && \
+            echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "/ranger/$module/pom.xml" && \
+            echo "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">" >> "/ranger/$module/pom.xml" && \
+            echo "  <modelVersion>4.0.0</modelVersion>" >> "/ranger/$module/pom.xml" && \
+            echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ranger</artifactId><version>2.5.0.3.3.6.2-1</version></parent>" >> "/ranger/$module/pom.xml" && \
+            echo "  <artifactId>$module</artifactId>" >> "/ranger/$module/pom.xml" && \
+            echo "  <packaging>pom</packaging>" >> "/ranger/$module/pom.xml" && \
+            echo "</project>" >> "/ranger/$module/pom.xml"; \
+        fi; \
+    done && \
+    # Ensure ugsync exists first (it's in MISSING_MODULES but handle nested module separately)
+    if [ ! -f "/ranger/ugsync/pom.xml" ]; then \
+        mkdir -p "/ranger/ugsync" && \
+        echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "/ranger/ugsync/pom.xml" && \
+        echo "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">" >> "/ranger/ugsync/pom.xml" && \
+        echo "  <modelVersion>4.0.0</modelVersion>" >> "/ranger/ugsync/pom.xml" && \
+        echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ranger</artifactId><version>2.5.0.3.3.6.2-1</version></parent>" >> "/ranger/ugsync/pom.xml" && \
+        echo "  <artifactId>ugsync</artifactId>" >> "/ranger/ugsync/pom.xml" && \
+        echo "  <packaging>pom</packaging>" >> "/ranger/ugsync/pom.xml" && \
+        echo "</project>" >> "/ranger/ugsync/pom.xml"; \
+    fi && \
+    # Handle nested module - parent should be ugsync, not ranger
+    mkdir -p "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck" && \
+    echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
+    echo "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
+    echo "  <modelVersion>4.0.0</modelVersion>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
+    echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ugsync</artifactId><version>2.5.0.3.3.6.2-1</version><relativePath>../..</relativePath></parent>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
+    echo "  <artifactId>ldapconfigcheck</artifactId>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
+    echo "  <packaging>pom</packaging>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
+    echo "</project>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
+    echo "=== Created stub modules ===" && \
+    echo "=== Listing all modules ===" && \
+    find /ranger -name "pom.xml" -type f | wc -l && \
+    echo "modules found"
+
+# Download ONLY ranger-admin dependencies using the ranger-admin profile
+# Now that all modules exist (real or stubs), Maven validation should pass
+# The -Pranger-admin profile ensures only admin dependencies are downloaded
+# The -pl distro -am builds distro and all its dependencies
+#
+# BuildKit cache mount: reuse .m2/repository across builds so repeated image
+# builds only download new/missing artifacts. Content is then copied into the
+# image so the final image still has a full repo.
+#
+# -T 1C: parallel Maven (1 thread per CPU core) to speed up multi-module resolve
+RUN --mount=type=cache,target=/home/builder/.m2/repository,uid=1000,gid=1000 \
+    echo "=== Starting Maven dependency download ===" && \
+    echo "Current directory: $(pwd)" && \
+    echo "Maven version:" && mvn -version && \
+    echo "=== Validating POMs (should pass now that all modules exist) ===" && \
+    mvn validate -Pranger-admin -pl distro -am -B -T 1C && \
+    echo "=== POM validation successful ===" && \
+    echo "=== Downloading external dependencies for ranger-admin (this may take several minutes) ===" && \
+    echo "Using -pl distro -am to build distro and its dependencies only" && \
+    echo "Using -Pranger-admin profile to limit to admin dependencies" && \
+    echo "Using -T 1C for parallel dependency resolution" && \
+    echo "Note: Local modules (like plugin-gravitino) will be resolved from local POMs" && \
+    mvn dependency:resolve -Pranger-admin -pl distro -am -B -T 1C -Dmaven.main.skip=true || \
+    (echo "dependency:resolve with -Dmaven.main.skip failed, trying without..." && \
+     mvn dependency:resolve -Pranger-admin -pl distro -am -B -T 1C) && \
+    echo "=== Copying Maven repo from cache into image ===" && \
+    cp -a /home/builder/.m2/repository /home/builder/.m2/repository.image && \
+    echo "=== Dependency download completed ==="
+
+# Persist the downloaded repo into the image (cache mount is not in the image)
+RUN mv /home/builder/.m2/repository.image /home/builder/.m2/repository && \
+    echo "=== Checking downloaded dependencies ===" && \
+    JAR_COUNT=$(find /home/builder/.m2/repository -name "*.jar" 2>/dev/null | wc -l) && \
+    echo "Downloaded ${JAR_COUNT} JAR files" && \
+    find /home/builder/.m2/repository -name "*.jar" 2>/dev/null | head -10 && \
+    echo "=== Dependency download summary ===" && \
+    du -sh /home/builder/.m2/repository
+
+# Default command
+CMD ["/bin/bash"]
