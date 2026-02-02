@@ -236,7 +236,6 @@ import software.amazon.awssdk.services.s3.model.DeleteBucketPolicyRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.iam.IamClient;
 
-import com.google.common.base.Joiner;
 
 import static org.apache.ranger.db.XXGlobalStateDao.RANGER_GLOBAL_STATE_NAME_GDS;
 import static org.apache.ranger.service.RangerBaseModelService.OPERATION_CREATE_CONTEXT;
