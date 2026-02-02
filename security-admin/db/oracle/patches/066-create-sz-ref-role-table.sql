@@ -21,7 +21,7 @@ BEGIN
       if (v_counter > 0) then
         execute immediate 'DROP SEQUENCE ' || ObjName;
       end if;
-END;/
+END;
 /
 
 CREATE OR REPLACE PROCEDURE spdroptable(ObjName IN varchar2)
@@ -32,7 +32,7 @@ BEGIN
      if (v_counter > 0) then
      execute immediate 'drop table ' || ObjName || ' cascade constraints';
      end if;
-END;/
+END;
 /
 
 call spdropsequence('X_SEC_ZONE_REF_ROLE_SEQ');
