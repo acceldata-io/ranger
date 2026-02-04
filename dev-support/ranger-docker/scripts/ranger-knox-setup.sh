@@ -22,6 +22,15 @@ Host *
    UserKnownHostsFile=/dev/null
 EOF
 
+if [ "${KERBEROS_ENABLED}" == "true" ]
+then
+  ${RANGER_SCRIPTS}/wait_for_keytab.sh knox.keytab
+  ${RANGER_SCRIPTS}/wait_for_testusers_keytab.sh
+fi
+
+cp ${RANGER_SCRIPTS}/core-site.xml /opt/knox/conf/
+cp ${RANGER_SCRIPTS}/hdfs-site.xml /opt/knox/conf/
+
 chown -R knox:knox /opt/knox/
 
 mkdir -p /opt/knox/logs

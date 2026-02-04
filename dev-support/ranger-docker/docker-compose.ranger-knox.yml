@@ -9,7 +9,15 @@ services:
         - KNOX_PLUGIN_VERSION=${KNOX_PLUGIN_VERSION}
     image: ranger-knox
     container_name: ranger-knox
-    hostname: ranger-knox.example.com
+    hostname: ranger-knox.rangernw
+    volumes:
+      - ./dist/keytabs/ranger-knox:/etc/keytabs
+      - ./scripts/kdc/krb5.conf:/etc/krb5.conf:ro
+      - ./scripts/hadoop/core-site.xml:/home/ranger/scripts/core-site.xml:ro
+      - ./scripts/hadoop/hdfs-client-site.xml:/home/ranger/scripts/hdfs-site.xml:ro
+      - ./dist/version:/home/ranger/dist/version:ro
+      - ./scripts/knox/ranger-knox-sandbox.xml:/opt/knox/conf/topologies/sandbox.xml
+      - ./scripts/knox/ranger-knox-plugin-install.properties:/opt/ranger/ranger-knox-plugin/install.properties
     stdin_open: true
     tty: true
     networks:
