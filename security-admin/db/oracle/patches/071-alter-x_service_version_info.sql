@@ -21,7 +21,8 @@ BEGIN
                 execute immediate 'ALTER TABLE x_service_version_info ADD gds_version NUMBER(20) DEFAULT 0 NOT NULL';
         end if;
         commit;
-END;/
+END;
+/
 
 DECLARE
         v_count number:=0;
@@ -31,5 +32,5 @@ BEGIN
                 execute immediate 'ALTER TABLE x_service_version_info ADD gds_update_time DATE DEFAULT NULL NULL';
         end if;
         commit;
-END;/
-
+END;
+/
