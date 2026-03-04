@@ -41,7 +41,7 @@ public class S3ClientConnectionMgr extends BaseClient {
     }
 
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) {
-        LOG.debug("==> S3ClientConnectionMgr.connectionTest ServiceName: "+ serviceName + "Configs" + configs );
+        LOG.debug("==> S3ClientConnectionMgr.connectionTest ServiceName: " + serviceName + "Configs" + configs);
         boolean connectivityStatus = false;
         Map<String, Object> responseData = new HashMap<String, Object>();
         // String bucketName = "odp-ranger-test";
@@ -75,27 +75,30 @@ public class S3ClientConnectionMgr extends BaseClient {
             LOG.error("<== S3ClientConnectionMgr.testConnection Error: " + e.getMessage(), e);
         }
 
-            /*ListBucketsRequest listBucketsRequest = ListBucketsRequest.builder().build();
-            ListBucketsResponse listBucketsResponse = s3.listBuckets(listBucketsRequest);
+        /*
+         * ListBucketsRequest listBucketsRequest = ListBucketsRequest.builder().build();
+         * ListBucketsResponse listBucketsResponse = s3.listBuckets(listBucketsRequest);
+         * 
+         * if (listBucketsResponse != null) {
+         * connectivityStatus = true;
+         * String successMsg = "ConnectionTest Successful";
+         * generateResponseDataMap(connectivityStatus, successMsg, successMsg,
+         * null, null, responseData);
+         * } else {
+         * String failureMsg = "Unable to connect to S3 using given parameters.";
+         * generateResponseDataMap(connectivityStatus, failureMsg, failureMsg,
+         * null, null, responseData);
+         * }
+         * } catch (S3Exception e) {
+         * String failureMsg = "Unable to connect to S3 using given parameters.";
+         * generateResponseDataMap(connectivityStatus, failureMsg, failureMsg,
+         * null, null, responseData);
+         * LOG.error("<== S3ClientConnectionMgr.testConnection Error: " +
+         * e.getMessage(), e);
+         * }
+         */
 
-            if (listBucketsResponse != null) {
-                connectivityStatus = true;
-                String successMsg = "ConnectionTest Successful";
-                generateResponseDataMap(connectivityStatus, successMsg, successMsg,
-                        null, null, responseData);
-            } else {
-                String failureMsg = "Unable to connect to S3 using given parameters.";
-                generateResponseDataMap(connectivityStatus, failureMsg, failureMsg,
-                        null, null, responseData);
-            }
-        } catch (S3Exception e) {
-            String failureMsg = "Unable to connect to S3 using given parameters.";
-            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg,
-                    null, null, responseData);
-            LOG.error("<== S3ClientConnectionMgr.testConnection Error: " + e.getMessage(),  e);
-        } */
-
-        LOG.debug("<== S3ClientConnectionMgr.connectionTest Result : "+ responseData  );
+        LOG.debug("<== S3ClientConnectionMgr.connectionTest Result : " + responseData);
         return responseData;
     }
 
@@ -116,10 +119,23 @@ public class S3ClientConnectionMgr extends BaseClient {
     public static IamClient getIamClient(Map<String, String> configs) {
         String accessKey = configs.get(RangerS3Constants.ACCESS_KEY);
         String secretKey = configs.get(RangerS3Constants.SECRET_KEY);
+        String awsS3Str  = configs.get(RangerS3Constants.AWS_S3);
+        String endpoint = configs.get(RangerS3Constants.ENDPOINT);
+        boolean isAwsS3  = awsS3Str == null || Boolean.parseBoolean(awsS3Str);
+
         AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
-        return IamClient.builder()
+
+        if (isAwsS3) {
+            return IamClient.builder()
                 .region(Region.AWS_GLOBAL)
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
                 .build();
+        } else {
+            // For non-AWS / S3-compatible environments, build IAM client using the endpoint provided in Ranger S3 service configs.
+            return IamClient.builder()
+                .endpointOverride(URI.create(endpoint))
+                .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
+                .build();
+        }
     }
 }
