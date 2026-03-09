@@ -121,6 +121,7 @@ public class S3ClientConnectionMgr extends BaseClient {
         String secretKey = configs.get(RangerS3Constants.SECRET_KEY);
         String awsS3Str  = configs.get(RangerS3Constants.AWS_S3);
         String endpoint = configs.get(RangerS3Constants.ENDPOINT);
+        String regionStr = configs.get(RangerS3Constants.REGION);
         boolean isAwsS3  = awsS3Str == null || Boolean.parseBoolean(awsS3Str);
 
         AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
@@ -131,8 +132,10 @@ public class S3ClientConnectionMgr extends BaseClient {
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
                 .build();
         } else {
-            // For non-AWS / S3-compatible environments, build IAM client using the endpoint provided in Ranger S3 service configs.
+            // For non-AWS / S3-compatible (e.g. Ceph RGW): use service endpoint for IAM and explicit region (SDK requires region even with endpointOverride)
+            Region region = (regionStr != null && !regionStr.isEmpty()) ? Region.of(regionStr) : Region.US_EAST_1;
             return IamClient.builder()
+                .region(region)
                 .endpointOverride(URI.create(endpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
                 .build();
