@@ -1970,7 +1970,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 					// When service is deleted, remove all Ranger statements for this service
 					// but preserve any manually created IAM statements
 					List<PolicyStatement> emptyRangerStatements = new ArrayList<>();
-					List<PolicyStatement> mergedStatements = mergeWithIAMStatements(s3, bucket, emptyRangerStatements);
+					List<PolicyStatement> mergedStatements = mergeWithIAMStatements(s3, bucket, emptyRangerStatements, Collections.emptySet());
 
 					if (mergedStatements.isEmpty()) {
 						// No IAM statements to preserve, delete entire policy
@@ -6657,6 +6657,19 @@ public class ServiceDBStore extends AbstractServiceStore {
 
 			// ========== END CHANGE DETECTION ==========
 
+			// Snapshot: capture the old resource ARNs from the existing DB policy so that
+			// stale IAM statements are removed even when the resource path has changed.
+			Set<String> snapshotArns = new HashSet<>();
+			if (existingPolicyFromDB != null) {
+				RangerPolicyResource pathResource = existingPolicyFromDB.getResources()
+						.get(RangerS3Constants.PATH);
+				if (pathResource != null && CollectionUtils.isNotEmpty(pathResource.getValues())) {
+					for (String s3path : pathResource.getValues()) {
+						snapshotArns.add(RangerS3Constants.S3_RESOURCE_PATH_ARN + s3path);
+					}
+				}
+			}
+
             if (LOG.isDebugEnabled()) {
                 LOG.debug("------- Invoking combinePolicies --------");
             }
@@ -6682,7 +6695,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 				}
 			}
 			else {
-				processPolicies(bucketMap, s3, iamClient);
+				processPolicies(bucketMap, s3, iamClient, snapshotArns);
 			}
 		} catch (S3Exception e) {
 			throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
@@ -6959,7 +6972,8 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	}
 
 	// Process bucket policies
-	void processPolicies(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, S3Client s3, IamClient iamClient) throws Exception {
+	void processPolicies(Map<String, Map<RangerPolicy, Set<String>>> bucketMap, S3Client s3, IamClient iamClient,
+						 Set<String> snapshotArns) throws Exception {
         if (LOG.isDebugEnabled()) {
             LOG.debug(" ======> ServiceDBStore.processPolicies()");
         }
@@ -6971,18 +6985,22 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		for (Entry<String, Map<RangerPolicy, Set<String>>> entry : bucketMap.entrySet()) {
 			String bucketName = entry.getKey();
 			List<PolicyStatement> statements = new ArrayList<>();
+			// Start with snapshot ARNs (old resource paths) so that stale IAM
+			// statements are removed even when the resource path has changed.
+			Set<String> rangerManagedResources = new HashSet<>(snapshotArns);
 
 			for(Entry<RangerPolicy, Set<String>> policyEntry: entry.getValue().entrySet()) {
 				List<String> s3Resources = policyEntry.getValue().stream()
 							.map(s3path -> RangerS3Constants.S3_RESOURCE_PATH_ARN + s3path)
 							.collect(Collectors.toList());
+				rangerManagedResources.addAll(s3Resources);
 				statements.addAll(createBucketPolicyStatement(policyEntry.getKey().getPolicyItems(),
 						RangerS3Constants.ALLOW, s3Resources, iamClient, iamArnCache));
 				statements.addAll(createBucketPolicyStatement(policyEntry.getKey().getDenyPolicyItems(),
 						RangerS3Constants.DENY, s3Resources, iamClient, iamArnCache));
 			}
 
-			List<PolicyStatement> mergedStatements = mergeWithIAMStatements(s3, bucketName, statements);
+			List<PolicyStatement> mergedStatements = mergeWithIAMStatements(s3, bucketName, statements, rangerManagedResources);
 
 			String policyJson = mapToS3BucketPolicyObject(mergedStatements);
 			if (StringUtils.isNotEmpty(policyJson)) {
@@ -7129,7 +7147,8 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	 * @throws Exception if merge fails
 	 */
 	List<PolicyStatement> mergeWithIAMStatements(S3Client s3, String bucketName,
-														 List<PolicyStatement> rangerStatements) throws Exception {
+														 List<PolicyStatement> rangerStatements,
+														 Set<String> rangerManagedResources) throws Exception {
 
 		ObjectMapper objectMapper = new ObjectMapper();
 		List<PolicyStatement> mergedStatements = new ArrayList<>();
@@ -7149,9 +7168,9 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 					LOG.info("Found {} existing statements in IAM for bucket: {}",
 							iamStatements.size(), bucketName);
 
-					// Step 3: Identify IAM statements that are NOT in Ranger
+					// Step 3: Identify IAM statements that are NOT managed by Ranger
 					List<PolicyStatement> iamOnlyStatements = extractIAMOnlyStatements(
-							iamStatements, rangerStatements);
+							iamStatements, rangerManagedResources);
 
 					LOG.info("Preserving {} IAM-only statements for bucket: {}",
 							iamOnlyStatements.size(), bucketName);
@@ -7181,16 +7200,20 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	}
 
 	/**
-	 * Extract statements from IAM that are NOT present in Ranger statements
-	 * This identifies manually created IAM statements that should be preserved
+	 * Extract statements from IAM that are NOT managed by Ranger.
+	 * A statement is considered Ranger-managed if its resource ARN appears in
+	 * {@code rangerManagedResources}, which is the union of the snapshot ARNs
+	 * (old resource paths before this update) and the current Ranger ARNs
+	 * (new resource paths after this update). This ensures stale statements are
+	 * removed even when the resource path itself has changed.
 	 *
-	 * @param iamStatements Statements from IAM policy
-	 * @param rangerStatements Statements from Ranger policies
-	 * @return List of statements that exist only in IAM (not in Ranger)
+	 * @param iamStatements          Statements from the existing IAM/S3 bucket policy
+	 * @param rangerManagedResources Union of old (snapshot) and new Ranger resource ARNs
+	 * @return List of statements that are NOT managed by Ranger (should be preserved)
 	 */
 	List<PolicyStatement> extractIAMOnlyStatements(
 			List<PolicyStatement> iamStatements,
-			List<PolicyStatement> rangerStatements) {
+			Set<String> rangerManagedResources) {
         if (LOG.isDebugEnabled()) {
             LOG.debug(" ======> ServiceDBStore.extractIAMOnlyStatements()");
         }
@@ -7202,27 +7225,21 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		}
 
 		for (PolicyStatement iamStmt : iamStatements) {
-			boolean existsInRanger = false;
-
-			// Check if this IAM statement matches any Ranger statement
-			for (PolicyStatement rangerStmt : rangerStatements) {
-				if (statementsMatch(iamStmt, rangerStmt)) {
-					existsInRanger = true;
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("IAM statement matches Ranger statement - will be replaced: {}",
-                                iamStmt.getResource());
-                    }
-					break;
-				}
-			}
-
-			// If not in Ranger, it's an IAM-only statement - preserve it
-			if (!existsInRanger) {
-				iamOnlyStatements.add(iamStmt);
+			// If this statement's resource is in the managed set (old or new ARN),
+			// it is a stale Ranger statement — drop it and let new statements replace it.
+			if (rangerManagedResources.contains(iamStmt.getResource())) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Preserving IAM-only statement: {}", iamStmt.getResource());
+                    LOG.debug("Dropping stale Ranger-managed statement for resource: {}",
+                            iamStmt.getResource());
                 }
+				continue;
 			}
+
+			// Resource is not managed by Ranger — preserve it as an IAM-only statement
+			iamOnlyStatements.add(iamStmt);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Preserving IAM-only statement: {}", iamStmt.getResource());
+            }
 		}
 
 		return iamOnlyStatements;
