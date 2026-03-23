@@ -6572,7 +6572,7 @@ public class ServiceDBStore extends AbstractServiceStore {
 		return ret;
 	}
 
-	public boolean createS3BucketPolicy(RangerPolicy rangerPolicy, String action) throws Exception {
+	public boolean createS3BucketPolicy(RangerPolicy rangerPolicy, String action, RangerPolicy oldPolicy) throws Exception {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> ServiceDBStore.createS3BucketPolicy()");
         }
@@ -6657,11 +6657,14 @@ public class ServiceDBStore extends AbstractServiceStore {
 
 			// ========== END CHANGE DETECTION ==========
 
-			// Snapshot: capture the old resource ARNs from the existing DB policy so that
-			// stale IAM statements are removed even when the resource path has changed.
+			// Snapshot: capture the old resource ARNs from the policy state BEFORE the DB
+			// update so stale IAM statements are removed even when the resource path changed.
+			// - UPDATE: oldPolicy is read by the REST layer before svcStore.updatePolicy commits
+			// - DELETE: oldPolicy is the policy being deleted (passed before it's removed from DB)
+			// - CREATE: oldPolicy is null (nothing to clean up)
 			Set<String> snapshotArns = new HashSet<>();
-			if (existingPolicyFromDB != null) {
-				RangerPolicyResource pathResource = existingPolicyFromDB.getResources()
+			if (oldPolicy != null) {
+				RangerPolicyResource pathResource = oldPolicy.getResources()
 						.get(RangerS3Constants.PATH);
 				if (pathResource != null && CollectionUtils.isNotEmpty(pathResource.getValues())) {
 					for (String s3path : pathResource.getValues()) {
