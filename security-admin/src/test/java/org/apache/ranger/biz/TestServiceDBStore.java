@@ -7217,7 +7217,7 @@ public class TestServiceDBStore {
 
         // Execute
         List<org.apache.ranger.s3.PolicyStatement> result =
-                serviceDBStore.mergeWithIAMStatements(s3Client, "test-bucket", rangerStatements);
+                serviceDBStore.mergeWithIAMStatements(s3Client, "test-bucket", rangerStatements, java.util.Collections.emptySet());
 
         // Assert: only Ranger statements should be present
         Assert.assertEquals(1, result.size());
@@ -7250,8 +7250,9 @@ public class TestServiceDBStore {
         List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(rangerStmt);
 
         // Execute
+        java.util.Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList("arn:aws:s3:::ranger-bucket/*"));
         List<org.apache.ranger.s3.PolicyStatement> result =
-                serviceDBStore.mergeWithIAMStatements(s3Client, "test-bucket", rangerStatements);
+                serviceDBStore.mergeWithIAMStatements(s3Client, "test-bucket", rangerStatements, rangerManagedResources);
 
         // Assert: both IAM-only and Ranger statements should be present
         Assert.assertEquals(2, result.size());
@@ -7287,8 +7288,9 @@ public class TestServiceDBStore {
         List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(rangerStmt);
 
         // Execute
+        java.util.Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList("arn:aws:s3:::shared-bucket/*"));
         List<org.apache.ranger.s3.PolicyStatement> result =
-                serviceDBStore.mergeWithIAMStatements(s3Client, "test-bucket", rangerStatements);
+                serviceDBStore.mergeWithIAMStatements(s3Client, "test-bucket", rangerStatements, rangerManagedResources);
 
         // Assert: only Ranger statement should be present (replaces IAM statement)
         Assert.assertEquals(1, result.size());
@@ -7333,7 +7335,7 @@ public class TestServiceDBStore {
                 .thenReturn(software.amazon.awssdk.services.s3.model.PutBucketPolicyResponse.builder().build());
 
         // Execute: processPolicies should process the bucket map
-        serviceDBStore.processPolicies(bucketMap, s3Client, iamClient);
+        serviceDBStore.processPolicies(bucketMap, s3Client, iamClient, java.util.Collections.emptySet());
 
         // Assert: putBucketPolicy should be called once
         Mockito.verify(s3Client, Mockito.times(1))
@@ -7395,7 +7397,7 @@ public class TestServiceDBStore {
                 .thenReturn(software.amazon.awssdk.services.s3.model.PutBucketPolicyResponse.builder().build());
 
         // Execute: processPolicies should process both buckets
-        serviceDBStore.processPolicies(bucketMap, s3Client, iamClient);
+        serviceDBStore.processPolicies(bucketMap, s3Client, iamClient, java.util.Collections.emptySet());
 
         // Assert: putBucketPolicy should be called twice (once for each bucket)
         Mockito.verify(s3Client, Mockito.times(2))
@@ -7476,7 +7478,7 @@ public class TestServiceDBStore {
                 .thenReturn(software.amazon.awssdk.services.s3.model.PutBucketPolicyResponse.builder().build());
 
         // Execute: processPolicies should handle both allow and deny items
-        serviceDBStore.processPolicies(bucketMap, s3Client, iamClient);
+        serviceDBStore.processPolicies(bucketMap, s3Client, iamClient, java.util.Collections.emptySet());
 
         // Assert: putBucketPolicy should be called once
         Mockito.verify(s3Client, Mockito.times(1))
@@ -7493,7 +7495,7 @@ public class TestServiceDBStore {
         software.amazon.awssdk.services.iam.IamClient iamClient = Mockito.mock(software.amazon.awssdk.services.iam.IamClient.class);
 
         // Execute: processPolicies with empty map should not throw
-        serviceDBStore.processPolicies(bucketMap, s3Client, iamClient);
+        serviceDBStore.processPolicies(bucketMap, s3Client, iamClient, java.util.Collections.emptySet());
 
         // Assert: putBucketPolicy should never be called
         Mockito.verify(s3Client, Mockito.never())
