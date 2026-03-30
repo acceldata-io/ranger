@@ -31,6 +31,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.*;
 
 public class S3ClientConnectionMgr extends BaseClient {
@@ -78,7 +79,7 @@ public class S3ClientConnectionMgr extends BaseClient {
         /*
          * ListBucketsRequest listBucketsRequest = ListBucketsRequest.builder().build();
          * ListBucketsResponse listBucketsResponse = s3.listBuckets(listBucketsRequest);
-         * 
+         *
          * if (listBucketsResponse != null) {
          * connectivityStatus = true;
          * String successMsg = "ConnectionTest Successful";
@@ -113,6 +114,7 @@ public class S3ClientConnectionMgr extends BaseClient {
                 .region(region)
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
                 .endpointOverride(URI.create(endPointOCE))
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
                 .build();
     }
 
