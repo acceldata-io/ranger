@@ -33,6 +33,31 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>
+<dependency>
+            <groupId>com.adobe.testing</groupId>
+            <artifactId>s3mock-junit5</artifactId>
+            <version>2.2.3</version>
+            <scope>test</scope>
+            <exclusions>
+                <!-- Exclude extra AWS SDK HTTP client implementations to avoid
+                     "Multiple HTTP implementations found on classpath" error.
+                     url-connection-client is used via the main AWS SDK dependencies. -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8</artifactId>
+            <version>2.35.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -62,6 +87,12 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>iam</artifactId>
             <version>${aws-java-sdk2.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+            <version>${aws-java-sdk2.version}</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
