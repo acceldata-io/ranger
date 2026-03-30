@@ -39,9 +39,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for {@link S3ClientConnectionMgr} covering the ODP-6188 changes.
@@ -60,6 +58,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 public class S3ClientConnectionMgrTest {
 
+    // Force the AWS SDK to use a single HTTP implementation when multiple are on the classpath
+    // (e.g. url-connection-client vs apache-client pulled in by s3mock or other test deps).
+    static {
+        System.setProperty("software.amazon.awssdk.http.service.impl",
+                "software.amazon.awssdk.http.urlconnection.UrlConnectionSdkHttpService");
+    }
+
     // ── WireMock (IAM endpoint stub) ──────────────────────────────────────────
 
     @RegisterExtension
@@ -71,15 +76,15 @@ public class S3ClientConnectionMgrTest {
 
     private static final String BUCKET       = "test-bucket";
     private static final String SERVICE_NAME = "testS3Service";
+    private static final int PORT = 9090;
 
     @RegisterExtension
-    static final S3MockExtension S3_MOCK = S3MockExtension.builder().silent().build();
+    static final S3MockExtension S3_MOCK = S3MockExtension.builder().withHttpPort(PORT).silent().build();
 
     @BeforeEach
     void createBucket(final S3Client s3MockClient) {
         s3MockClient.createBucket(CreateBucketRequest.builder().bucket(BUCKET).build());
     }
-
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private Map<String, String> iamConfigs(String region) {
@@ -98,7 +103,7 @@ public class S3ClientConnectionMgrTest {
         Map<String, String> configs = new HashMap<>();
         configs.put("accesskey",  "test-access-key");
         configs.put("secretkey",  "test-secret-key");
-        configs.put("endpoint",   "http://localhost:" + S3_MOCK.getPort());
+        configs.put("endpoint",   "http://localhost:" + PORT);
         configs.put("region",     "us-east-1");
         configs.put("bucketname", bucket);
         return configs;
@@ -197,14 +202,17 @@ public class S3ClientConnectionMgrTest {
      */
     @Test
     public void getS3client_customEndpoint_canListObjectsViaMock() {
-        S3Client s3Client = S3ClientConnectionMgr.getS3client(s3Configs(BUCKET));
-        assertNotNull(s3Client);
-
-        ListObjectsV2Response response = s3Client.listObjectsV2(
-                ListObjectsV2Request.builder().bucket(BUCKET).build());
-        assertNotNull(response);
-
-        s3Client.close();
+        try (S3Client s3ClientUnderTest = S3ClientConnectionMgr.getS3client(s3Configs(BUCKET))) {
+            assertNotNull(s3ClientUnderTest);
+            try {
+                ListObjectsV2Response response = s3ClientUnderTest.listObjectsV2(
+                        ListObjectsV2Request.builder().bucket(BUCKET).build());
+                assertNotNull(response);
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw e;
+            }
+        }
     }
 
     // ── connectionTest ────────────────────────────────────────────────────────
