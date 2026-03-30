@@ -1703,7 +1703,7 @@ public class ServiceREST {
 					throw new IllegalStateException("Policy serviceType is missing");
 				}
 				if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerS3Constants.S3)) {
-					svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_CREATE);
+					svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_CREATE, null);
 				}
 				return ret;
 
@@ -1716,7 +1716,7 @@ public class ServiceREST {
 					throw new IllegalStateException("Policy serviceType is missing");
 				}
 				if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerS3Constants.S3)) {
-					svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_CREATE);
+					svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_CREATE, null);
 				}
 			}
 		} catch(WebApplicationException excp) {
@@ -1861,13 +1861,15 @@ public class ServiceREST {
 			ensureAdminAccess(policy);
 			bizUtil.blockAuditorRoleUser();
 
+			RangerPolicy oldPolicy = StringUtils.equalsIgnoreCase(RangerS3Constants.S3, policy.getServiceType())
+					? svcStore.getPolicy(policy.getId()) : null;
 			ret = svcStore.updatePolicy(policy);
 			if (StringUtils.isBlank(policy.getServiceType())) {
 				LOG.error("Policy {} missing serviceType; cannot determine service behavior", policy.getId());
 				throw new IllegalStateException("Policy serviceType is missing");
 			}
 			if (StringUtils.equalsIgnoreCase(RangerS3Constants.S3, policy.getServiceType())) {
-				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_UPDATE);
+				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_UPDATE, oldPolicy);
 			}
 		} catch(WebApplicationException excp) {
 			throw excp;
@@ -1912,7 +1914,8 @@ public class ServiceREST {
 				throw new IllegalStateException("Policy serviceType is missing");
 			}
 			if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerS3Constants.S3)) {
-				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_DELETE);
+				// policy is read above (before deletion) so it still holds the original resources
+				svcStore.createS3BucketPolicy(policy, RangerConstants.ACTION_DELETE, policy);
 			}
 		} catch(WebApplicationException excp) {
 			throw excp;
