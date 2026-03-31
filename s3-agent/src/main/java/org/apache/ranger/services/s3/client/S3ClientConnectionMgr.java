@@ -45,9 +45,17 @@ public class S3ClientConnectionMgr extends BaseClient {
         LOG.debug("==> S3ClientConnectionMgr.connectionTest ServiceName: " + serviceName + "Configs" + configs);
         boolean connectivityStatus = false;
         Map<String, Object> responseData = new HashMap<String, Object>();
-        // String bucketName = "odp-ranger-test";
-        S3Client s3 = getS3client(configs);
         String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
+
+        S3Client s3;
+        try {
+            s3 = getS3client(configs);
+        } catch (IllegalArgumentException e) {
+            String failureMsg = "Configuration error: " + e.getMessage();
+            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
+            LOG.error("<== S3ClientConnectionMgr.connectionTest Configuration error: " + e.getMessage(), e);
+            return responseData;
+        }
 
         try {
             // Using ListObjectsV2 approach
@@ -108,6 +116,12 @@ public class S3ClientConnectionMgr extends BaseClient {
         String secretKey = configs.get(RangerS3Constants.SECRET_KEY);
         String endPointOCE = configs.get(RangerS3Constants.ENDPOINT);
         String regionstr = configs.get(RangerS3Constants.REGION);
+
+        validateRequiredConfig(accessKey, RangerS3Constants.ACCESS_KEY, "S3 client");
+        validateRequiredConfig(secretKey, RangerS3Constants.SECRET_KEY, "S3 client");
+        validateRequiredConfig(endPointOCE, RangerS3Constants.ENDPOINT, "S3 client");
+        validateRequiredConfig(regionstr, RangerS3Constants.REGION, "S3 client");
+
         AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
         Region region = Region.of(regionstr);
         return S3Client.builder()
@@ -126,6 +140,14 @@ public class S3ClientConnectionMgr extends BaseClient {
         String regionStr = configs.get(RangerS3Constants.REGION);
         boolean isAwsS3  = awsS3Str == null || Boolean.parseBoolean(awsS3Str);
 
+        validateRequiredConfig(accessKey, RangerS3Constants.ACCESS_KEY, "IAM client");
+        validateRequiredConfig(secretKey, RangerS3Constants.SECRET_KEY, "IAM client");
+
+        if (!isAwsS3) {
+            validateRequiredConfig(endpoint, RangerS3Constants.ENDPOINT,
+                    "IAM client when '" + RangerS3Constants.AWS_S3 + "' is false (non-AWS S3-compatible mode)");
+        }
+
         AwsBasicCredentials awsCreds3 = AwsBasicCredentials.create(accessKey, secretKey);
 
         if (isAwsS3) {
@@ -141,6 +163,13 @@ public class S3ClientConnectionMgr extends BaseClient {
                 .endpointOverride(URI.create(endpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds3))
                 .build();
+        }
+    }
+
+    private static void validateRequiredConfig(String value, String configName, String context) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Required configuration '" + configName + "' is missing or empty for " + context);
         }
     }
 }

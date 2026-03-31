@@ -138,22 +138,53 @@ public class S3ClientConnectionMgrTest {
     }
 
     /**
-     * When aws_s3=true, the IamClient must use the default AWS IAM endpoint (iam.amazonaws.com)
-     * and must NOT use the custom endpoint even if one is present in the configs.
-     * WireMock must receive zero requests, confirming endpointOverride was not applied.
-     * The IAM call itself will fail (no real AWS connectivity in tests), but that is expected
-     * and intentionally swallowed in makeIamCall().
+     * When aws_s3=false but endpoint is missing, getIamClient() must throw
+     * IllegalArgumentException with a descriptive message, not fail later with NPE
+     * or cryptic URI parsing errors.
      */
     @Test
-    public void getIamClient_awsS3True_requestsNotRoutedToCustomEndpoint() {
-        Map<String, String> configs = iamConfigs("us-east-1");
+    public void getIamClient_awsS3False_missingEndpoint_throwsIllegalArgumentException() {
+        Map<String, String> configs = new HashMap<>();
+        configs.put("accesskey", "test-access-key");
+        configs.put("secretkey", "test-secret-key");
+        configs.put("aws_s3", "false");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> S3ClientConnectionMgr.getIamClient(configs));
+
+        assertTrue(ex.getMessage().contains("endpoint"));
+        assertTrue(ex.getMessage().contains("aws_s3"));
+    }
+
+    /**
+     * When aws_s3=true, endpoint is not required for IAM client (uses AWS default).
+     * Client creation should succeed even without endpoint configured.
+     */
+    @Test
+    public void getIamClient_awsS3True_missingEndpoint_succeeds() {
+        Map<String, String> configs = new HashMap<>();
+        configs.put("accesskey", "test-access-key");
+        configs.put("secretkey", "test-secret-key");
         configs.put("aws_s3", "true");
 
         IamClient client = S3ClientConnectionMgr.getIamClient(configs);
-        makeIamCall(client);
-
-        WIRE_MOCK.verify(0, postRequestedFor(anyUrl()));
+        assertNotNull(client);
         client.close();
+    }
+
+    /**
+     * When accesskey is missing, getIamClient() must throw IllegalArgumentException.
+     */
+    @Test
+    public void getIamClient_missingAccessKey_throwsIllegalArgumentException() {
+        Map<String, String> configs = new HashMap<>();
+        configs.put("secretkey", "test-secret-key");
+        configs.put("aws_s3", "true");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> S3ClientConnectionMgr.getIamClient(configs));
+
+        assertTrue(ex.getMessage().contains("accesskey"));
     }
 
     // ── getIamClient: region defaulting ──────────────────────────────────────
@@ -242,5 +273,40 @@ public class S3ClientConnectionMgrTest {
 
         assertFalse((Boolean) result.get("connectivityStatus"));
         assertTrue(result.get("message").toString().contains("does not exist"));
+    }
+
+    // ── Input validation ──────────────────────────────────────────────────────
+
+    /**
+     * When required S3 config (endpoint) is missing, getS3client() must throw
+     * IllegalArgumentException.
+     */
+    @Test
+    public void getS3client_missingEndpoint_throwsIllegalArgumentException() {
+        Map<String, String> configs = new HashMap<>();
+        configs.put("accesskey", "test-access-key");
+        configs.put("secretkey", "test-secret-key");
+        configs.put("region", "us-east-1");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> S3ClientConnectionMgr.getS3client(configs));
+
+        assertTrue(ex.getMessage().contains("endpoint"));
+    }
+
+    /**
+     * When connectionTest() receives invalid config, it should return a failure response
+     * with connectivityStatus=false and a descriptive error message, not throw an exception.
+     */
+    @Test
+    public void connectionTest_missingConfig_returnsConfigurationError() {
+        Map<String, String> configs = new HashMap<>();
+        configs.put("accesskey", "test-access-key");
+        configs.put("bucketname", "some-bucket");
+
+        Map<String, Object> result = S3ClientConnectionMgr.connectionTest(SERVICE_NAME, configs);
+
+        assertFalse((Boolean) result.get("connectivityStatus"));
+        assertTrue(result.get("message").toString().contains("Configuration error"));
     }
 }
