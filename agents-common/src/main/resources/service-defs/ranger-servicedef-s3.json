@@ -125,6 +125,18 @@
       "validationMessage": "",
       "uiHint":"",
       "label": "Bucket Name"
+    },
+    {
+      "itemId": 7,
+      "name": "aws_s3",
+      "type": "bool",
+      "subType": "YesTrue:NoFalse",
+      "mandatory": true,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "AWS S3",
+      "defaultValue": "true"
     }
   ],
 
