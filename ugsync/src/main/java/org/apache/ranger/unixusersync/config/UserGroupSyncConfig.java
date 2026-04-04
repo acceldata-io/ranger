@@ -114,6 +114,10 @@ public class UserGroupSyncConfig  {
 
 	private static final String LGSYNC_SOURCE_CLASS = "org.apache.ranger.ldapusersync.process.LdapUserGroupBuilder";
 
+	/** UserSync source: Keycloak via XDP Admin Central HTTP API. */
+	public static final String ADMIN_CENTRAL_SOURCE_CLASS =
+			"org.apache.ranger.unixusersync.process.AdminCentralUserGroupBuilder";
+
 	private static final String LGSYNC_LDAP_URL = "ranger.usersync.ldap.url";
 
 	private static final String LGSYNC_LDAP_DELTASYNC_ENABLED = "ranger.usersync.ldap.deltasync";
@@ -281,6 +285,9 @@ public class UserGroupSyncConfig  {
     private static final long    DEFAULT_UGSYNC_METRICS_FREQUENCY_TIME_IN_MILLIS = 10000L;
     public static final String   UGSYNC_METRICS_ENABLED_PROP = "ranger.usersync.metrics.enabled";
 
+	/** When set, UserSync sleeps in chunks and runs a cycle early if this file is touched. */
+	public static final String UGSYNC_FORCE_SYNC_TRIGGER_FILE = "ranger.usersync.force.sync.trigger.file";
+
 	private static final String UGSYNC_DELETES_ENABLED = "ranger.usersync.deletes.enabled";
 	private static final boolean DEFAULT_UGSYNC_DELETES_ENABLED = false;
 	private static final String  UGSYNC_DELETES_FREQUENCY = "ranger.usersync.deletes.frequency";
@@ -291,6 +298,42 @@ public class UserGroupSyncConfig  {
 	public static final String UGSYNC_SERVER_HA_ENABLED_PARAM = "ranger-ugsync.server.ha.enabled";
 	public static final String UGSYNC_SYNC_SOURCE_VALIDATION_ENABLED = "ranger.usersync.syncsource.validation.enabled";
 	private static final boolean DEFAULT_UGSYNC_SYNC_SOURCE_VALIDATION_ENABLED = true;
+
+	private static final String ADMIN_CENTRAL_BASE_URL = "ranger.usersync.admincentral.base.url";
+	private static final String ADMIN_CENTRAL_USERS_PATH = "ranger.usersync.admincentral.users.path";
+	private static final String DEFAULT_ADMIN_CENTRAL_USERS_PATH = "/xdp-cp-service/api/users";
+	private static final String ADMIN_CENTRAL_GROUPS_PATH = "ranger.usersync.admincentral.groups.path";
+
+	private static final String ADMIN_CENTRAL_AUTH_TYPE = "ranger.usersync.admincentral.auth.type";
+	private static final String ADMIN_CENTRAL_USERNAME = "ranger.usersync.admincentral.username";
+	private static final String ADMIN_CENTRAL_PASSWORD = "ranger.usersync.admincentral.password";
+	private static final String ADMIN_CENTRAL_BEARER_TOKEN = "ranger.usersync.admincentral.bearer.token";
+
+	private static final String ADMIN_CENTRAL_USERS_ARRAY_PATH = "ranger.usersync.admincentral.users.array.path";
+	private static final String ADMIN_CENTRAL_GROUPS_ARRAY_PATH = "ranger.usersync.admincentral.groups.array.path";
+
+	private static final String ADMIN_CENTRAL_USER_NAME_FIELD = "ranger.usersync.admincentral.user.name.field";
+	private static final String DEFAULT_ADMIN_CENTRAL_USER_NAME_FIELD = "username";
+	private static final String ADMIN_CENTRAL_USER_GROUPS_FIELD = "ranger.usersync.admincentral.user.groups.field";
+	private static final String DEFAULT_ADMIN_CENTRAL_USER_GROUPS_FIELD = "groups";
+
+	private static final String ADMIN_CENTRAL_GROUP_NAME_FIELD = "ranger.usersync.admincentral.group.name.field";
+	private static final String DEFAULT_ADMIN_CENTRAL_GROUP_NAME_FIELD = "name";
+	private static final String ADMIN_CENTRAL_GROUP_MEMBERS_FIELD = "ranger.usersync.admincentral.group.members.field";
+	private static final String DEFAULT_ADMIN_CENTRAL_GROUP_MEMBERS_FIELD = "members";
+
+	private static final String ADMIN_CENTRAL_USER_ENABLED_FIELD = "ranger.usersync.admincentral.user.enabled.field";
+	private static final String ADMIN_CENTRAL_PAGE_SIZE_PARAM = "ranger.usersync.admincentral.pagination.size.param";
+	private static final String DEFAULT_ADMIN_CENTRAL_PAGE_SIZE_PARAM = "size";
+	private static final String ADMIN_CENTRAL_PAGE_INDEX_PARAM = "ranger.usersync.admincentral.pagination.page.param";
+	private static final String DEFAULT_ADMIN_CENTRAL_PAGE_INDEX_PARAM = "page";
+	private static final String ADMIN_CENTRAL_PAGE_SIZE = "ranger.usersync.admincentral.pagination.page.size";
+	private static final int DEFAULT_ADMIN_CENTRAL_PAGE_SIZE = 0;
+
+	private static final String ADMIN_CENTRAL_CONNECT_TIMEOUT_MS = "ranger.usersync.admincentral.connect.timeout.ms";
+	private static final int DEFAULT_ADMIN_CENTRAL_CONNECT_TIMEOUT_MS = 30000;
+	private static final String ADMIN_CENTRAL_READ_TIMEOUT_MS = "ranger.usersync.admincentral.read.timeout.ms";
+	private static final int DEFAULT_ADMIN_CENTRAL_READ_TIMEOUT_MS = 120000;
 
     private Properties prop = new Properties();
 	private Configuration userGroupConfig = null;
@@ -521,6 +564,8 @@ public class UserGroupSyncConfig  {
 		if (val == null) {
 			if (LGSYNC_SOURCE_CLASS.equals(className)) {
 				return UGSYNC_SLEEP_TIME_IN_MILLIS_BETWEEN_CYCLE_LDAP_DEFAULT_VALUE;
+			} else if (ADMIN_CENTRAL_SOURCE_CLASS.equals(className)) {
+				return UGSYNC_SLEEP_TIME_IN_MILLIS_BETWEEN_CYCLE_LDAP_DEFAULT_VALUE;
 			} else {
 				return UGSYNC_SLEEP_TIME_IN_MILLIS_BETWEEN_CYCLE_UNIX_DEFAULT_VALUE;
 			}
@@ -529,6 +574,8 @@ public class UserGroupSyncConfig  {
 			long ret = Long.parseLong(val);
 			long min_interval;
 			if (LGSYNC_SOURCE_CLASS.equals(className)) {
+				min_interval = UGSYNC_SLEEP_TIME_IN_MILLIS_BETWEEN_CYCLE_LDAP_DEFAULT_VALUE;
+			} else if (ADMIN_CENTRAL_SOURCE_CLASS.equals(className)) {
 				min_interval = UGSYNC_SLEEP_TIME_IN_MILLIS_BETWEEN_CYCLE_LDAP_DEFAULT_VALUE;
 			}else if(UGSYNC_SOURCE_CLASS.equals(className)){
 				min_interval = UGSYNC_SLEEP_TIME_IN_MILLIS_BETWEEN_CYCLE_UNIX_DEFAULT_VALUE;
@@ -545,30 +592,47 @@ public class UserGroupSyncConfig  {
 	}
 
 	private String getUserGroupSourceClassName() {
-		String val =  prop.getProperty(UGSYNC_SOURCE_CLASS_PARAM);
-		String className = UGSYNC_SOURCE_CLASS;
-
-		String syncSource = null;
-
-		if(val == null || val.trim().isEmpty()) {
-			syncSource=getSyncSource();
-		}
-		else {
-			if (val.equalsIgnoreCase(LGSYNC_SOURCE_CLASS)) {
-				val = LGSYNC_SOURCE_CLASS;
+		String val = prop.getProperty(UGSYNC_SOURCE_CLASS_PARAM);
+		if (val != null) {
+			val = val.trim();
+			if (val.isEmpty()) {
+				val = null;
 			}
-			syncSource = val;
 		}
 
-		className = val;
-
-		if(syncSource!=null && syncSource.equalsIgnoreCase("UNIX")){
-			className = UGSYNC_SOURCE_CLASS;
-		}else if(syncSource!=null && syncSource.equalsIgnoreCase("LDAP")){
-			className = LGSYNC_SOURCE_CLASS;
+		if (val == null) {
+			String syncSource = getSyncSource();
+			if (syncSource != null) {
+				syncSource = syncSource.trim();
+			}
+			if (StringUtils.isEmpty(syncSource)) {
+				return UGSYNC_SOURCE_CLASS;
+			}
+			if (syncSource.equalsIgnoreCase("UNIX")) {
+				return UGSYNC_SOURCE_CLASS;
+			}
+			if (syncSource.equalsIgnoreCase("LDAP")) {
+				return LGSYNC_SOURCE_CLASS;
+			}
+			if (syncSource.equalsIgnoreCase("ADMIN_CENTRAL")) {
+				return ADMIN_CENTRAL_SOURCE_CLASS;
+			}
+			return syncSource;
 		}
 
-		return className;
+		if (val.equalsIgnoreCase("UNIX")) {
+			return UGSYNC_SOURCE_CLASS;
+		}
+		if (val.equalsIgnoreCase("LDAP")) {
+			return LGSYNC_SOURCE_CLASS;
+		}
+		if (val.equalsIgnoreCase("ADMIN_CENTRAL")) {
+			return ADMIN_CENTRAL_SOURCE_CLASS;
+		}
+		if (val.equalsIgnoreCase(LGSYNC_SOURCE_CLASS)) {
+			return LGSYNC_SOURCE_CLASS;
+		}
+		return val;
 	}
 
 	public UserGroupSource getUserGroupSource() throws Throwable {
@@ -1342,6 +1406,8 @@ public class UserGroupSyncConfig  {
 			currentSyncSource = "LDAP/AD";
 		} else if (UGSYNC_SOURCE_CLASS.equalsIgnoreCase(className)){
 			currentSyncSource = "Unix";
+		} else if (ADMIN_CENTRAL_SOURCE_CLASS.equals(className)) {
+			currentSyncSource = "Admin Central";
 		} else {
 			currentSyncSource = "File";
 		}
@@ -1396,5 +1462,124 @@ public class UserGroupSyncConfig  {
 			isSyncSourceValidationEnabled = Boolean.parseBoolean(val);
 		}
 		return isSyncSourceValidationEnabled;
+	}
+
+	public String getForceSyncTriggerFile() {
+		return StringUtils.trimToEmpty(prop.getProperty(UGSYNC_FORCE_SYNC_TRIGGER_FILE));
+	}
+
+	public String getAdminCentralBaseUrl() throws Throwable {
+		String base = prop.getProperty(ADMIN_CENTRAL_BASE_URL);
+		if (StringUtils.isBlank(base)) {
+			throw new Exception(ADMIN_CENTRAL_BASE_URL + " must be set for Admin Central user sync");
+		}
+		return base.trim().replaceAll("/+$", "");
+	}
+
+	public String getAdminCentralUsersPath() {
+		String p = prop.getProperty(ADMIN_CENTRAL_USERS_PATH);
+		if (StringUtils.isBlank(p)) {
+			p = DEFAULT_ADMIN_CENTRAL_USERS_PATH;
+		}
+		if (!p.startsWith("/")) {
+			p = "/" + p;
+		}
+		return p;
+	}
+
+	public String getAdminCentralGroupsPath() {
+		String p = prop.getProperty(ADMIN_CENTRAL_GROUPS_PATH);
+		if (p == null) {
+			return "";
+		}
+		p = p.trim();
+		if (p.isEmpty()) {
+			return "";
+		}
+		if (!p.startsWith("/")) {
+			p = "/" + p;
+		}
+		return p;
+	}
+
+	/**
+	 * Admin Central HTTP auth: {@code none}, {@code basic}, {@code bearer}, or {@code xdp} / {@code
+	 * aksk} (accessKey/secretKey headers from {@code API_ACCESS_KEY}/{@code API_SECRET_KEY} or {@code
+	 * DP_ACCESS_KEY}/{@code DP_SECRET_KEY} environment variables, same as XDP Ranger policy client).
+	 */
+	public String getAdminCentralAuthType() {
+		String t = prop.getProperty(ADMIN_CENTRAL_AUTH_TYPE);
+		if (StringUtils.isBlank(t)) {
+			return "none";
+		}
+		return t.trim().toLowerCase();
+	}
+
+	public String getAdminCentralUsername() {
+		return StringUtils.trimToEmpty(prop.getProperty(ADMIN_CENTRAL_USERNAME));
+	}
+
+	public String getAdminCentralPassword() {
+		return prop.getProperty(ADMIN_CENTRAL_PASSWORD);
+	}
+
+	public String getAdminCentralBearerToken() {
+		return prop.getProperty(ADMIN_CENTRAL_BEARER_TOKEN);
+	}
+
+	public String getAdminCentralUsersArrayPath() {
+		return StringUtils.trimToEmpty(prop.getProperty(ADMIN_CENTRAL_USERS_ARRAY_PATH));
+	}
+
+	public String getAdminCentralGroupsArrayPath() {
+		return StringUtils.trimToEmpty(prop.getProperty(ADMIN_CENTRAL_GROUPS_ARRAY_PATH));
+	}
+
+	public String getAdminCentralUserNameField() {
+		String f = prop.getProperty(ADMIN_CENTRAL_USER_NAME_FIELD);
+		return StringUtils.isBlank(f) ? DEFAULT_ADMIN_CENTRAL_USER_NAME_FIELD : f.trim();
+	}
+
+	public String getAdminCentralUserGroupsField() {
+		String f = prop.getProperty(ADMIN_CENTRAL_USER_GROUPS_FIELD);
+		return StringUtils.isBlank(f) ? DEFAULT_ADMIN_CENTRAL_USER_GROUPS_FIELD : f.trim();
+	}
+
+	public String getAdminCentralGroupNameField() {
+		String f = prop.getProperty(ADMIN_CENTRAL_GROUP_NAME_FIELD);
+		return StringUtils.isBlank(f) ? DEFAULT_ADMIN_CENTRAL_GROUP_NAME_FIELD : f.trim();
+	}
+
+	public String getAdminCentralGroupMembersField() {
+		String f = prop.getProperty(ADMIN_CENTRAL_GROUP_MEMBERS_FIELD);
+		return StringUtils.isBlank(f) ? DEFAULT_ADMIN_CENTRAL_GROUP_MEMBERS_FIELD : f.trim();
+	}
+
+	public String getAdminCentralUserEnabledField() {
+		return StringUtils.trimToEmpty(prop.getProperty(ADMIN_CENTRAL_USER_ENABLED_FIELD));
+	}
+
+	public String getAdminCentralPageSizeParam() {
+		String f = prop.getProperty(ADMIN_CENTRAL_PAGE_SIZE_PARAM);
+		return StringUtils.isBlank(f) ? DEFAULT_ADMIN_CENTRAL_PAGE_SIZE_PARAM : f.trim();
+	}
+
+	public String getAdminCentralPageIndexParam() {
+		String f = prop.getProperty(ADMIN_CENTRAL_PAGE_INDEX_PARAM);
+		return StringUtils.isBlank(f) ? DEFAULT_ADMIN_CENTRAL_PAGE_INDEX_PARAM : f.trim();
+	}
+
+	public int getAdminCentralPageSize() {
+		return getIntProperty(prop, ADMIN_CENTRAL_PAGE_SIZE, DEFAULT_ADMIN_CENTRAL_PAGE_SIZE);
+	}
+
+	public int getAdminCentralConnectTimeoutMs() {
+		int v = getIntProperty(prop, ADMIN_CENTRAL_CONNECT_TIMEOUT_MS, DEFAULT_ADMIN_CENTRAL_CONNECT_TIMEOUT_MS);
+		return v < 0 ? DEFAULT_ADMIN_CENTRAL_CONNECT_TIMEOUT_MS : v;
+	}
+
+	public int getAdminCentralReadTimeoutMs() {
+		int v = getIntProperty(prop, ADMIN_CENTRAL_READ_TIMEOUT_MS, DEFAULT_ADMIN_CENTRAL_READ_TIMEOUT_MS);
+		return v < 0 ? DEFAULT_ADMIN_CENTRAL_READ_TIMEOUT_MS : v;
 	}
 }
