@@ -64,7 +64,7 @@ ENTRYPOINT [ "/bin/bash" ]
 ######################################################################
 FROM ranger-base AS ranger
 
-ARG RANGER_ADMIN_TAR=ranger-2.5.0.3.3.6.2-1-admin.tar.gz
+ARG RANGER_ADMIN_TAR=ranger-2.5.0.3.3.6.2-101-admin.tar.gz
 
 COPY ranger-xstore-build/dockerfile/scripts/ranger.sh ${RANGER_SCRIPTS}/
 COPY ranger-xstore-build/dockerfile/scripts/ranger-admin-install.properties ${RANGER_SCRIPTS}/ranger-admin-install.properties
