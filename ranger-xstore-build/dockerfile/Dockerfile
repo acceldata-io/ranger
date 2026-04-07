@@ -64,14 +64,14 @@ ENTRYPOINT [ "/bin/bash" ]
 ######################################################################
 FROM ranger-base AS ranger
 
-ARG RANGER_ADMIN_TAR=ranger-2.5.0.3.3.6.2-101-admin.tar.gz
+ARG ADMIN_TAR_NAME=ranger-2.5.0.3.3.6.2-101-admin.tar.gz
 
 COPY ranger-xstore-build/dockerfile/scripts/ranger.sh ${RANGER_SCRIPTS}/
 COPY ranger-xstore-build/dockerfile/scripts/ranger-admin-install.properties ${RANGER_SCRIPTS}/ranger-admin-install.properties
 COPY ranger-xstore-build/dockerfile/scripts/create-ranger-services.py ${RANGER_SCRIPTS}/
 
 # Copy Ranger admin distro from build context (no network download)
-COPY target/${RANGER_ADMIN_TAR} /home/ranger/dist/ranger-admin.tar.gz
+COPY target/${ADMIN_TAR_NAME} /home/ranger/dist/ranger-admin.tar.gz
 
 RUN chmod +x ${RANGER_SCRIPTS}/*.sh ${RANGER_SCRIPTS}/*.py
 
