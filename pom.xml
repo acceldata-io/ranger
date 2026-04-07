@@ -359,6 +359,33 @@
                 <module>unixauthclient</module>
                 <module>ugsync-util</module>
                 <module>security-admin</module>
+                <module>hdfs-agent</module>
+                <module>hive-agent</module>
+                <module>hbase-agent</module>
+                <module>knox-agent</module>
+                <module>plugin-yarn</module>
+                <module>plugin-ozone</module>
+                <module>plugin-kafka</module>
+                <module>plugin-solr</module>
+                <module>plugin-nifi</module>
+                <module>plugin-nifi-registry</module>
+                <module>plugin-kms</module>
+                <module>plugin-schema-registry</module>
+                <module>plugin-trino</module>
+                <module>kms</module>
+                <module>ranger-hdfs-plugin-shim</module>
+                <module>ranger-hive-plugin-shim</module>
+                <module>ranger-hbase-plugin-shim</module>
+                <module>ranger-knox-plugin-shim</module>
+                <module>ranger-yarn-plugin-shim</module>
+                <module>ranger-ozone-plugin-shim</module>
+                <module>ranger-kafka-plugin-shim</module>
+                <module>ranger-solr-plugin-shim</module>
+                <module>ranger-kms-plugin-shim</module>
+                <module>ranger-tools</module>
+                <module>tagsync</module>
+                <module>ugsync</module>
+                <module>unixauthservice</module>
                 <module>distro</module>
             </modules>
         </profile>
