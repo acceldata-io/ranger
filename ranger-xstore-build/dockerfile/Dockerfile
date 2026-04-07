@@ -82,15 +82,23 @@ RUN set -eux; \
     echo "${RANGER_TOP_DIR}" | sed -e 's/^ranger-//' -e 's/-admin$//' > /home/ranger/dist/version; \
     rm -f /home/ranger/dist/ranger-admin.tar.gz; \
     cp -f ${RANGER_SCRIPTS}/ranger-admin-install.properties ${RANGER_HOME}/admin/install.properties; \
-    mkdir -p /var/run/ranger; \
-    mkdir -p /var/log/ranger; \
-    chown -R ranger:ranger ${RANGER_HOME}/admin/ ${RANGER_SCRIPTS}/ /var/run/ranger/ /var/log/ranger/; \
-    mkdir -p /usr/share/java/; \
-    mkdir -p ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/
-
-RUN curl -s -f -L -o /usr/share/java/postgresql.jar https://repo1.maven.org/maven2/org/postgresql/postgresql/42.2.16.jre7/postgresql-42.2.16.jre7.jar && \
-    curl -s -f -L -o /usr/share/java/mysql-connector.jar https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar && \
-    curl -s -f -L -o ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/log4jdbc-1.2.jar https://repo1.maven.org/maven2/com/googlecode/log4jdbc/log4jdbc/1.2/log4jdbc-1.2.jar
+    mkdir -p /var/run/ranger /var/log/ranger /usr/share/java/ \
+             ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib \
+             ${RANGER_HOME}/admin/ews/webapp/WEB-INF/classes/conf \
+             ${RANGER_HOME}/admin/ews/webapp/WEB-INF/classes/lib \
+             ${RANGER_HOME}/admin/ews/logs; \
+    if [ -d "${RANGER_HOME}/admin/ews/webapp/WEB-INF/classes/conf.dist" ]; then \
+      cp -r ${RANGER_HOME}/admin/ews/webapp/WEB-INF/classes/conf.dist/* \
+            ${RANGER_HOME}/admin/ews/webapp/WEB-INF/classes/conf/ 2>/dev/null || true; \
+    fi; \
+    curl -s -f -L -o /usr/share/java/postgresql.jar \
+      https://repo1.maven.org/maven2/org/postgresql/postgresql/42.2.16.jre7/postgresql-42.2.16.jre7.jar; \
+    curl -s -f -L -o /usr/share/java/mysql-connector.jar \
+      https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar; \
+    curl -s -f -L -o ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/log4jdbc-1.2.jar \
+      https://repo1.maven.org/maven2/com/googlecode/log4jdbc/log4jdbc/1.2/log4jdbc-1.2.jar; \
+    chmod -R 775 ${RANGER_HOME}/admin/ /var/run/ranger/ /var/log/ranger/; \
+    chown -R ranger:ranger ${RANGER_HOME}/ ${RANGER_SCRIPTS}/ /var/run/ranger/ /var/log/ranger/
 
 USER ranger
 

@@ -342,9 +342,24 @@
         <profile>
             <id>ranger-admin</id>
             <modules>
+                <module>plugin-gravitino</module>
+                <module>jisql</module>
+                <module>agents-audit</module>
                 <module>agents-common</module>
-                <module>security-admin</module>
+                <module>agents-cred</module>
+                <module>intg</module>
+                <module>agents-installer</module>
+                <module>credentialbuilder</module>
+                <module>embeddedwebserver</module>
+                <module>ranger-common-ha</module>
+                <module>ranger-plugin-classloader</module>
+                <module>ranger-util</module>
+                <module>ranger-metrics</module>
+                <module>ranger-authn</module>
+                <module>unixauthclient</module>
                 <module>ugsync-util</module>
+                <module>security-admin</module>
+                <module>distro</module>
             </modules>
         </profile>
         <profile>
