@@ -801,7 +801,7 @@
         <repository>
             <id>central</id>
             <name>Maven Central</name>
-            <url>repo.maven.apache.org</url>
+            <url>https://repo.maven.apache.org/maven2</url>
         </repository>
     </repositories>
     <dependencyManagement>
