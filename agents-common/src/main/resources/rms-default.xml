@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<!--
+  Ranger RMS (Resource Mapping Server) Configuration
+  
+  RMS enables automatic synchronization of Hive policies to storage layer
+  (HDFS, Ozone, S3), eliminating the need to maintain separate policies.
+-->
+<configuration>
+
+    <!-- ==================== RMS Server Configuration ==================== -->
+    
+    <!-- Enable/disable RMS HMS notification processing -->
+    <property>
+        <name>ranger.rms.hms.enabled</name>
+        <value>false</value>
+        <description>Enable RMS HMS notification processing</description>
+    </property>
+    
+    <!-- HMS polling interval in milliseconds -->
+    <property>
+        <name>ranger.rms.hms.polling.interval.ms</name>
+        <value>30000</value>
+        <description>Interval for polling HMS notifications</description>
+    </property>
+    
+    <!-- Hive service name in Ranger -->
+    <property>
+        <name>ranger.rms.hive.service.name</name>
+        <value>cm_hive</value>
+        <description>Name of the Hive service in Ranger</description>
+    </property>
+    
+    <!-- HDFS service name in Ranger -->
+    <property>
+        <name>ranger.rms.hdfs.service.name</name>
+        <value>cm_hdfs</value>
+        <description>Name of the HDFS service in Ranger</description>
+    </property>
+    
+    <!-- Ozone service name in Ranger -->
+    <property>
+        <name>ranger.rms.ozone.service.name</name>
+        <value>cm_ozone</value>
+        <description>Name of the Ozone service in Ranger</description>
+    </property>
+    
+    <!-- S3 service name in Ranger -->
+    <property>
+        <name>ranger.rms.s3.service.name</name>
+        <value>cm_s3</value>
+        <description>Name of the S3 service in Ranger</description>
+    </property>
+    
+    <!-- Supported URI schemes -->
+    <property>
+        <name>ranger.rms.supported.uri.schemes</name>
+        <value>hdfs,o3fs,ofs,s3a</value>
+        <description>Comma-separated list of supported URI schemes</description>
+    </property>
+    
+    <!-- Whether to track managed tables (external tables are always tracked) -->
+    <property>
+        <name>ranger.rms.map.managed.tables</name>
+        <value>false</value>
+        <description>Whether to track managed Hive tables</description>
+    </property>
+    
+    <!-- ==================== HDFS Plugin Configuration ==================== -->
+    
+    <!-- Enable Hive-HDFS chained plugin -->
+    <property>
+        <name>ranger.plugin.hdfs.chained.services</name>
+        <value>cm_hive</value>
+        <description>Comma-separated list of chained services for HDFS</description>
+    </property>
+    
+    <!-- Chained plugin implementation class -->
+    <property>
+        <name>ranger.plugin.hdfs.chained.services.cm_hive.impl</name>
+        <value>org.apache.ranger.chainedplugin.hdfs.hive.RangerHdfsHiveChainedPlugin</value>
+        <description>Implementation class for HDFS-Hive chained plugin</description>
+    </property>
+    
+    <!-- Enforce strict Sentry semantics (deny if no Hive policy) -->
+    <property>
+        <name>ranger.plugin.hdfs.mapping.hive.authorize.with.only.chained.policies</name>
+        <value>true</value>
+        <description>If true, deny access when no applicable Hive policy exists</description>
+    </property>
+    
+    <!-- HDFS to Hive access type mappings -->
+    <property>
+        <name>ranger.plugin.hdfs.accesstype.mapping.read</name>
+        <value>select</value>
+        <description>Hive access types for HDFS read</description>
+    </property>
+    
+    <property>
+        <name>ranger.plugin.hdfs.accesstype.mapping.write</name>
+        <value>update,alter</value>
+        <description>Hive access types for HDFS write</description>
+    </property>
+    
+    <property>
+        <name>ranger.plugin.hdfs.accesstype.mapping.execute</name>
+        <value>_any</value>
+        <description>Hive access types for HDFS execute</description>
+    </property>
+    
+    <!-- Mapping download interval -->
+    <property>
+        <name>ranger.plugin.hdfs.mapping.source.download.interval</name>
+        <value>30000</value>
+        <description>Interval for downloading mappings from RMS (ms)</description>
+    </property>
+    
+    <!-- ==================== Ozone Plugin Configuration ==================== -->
+    
+    <!-- Enable Hive-Ozone chained plugin -->
+    <property>
+        <name>ranger.plugin.ozone.chained.services</name>
+        <value>cm_hive</value>
+        <description>Comma-separated list of chained services for Ozone</description>
+    </property>
+    
+    <!-- Chained plugin implementation class -->
+    <property>
+        <name>ranger.plugin.ozone.chained.services.cm_hive.impl</name>
+        <value>org.apache.ranger.chainedplugin.ozone.hive.RangerOzoneHiveChainedPlugin</value>
+        <description>Implementation class for Ozone-Hive chained plugin</description>
+    </property>
+    
+    <!-- Ozone to Hive access type mappings (for tables) -->
+    <property>
+        <name>ranger.plugin.ozone.accesstype.mapping.read</name>
+        <value>select</value>
+    </property>
+    
+    <property>
+        <name>ranger.plugin.ozone.accesstype.mapping.write</name>
+        <value>update</value>
+    </property>
+    
+    <property>
+        <name>ranger.plugin.ozone.accesstype.mapping.create</name>
+        <value>create</value>
+    </property>
+    
+    <property>
+        <name>ranger.plugin.ozone.accesstype.mapping.delete</name>
+        <value>drop</value>
+    </property>
+    
+    <!-- Ozone to Hive access type mappings (for databases) -->
+    <property>
+        <name>ranger.plugin.ozone.db.accesstype.mapping.read</name>
+        <value>_any</value>
+    </property>
+    
+    <property>
+        <name>ranger.plugin.ozone.db.accesstype.mapping.write</name>
+        <value>update</value>
+    </property>
+    
+    <!-- ==================== S3 Plugin (RAZ) Configuration ==================== -->
+    
+    <!-- Enable Hive-S3 chained plugin (for RAZ) -->
+    <property>
+        <name>ranger.raz.service-type.s3.chained.services</name>
+        <value>cm_hive</value>
+        <description>Comma-separated list of chained services for S3</description>
+    </property>
+    
+    <!-- Chained plugin implementation class -->
+    <property>
+        <name>ranger.raz.service-type.s3.chained.services.cm_hive.impl</name>
+        <value>org.apache.ranger.chainedplugin.s3.hive.RangerS3HiveChainedPlugin</value>
+        <description>Implementation class for S3-Hive chained plugin</description>
+    </property>
+    
+    <!-- S3 to Hive access type mappings -->
+    <property>
+        <name>ranger.raz.service-type.s3.accesstype.mapping.read</name>
+        <value>select</value>
+    </property>
+    
+    <property>
+        <name>ranger.raz.service-type.s3.accesstype.mapping.write</name>
+        <value>update,alter</value>
+    </property>
+    
+    <!-- Privileged users (skip RMS evaluation) -->
+    <property>
+        <name>ranger.raz.service-type.s3.privileged.user.names</name>
+        <value>admin,dpprofiler,hue,beacon,hive,impala</value>
+        <description>Users with full access (skip Hive policy check)</description>
+    </property>
+
+</configuration>
