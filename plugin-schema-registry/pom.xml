@@ -193,6 +193,11 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>com.hortonworks.registries</groupId>
+            <artifactId>jersey-shaded</artifactId>
+            <version>${schema.registry.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
             <version>${avro.version}</version>
@@ -246,12 +251,6 @@
             <artifactId>jettison</artifactId>
             <version>${jettison.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.glassfish.jersey.core</groupId>
-            <artifactId>jersey-client</artifactId>
-            <version>${jersey.version}</version>
-        </dependency>
-
         <!-- Test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
