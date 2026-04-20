@@ -27,11 +27,17 @@ RUN apt-get update -y && \
     pip3 install apache-ranger && \
     pip3 install requests
 
+# Ranger setup scripts expect this Ambari helper wrapper.
+RUN printf '%s\n' '#!/usr/bin/env sh' 'exec python3 "$@"' > /usr/local/bin/ambari-python-wrap && \
+    chmod +x /usr/local/bin/ambari-python-wrap
+
 # Set environment variables
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 ENV RANGER_DIST=/home/ranger/dist
 ENV RANGER_SCRIPTS=/home/ranger/scripts
 ENV RANGER_HOME=/opt/ranger
+# Hadoop credential tooling (buildks / JCEKS) logs DEBUG noise if unset; any existing dir is enough.
+ENV HADOOP_HOME=/opt/ranger/usersync
 ENV PATH=/usr/java/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # RUN update-java-alternatives --set java-1.11.0-openjdk-amd64
@@ -65,13 +71,16 @@ ENTRYPOINT [ "/bin/bash" ]
 FROM ranger-base AS ranger
 
 ARG RANGER_ADMIN_TAR=ranger-2.5.0.3.3.6.2-1-admin.tar.gz
+ARG RANGER_USERSYNC_TAR=ranger-2.5.0.3.3.6.2-1-usersync.tar.gz
 
 COPY ranger-xstore-build/dockerfile/scripts/ranger.sh ${RANGER_SCRIPTS}/
 COPY ranger-xstore-build/dockerfile/scripts/ranger-admin-install.properties ${RANGER_SCRIPTS}/ranger-admin-install.properties
+COPY dev-support/ranger-docker/scripts/ranger-usersync-install.properties ${RANGER_SCRIPTS}/ranger-usersync-install.properties
 COPY ranger-xstore-build/dockerfile/scripts/create-ranger-services.py ${RANGER_SCRIPTS}/
 
 # Copy Ranger admin distro from build context (no network download)
 COPY target/${RANGER_ADMIN_TAR} /home/ranger/dist/ranger-admin.tar.gz
+COPY target/${RANGER_USERSYNC_TAR} /home/ranger/dist/ranger-usersync.tar.gz
 
 RUN chmod +x ${RANGER_SCRIPTS}/*.sh ${RANGER_SCRIPTS}/*.py
 
@@ -79,12 +88,26 @@ RUN set -eux; \
     RANGER_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-admin.tar.gz | head -1 | cut -d/ -f1)"; \
     tar xvfz /home/ranger/dist/ranger-admin.tar.gz --directory="${RANGER_HOME}"; \
     ln -s "${RANGER_HOME}/${RANGER_TOP_DIR}" "${RANGER_HOME}/admin"; \
+    USERSYNC_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-usersync.tar.gz | head -1 | cut -d/ -f1)"; \
+    tar xvfz /home/ranger/dist/ranger-usersync.tar.gz --directory="${RANGER_HOME}"; \
+    ln -s "${RANGER_HOME}/${USERSYNC_TOP_DIR}" "${RANGER_HOME}/usersync"; \
     echo "${RANGER_TOP_DIR}" | sed -e 's/^ranger-//' -e 's/-admin$//' > /home/ranger/dist/version; \
     rm -f /home/ranger/dist/ranger-admin.tar.gz; \
+    rm -f /home/ranger/dist/ranger-usersync.tar.gz; \
     cp -f ${RANGER_SCRIPTS}/ranger-admin-install.properties ${RANGER_HOME}/admin/install.properties; \
+    cp -f ${RANGER_SCRIPTS}/ranger-usersync-install.properties ${RANGER_HOME}/usersync/install.properties; \
     mkdir -p /var/run/ranger; \
     mkdir -p /var/log/ranger; \
-    chown -R ranger:ranger ${RANGER_HOME}/admin/ ${RANGER_SCRIPTS}/ /var/run/ranger/ /var/log/ranger/; \
+    mkdir -p /var/log/ranger/usersync; \
+    mkdir -p /etc/ranger; \
+    touch /etc/init.d/ranger-usersync; \
+    ln -s /etc/init.d/ranger-usersync /etc/rc2.d/S99ranger-usersync; \
+    ln -s /etc/init.d/ranger-usersync /etc/rc2.d/K00ranger-usersync; \
+    ln -s /etc/init.d/ranger-usersync /etc/rc3.d/S99ranger-usersync; \
+    ln -s /etc/init.d/ranger-usersync /etc/rc3.d/K00ranger-usersync; \
+    ln -s ${RANGER_HOME}/usersync/ranger-usersync-services.sh /usr/bin/ranger-usersync; \
+    ln -s /usr/bin/python3 /usr/bin/python; \
+    chown -R ranger:ranger ${RANGER_HOME}/admin/ ${RANGER_HOME}/usersync/ ${RANGER_SCRIPTS}/ /var/run/ranger/ /var/log/ranger/ /etc/ranger /etc/init.d/ranger-usersync; \
     mkdir -p /usr/share/java/; \
     mkdir -p ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/
 

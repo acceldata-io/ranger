@@ -106,7 +106,7 @@ RUN echo "=== Creating stub directories for missing modules ===" && \
             echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "/ranger/$module/pom.xml" && \
             echo "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">" >> "/ranger/$module/pom.xml" && \
             echo "  <modelVersion>4.0.0</modelVersion>" >> "/ranger/$module/pom.xml" && \
-            echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ranger</artifactId><version>2.5.0.3.3.6.2-1</version></parent>" >> "/ranger/$module/pom.xml" && \
+            echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ranger</artifactId><version>2.5.0.3.3.6.2-102</version></parent>" >> "/ranger/$module/pom.xml" && \
             echo "  <artifactId>$module</artifactId>" >> "/ranger/$module/pom.xml" && \
             echo "  <packaging>pom</packaging>" >> "/ranger/$module/pom.xml" && \
             echo "</project>" >> "/ranger/$module/pom.xml"; \
@@ -118,7 +118,7 @@ RUN echo "=== Creating stub directories for missing modules ===" && \
         echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "/ranger/ugsync/pom.xml" && \
         echo "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">" >> "/ranger/ugsync/pom.xml" && \
         echo "  <modelVersion>4.0.0</modelVersion>" >> "/ranger/ugsync/pom.xml" && \
-        echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ranger</artifactId><version>2.5.0.3.3.6.2-1</version></parent>" >> "/ranger/ugsync/pom.xml" && \
+        echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ranger</artifactId><version>2.5.0.3.3.6.2-102</version></parent>" >> "/ranger/ugsync/pom.xml" && \
         echo "  <artifactId>ugsync</artifactId>" >> "/ranger/ugsync/pom.xml" && \
         echo "  <packaging>pom</packaging>" >> "/ranger/ugsync/pom.xml" && \
         echo "</project>" >> "/ranger/ugsync/pom.xml"; \
@@ -128,7 +128,7 @@ RUN echo "=== Creating stub directories for missing modules ===" && \
     echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
     echo "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
     echo "  <modelVersion>4.0.0</modelVersion>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
-    echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ugsync</artifactId><version>2.5.0.3.3.6.2-1</version><relativePath>../..</relativePath></parent>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
+    echo "  <parent><groupId>org.apache.ranger</groupId><artifactId>ugsync</artifactId><version>2.5.0.3.3.6.2-102</version><relativePath>../..</relativePath></parent>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
     echo "  <artifactId>ldapconfigcheck</artifactId>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
     echo "  <packaging>pom</packaging>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
     echo "</project>" >> "/ranger/ugsync/ldapconfigchecktool/ldapconfigcheck/pom.xml" && \
