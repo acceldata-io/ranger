@@ -24,25 +24,57 @@ if [[ ! -d "security-admin" ]]; then
   exit 1
 fi
 
-for bin in curl tar python3 docker; do
+IMAGE_ONLY=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --image-only)
+      IMAGE_ONLY=true
+      shift
+      ;;
+    -h | --help)
+      printf 'Usage: %s [--image-only]\n\n' "$(basename "$0")"
+      printf '%s\n' \
+        "  --image-only  Skip Maven install and package; use existing" \
+        "                target/ranger-*-admin.tar.gz and" \
+        "                target/ranger-*-usersync.tar.gz for the Docker build." \
+        "" \
+        "Environment: IMAGE_TAG, ECR_LOGIN, AWS_REGION, MAVEN_VERSION (default build only)."
+      exit 0
+      ;;
+    *)
+      echo "ERROR: Unknown option: $1" >&2
+      printf 'Run %s --help for usage.\n' "$(basename "$0")" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ "${IMAGE_ONLY}" == "true" ]]; then
+  required_bins=(docker)
+else
+  required_bins=(curl tar python3 docker)
+fi
+for bin in "${required_bins[@]}"; do
   if ! command -v "${bin}" >/dev/null 2>&1; then
     echo "ERROR: Missing required command: ${bin}"
     exit 1
   fi
 done
 
-MAVEN_VERSION="${MAVEN_VERSION:-3.9.6}"
-MAVEN_TAR="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
-MAVEN_URL="https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_TAR}"
-MAVEN_HOME="/tmp/apache-maven-${MAVEN_VERSION}"
+if [[ "${IMAGE_ONLY}" != "true" ]]; then
+  MAVEN_VERSION="${MAVEN_VERSION:-3.9.6}"
+  MAVEN_TAR="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+  MAVEN_URL="https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_TAR}"
+  MAVEN_HOME="/tmp/apache-maven-${MAVEN_VERSION}"
 
-if [[ ! -d "${MAVEN_HOME}" ]]; then
-  echo "Installing Maven ${MAVEN_VERSION}..."
-  curl -fsSL "${MAVEN_URL}" -o "/tmp/${MAVEN_TAR}"
-  tar -xzf "/tmp/${MAVEN_TAR}" -C /tmp
+  if [[ ! -d "${MAVEN_HOME}" ]]; then
+    echo "Installing Maven ${MAVEN_VERSION}..."
+    curl -fsSL "${MAVEN_URL}" -o "/tmp/${MAVEN_TAR}"
+    tar -xzf "/tmp/${MAVEN_TAR}" -C /tmp
+  fi
+
+  export PATH="${MAVEN_HOME}/bin:${PATH}"
 fi
-
-export PATH="${MAVEN_HOME}/bin:${PATH}"
 
 ECR_LOGIN="${ECR_LOGIN:-true}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
@@ -68,12 +100,21 @@ ecr_login() {
   return 1
 }
 
-echo "Building Ranger distro with Maven..."
-mvn clean -DskipTests -DskipDocs -Dpython.command.invoker=python3 -pl distro -am package
+if [[ "${IMAGE_ONLY}" == "true" ]]; then
+  echo "Skipping Maven (--image-only); using existing distro tars under target/."
+else
+  echo "Building Ranger distro with Maven..."
+  mvn clean -DskipTests -DskipDocs -Dpython.command.invoker=python3 -pl distro -am package
+fi
 
 ADMIN_TAR_PATH="$(ls -t target/ranger-*-admin.tar.gz 2>/dev/null | head -1 || true)"
 if [[ -z "${ADMIN_TAR_PATH}" || ! -f "${ADMIN_TAR_PATH}" ]]; then
   echo "ERROR: Ranger admin tar not found in target."
+  exit 1
+fi
+USERSYNC_TAR_PATH="$(ls -t target/ranger-*-usersync.tar.gz 2>/dev/null | head -1 || true)"
+if [[ -z "${USERSYNC_TAR_PATH}" || ! -f "${USERSYNC_TAR_PATH}" ]]; then
+  echo "ERROR: Ranger usersync tar not found in target."
   exit 1
 fi
 
@@ -84,6 +125,7 @@ if [[ ! -d "${RANGER_DOCKER_DIR}" ]]; then
 fi
 
 ADMIN_TAR_NAME="$(basename "${ADMIN_TAR_PATH}")"
+USERSYNC_TAR_NAME="$(basename "${USERSYNC_TAR_PATH}")"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 LOCAL_IMAGE="ranger-admin-xstore:${IMAGE_TAG}"
 
@@ -91,6 +133,7 @@ echo "Building Ranger docker image..."
 docker build \
   -f "${RANGER_DOCKER_DIR}/Dockerfile" \
   --build-arg "RANGER_ADMIN_TAR=${ADMIN_TAR_NAME}" \
+  --build-arg "RANGER_USERSYNC_TAR=${USERSYNC_TAR_NAME}" \
   -t "${LOCAL_IMAGE}" \
   "${SCRIPT_DIR}"
 

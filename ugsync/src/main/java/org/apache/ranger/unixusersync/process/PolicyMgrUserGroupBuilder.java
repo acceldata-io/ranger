@@ -38,7 +38,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.NewCookie;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
@@ -397,10 +396,10 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 	}
 
 	private void buildUserGroupInfo() throws Throwable {
-		if(LOG.isDebugEnabled() && authenticationType != null && AUTH_KERBEROS.equalsIgnoreCase(authenticationType) && SecureClientLogin.isKerberosCredentialExists(principal, keytab)) {
+		if(LOG.isDebugEnabled() && AUTH_KERBEROS.equalsIgnoreCase(authenticationType) && SecureClientLogin.isKerberosCredentialExists(principal, keytab)) {
 			LOG.debug(String.format("==> Kerberos Environment : Principal is %s and Keytab is %s", principal, keytab));
 		}
-		if (authenticationType != null && AUTH_KERBEROS.equalsIgnoreCase(authenticationType) && SecureClientLogin.isKerberosCredentialExists(principal, keytab)) {
+		if (AUTH_KERBEROS.equalsIgnoreCase(authenticationType) && SecureClientLogin.isKerberosCredentialExists(principal, keytab)) {
 			LOG.info(String.format("Using principal: %s and keytab: %s", principal, keytab));
 			Subject sub = SecureClientLogin.loginUserFromKeytab(principal, keytab, nameRules);
 			Boolean isInitDone = Subject.doAs(sub, new PrivilegedAction<Boolean>() {
@@ -1725,9 +1724,10 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 			if (StringUtils.isNotEmpty(groupDN) && !sourceGroups.containsKey(groupDN)
 					&& StringUtils.equalsIgnoreCase(groupOtherAttrs.get(UgsyncCommonConstants.SYNC_SOURCE), currentSyncSource)
 					&& StringUtils.equalsIgnoreCase(groupOtherAttrs.get(UgsyncCommonConstants.LDAP_URL), ldapUrl)) {
-				if (ISHIDDEN.equals(groupInfo.getIsVisible())) {
-				groupInfo.setIsVisible(ISHIDDEN);
-				deletedGroups.put(groupInfo.getName(), groupInfo);
+				if (!ISHIDDEN.equals(groupInfo.getIsVisible())) {
+					groupInfo.setIsVisible(ISHIDDEN);
+					deletedGroups.put(groupInfo.getName(), groupInfo);
+					LOG.info("group " + groupInfo.getName() + " marked for delete ");
 				} else {
 					LOG.info("group " + groupInfo.getName() + " already marked for delete ");
 				}

@@ -10,6 +10,7 @@
 winpkg/target
 .DS_Store
 .idea
+.envrc
 
 #Python
 *.pyc
@@ -19,3 +20,4 @@ winpkg/target
 .python-version
 /security-admin/src/main/webapp/react-webapp/node_modules
 **/target
+.factorypath
