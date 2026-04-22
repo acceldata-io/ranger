@@ -29,10 +29,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -83,8 +86,9 @@ public class RangerRMSMappingRefresher implements Runnable {
         this.downloadIntervalMs = Math.max(MIN_DOWNLOAD_INTERVAL_MS,
             config.getLong(propertyPrefix + ".mapping.source.download.interval", DEFAULT_DOWNLOAD_INTERVAL_MS));
 
-        this.cacheDir = config.get(propertyPrefix + ".mapping.cache.dir",
-            "/var/lib/ranger/" + serviceName + "/policy-cache");
+        String defaultCacheDir = config.get(propertyPrefix + ".policy.cache.dir",
+            "/etc/ranger/" + serviceName + "/policycache");
+        this.cacheDir = config.get(propertyPrefix + ".mapping.cache.dir", defaultCacheDir);
 
         this.cacheFile = cacheDir + File.separator + serviceName + "_" + hlServiceName + MAPPING_FILE_SUFFIX;
 
@@ -152,6 +156,8 @@ public class RangerRMSMappingRefresher implements Runnable {
 
     /**
      * Download mappings from RMS.
+     * Passes lastKnownVersion so the server can return 304 (no changes)
+     * or a full/delta response. Only updates cache when version changes.
      */
     private void downloadMappings() {
         LOG.debug("==> downloadMappings(serviceName={}, lastKnownVersion={})", serviceName, lastKnownVersion);
@@ -165,12 +171,14 @@ public class RangerRMSMappingRefresher implements Runnable {
         try {
             ServiceRMSMappings mappings = fetchMappingsFromRMS();
 
-            if (mappings != null) {
+            if (mappings == null) {
+                LOG.debug("No mappings returned (304 Not Modified or null): serviceName={}", serviceName);
+            } else {
                 Long newVersion = mappings.getMappingVersion();
 
                 if (newVersion != null && !newVersion.equals(lastKnownVersion)) {
-                    LOG.info("New mappings received: serviceName={}, version={} -> {}",
-                             serviceName, lastKnownVersion, newVersion);
+                    LOG.info("New mappings received: serviceName={}, version={} -> {}, isDelta={}",
+                             serviceName, lastKnownVersion, newVersion, mappings.getIsDelta());
 
                     chainedPlugin.updateMappings(mappings);
                     saveToCache(mappings);
@@ -225,7 +233,7 @@ public class RangerRMSMappingRefresher implements Runnable {
         try {
             File file = new File(cacheFile);
             if (file.exists() && file.canRead()) {
-                try (Reader reader = new FileReader(file)) {
+                try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
                     ServiceRMSMappings mappings = gson.fromJson(reader, ServiceRMSMappings.class);
 
                     if (mappings != null) {
@@ -267,9 +275,18 @@ public class RangerRMSMappingRefresher implements Runnable {
                 }
             }
 
-            File file = new File(cacheFile);
-            try (Writer writer = new FileWriter(file)) {
+            File tmpFile = new File(cacheFile + ".tmp");
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(tmpFile), StandardCharsets.UTF_8)) {
                 gson.toJson(mappings, writer);
+            }
+
+            File targetFile = new File(cacheFile);
+            if (targetFile.exists()) {
+                targetFile.delete();
+            }
+            if (!tmpFile.renameTo(targetFile)) {
+                LOG.error("Failed to rename tmp cache file {} to {}", tmpFile.getAbsolutePath(), targetFile.getAbsolutePath());
+            } else {
                 LOG.info("Saved RMS mappings to cache: version={}", mappings.getMappingVersion());
             }
         } catch (Exception e) {

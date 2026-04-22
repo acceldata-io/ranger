@@ -22,11 +22,11 @@ xmlns:security="http://www.springframework.org/schema/security"
 xmlns:util="http://www.springframework.org/schema/util"
 xmlns:oauth="http://www.springframework.org/schema/security/oauth2"
 xsi:schemaLocation="http://www.springframework.org/schema/beans
-http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+http://www.springframework.org/schema/beans/spring-beans.xsd
 http://www.springframework.org/schema/security
-http://www.springframework.org/schema/security/spring-security-5.7.xsd
+http://www.springframework.org/schema/security/spring-security.xsd
 http://www.springframework.org/schema/util
-http://www.springframework.org/schema/util/spring-util-4.3.xsd
+http://www.springframework.org/schema/util/spring-util.xsd
 http://www.springframework.org/schema/security/oauth2
 http://www.springframework.org/schema/security/spring-security-oauth2-2.0.xsd">
 
@@ -44,6 +44,7 @@ http://www.springframework.org/schema/security/spring-security-oauth2-2.0.xsd">
 	<security:http pattern="/service/assets/resources/grant" security="none"/>
 	<security:http pattern="/service/assets/resources/revoke" security="none"/>
 	<security:http pattern="/service/gds/download/*" security="none"/>
+	<security:http pattern="/service/rms/mappings/download/*" security="none"/>
 	<security:http pattern="/service/plugins/policies/download/*" security="none"/>
 	<security:http pattern="/service/plugins/services/grant/*" security="none"/>
 	<security:http pattern="/service/plugins/services/revoke/*" security="none"/>

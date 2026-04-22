@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * It can be used with RAZ-like architectures or standalone S3 authorization interceptors.
  *
  * This plugin supports:
- * 1. Direct S3 policy evaluation (cm_s3 service)
+ * 1. Direct S3 policy evaluation
  * 2. Chained Hive policy evaluation via RMS for Hive-S3 ACL sync
  */
 public class RangerS3Plugin extends RangerBasePlugin {

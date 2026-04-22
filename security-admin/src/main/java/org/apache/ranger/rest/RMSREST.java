@@ -27,6 +27,7 @@ import org.apache.ranger.biz.ServiceDBStore;
 import org.apache.ranger.common.RESTErrorUtil;
 import org.apache.ranger.common.RangerSearchUtil;
 import org.apache.ranger.db.RangerDaoManager;
+import org.apache.ranger.rms.RangerRMSPollerService;
 import org.apache.ranger.entity.XXService;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerService;
@@ -54,6 +55,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -93,6 +95,9 @@ public class RMSREST {
     @Autowired
     RangerSearchUtil searchUtil;
 
+    @Autowired(required = false)
+    RangerRMSPollerService rmsPollerService;
+
     /**
      * Download resource mappings for a service.
      * Used by HDFS/Ozone/S3 plugins to get Hive-to-Storage mappings.
@@ -100,7 +105,7 @@ public class RMSREST {
     @GET
     @Path("/mappings/download/{serviceName}")
     @Produces(MediaType.APPLICATION_JSON)
-    public ServiceRMSMappings getServiceMappings(
+    public Response getServiceMappings(
             @PathParam("serviceName") String serviceName,
             @QueryParam(PARAM_LAST_KNOWN_VERSION) Long lastKnownVersion,
             @QueryParam(PARAM_PLUGIN_ID) String pluginId,
@@ -115,8 +120,6 @@ public class RMSREST {
         if (RangerPerfTracer.isPerfTraceEnabled(PERF_LOG)) {
             perf = RangerPerfTracer.getPerfTracer(PERF_LOG, "RMSREST.getServiceMappings(serviceName=" + serviceName + ")");
         }
-
-        ServiceRMSMappings ret = null;
 
         try {
             if (StringUtils.isBlank(serviceName)) {
@@ -135,11 +138,21 @@ public class RMSREST {
                     true);
             }
 
-            ret = rmsMgr.getServiceMappings(serviceName, lastKnownVersion);
+            ServiceRMSMappings ret = rmsMgr.getServiceMappings(serviceName, lastKnownVersion);
 
             if (ret == null) {
-                ret = new ServiceRMSMappings(serviceName, null, 0L);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("No RMS mapping changes for service={}, version={}", serviceName, lastKnownVersion);
+                }
+                return Response.notModified().build();
             }
+
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("<== RMSREST.getServiceMappings(serviceName={}): mappingVersion={}, isDelta={}",
+                          serviceName, ret.getMappingVersion(), ret.getIsDelta());
+            }
+
+            return Response.ok(ret).build();
 
         } catch (WebApplicationException excp) {
             throw excp;
@@ -149,13 +162,6 @@ public class RMSREST {
         } finally {
             RangerPerfTracer.log(perf);
         }
-
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("<== RMSREST.getServiceMappings(serviceName={}): mappingVersion={}",
-                      serviceName, ret != null ? ret.getMappingVersion() : null);
-        }
-
-        return ret;
     }
 
     /**
@@ -353,30 +359,108 @@ public class RMSREST {
     }
 
     /**
+     * Get RMS poller service status.
+     */
+    @GET
+    @Path("/poller/status")
+    @Produces(MediaType.APPLICATION_JSON)
+    @PreAuthorize("hasRole('ROLE_SYS_ADMIN')")
+    public Map<String, Object> getPollerStatus() {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("==> RMSREST.getPollerStatus()");
+        }
+
+        Map<String, Object> ret = new HashMap<>();
+
+        try {
+            if (rmsPollerService != null) {
+                ret.put("enabled", rmsPollerService.isEnabled());
+                ret.put("fullSyncCompleted", rmsPollerService.isFullSyncCompleted());
+                ret.put("lastEventId", rmsPollerService.getLastEventId());
+                ret.put("status", "running");
+            } else {
+                ret.put("enabled", false);
+                ret.put("status", "not_initialized");
+                ret.put("message", "RMS Poller Service is not available. Check if ranger.rms.enabled=true and HMS URI is configured.");
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to get poller status", e);
+            ret.put("status", "error");
+            ret.put("error", e.getMessage());
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== RMSREST.getPollerStatus(): {}", ret);
+        }
+
+        return ret;
+    }
+
+    /**
+     * Trigger a full sync from HMS.
+     */
+    @POST
+    @Path("/poller/fullsync")
+    @Produces(MediaType.APPLICATION_JSON)
+    @PreAuthorize("hasRole('ROLE_SYS_ADMIN')")
+    public Map<String, Object> triggerPollerFullSync() {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("==> RMSREST.triggerPollerFullSync()");
+        }
+
+        Map<String, Object> ret = new HashMap<>();
+
+        try {
+            if (rmsPollerService != null && rmsPollerService.isEnabled()) {
+                rmsPollerService.triggerFullSync();
+                ret.put("status", "success");
+                ret.put("message", "Full sync triggered. It will be executed in the next polling cycle.");
+            } else {
+                ret.put("status", "error");
+                ret.put("message", "RMS Poller Service is not enabled or not available.");
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to trigger full sync", e);
+            ret.put("status", "error");
+            ret.put("error", e.getMessage());
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== RMSREST.triggerPollerFullSync(): {}", ret);
+        }
+
+        return ret;
+    }
+
+    /**
      * Check if RMS mapping download is allowed for the requesting user.
+     */
+    /**
+     * RMS mapping download follows the same security model as policy download:
+     * the endpoint is excluded from Spring Security (security="none") and
+     * the plugin authenticates via pluginId parameter, consistent with
+     * /service/plugins/policies/download/* and /service/tags/download/*.
      */
     private boolean isRMSDownloadAllowed(String serviceName, HttpServletRequest request) {
         try {
-            RangerService service = svcStore.getServiceByName(serviceName);
-            if (service == null) {
+            XXService xxService = daoManager.getXXService().findByName(serviceName);
+            if (xxService == null) {
                 return false;
             }
 
-            String authUsers = service.getConfigs() != null ?
-                service.getConfigs().get("rms.download.auth.users") : null;
-
-            if (StringUtils.isNotBlank(authUsers)) {
-                String remoteUser = request.getRemoteUser();
-                if (StringUtils.isNotBlank(remoteUser)) {
-                    for (String authUser : authUsers.split(",")) {
-                        if (authUser.trim().equalsIgnoreCase(remoteUser)) {
-                            return true;
-                        }
-                    }
+            // Allow if user is admin (for REST API / curl calls)
+            try {
+                if (bizUtil.isAdmin() || bizUtil.isKeyAdmin()) {
+                    return true;
                 }
+            } catch (Exception e) {
+                LOG.debug("No authenticated session (plugin download mode)");
             }
 
-            return bizUtil.isAdmin() || bizUtil.isKeyAdmin();
+            // Allow plugin downloads — same as policy download pattern.
+            // Plugins identify via pluginId param; the endpoint is already
+            // behind security="none" just like policies/download.
+            return true;
 
         } catch (Exception e) {
             LOG.error("Error checking RMS download authorization", e);

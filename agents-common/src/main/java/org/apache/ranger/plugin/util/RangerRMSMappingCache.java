@@ -33,7 +33,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * RangerRMSMappingCache caches RMS mappings and provides lookup functionality.
@@ -46,9 +46,28 @@ public class RangerRMSMappingCache {
     private final String serviceName;
     private final String hlServiceName;
     private volatile Long mappingVersion;
-    private final Map<String, RangerServiceResource> resourcesByGuid = new ConcurrentHashMap<>();
-    private final Map<String, List<MappingEntry>> mappingsByLlPath = new ConcurrentHashMap<>();
-    private final Map<String, MappingEntry> mappingsByHlResource = new ConcurrentHashMap<>();
+
+    private static class CacheSnapshot {
+        final Map<String, RangerServiceResource> resourcesByGuid;
+        final Map<String, List<MappingEntry>> mappingsByLlPath;
+        final Map<String, MappingEntry> mappingsByHlResource;
+
+        CacheSnapshot() {
+            this.resourcesByGuid = Collections.emptyMap();
+            this.mappingsByLlPath = Collections.emptyMap();
+            this.mappingsByHlResource = Collections.emptyMap();
+        }
+
+        CacheSnapshot(Map<String, RangerServiceResource> resourcesByGuid,
+                       Map<String, List<MappingEntry>> mappingsByLlPath,
+                       Map<String, MappingEntry> mappingsByHlResource) {
+            this.resourcesByGuid = Collections.unmodifiableMap(resourcesByGuid);
+            this.mappingsByLlPath = Collections.unmodifiableMap(mappingsByLlPath);
+            this.mappingsByHlResource = Collections.unmodifiableMap(mappingsByHlResource);
+        }
+    }
+
+    private final AtomicReference<CacheSnapshot> snapshot = new AtomicReference<>(new CacheSnapshot());
 
     public RangerRMSMappingCache(String serviceName) {
         this.serviceName = serviceName;
@@ -57,36 +76,101 @@ public class RangerRMSMappingCache {
     }
 
     /**
-     * Update the cache with new mappings.
+     * Update the cache atomically with new mappings (copy-on-write).
+     * Supports both full replacement (isDelta=false) and incremental merge (isDelta=true).
      */
-    public synchronized void update(ServiceRMSMappings rmsMappings) {
+    public void update(ServiceRMSMappings rmsMappings) {
         if (rmsMappings == null) {
             return;
         }
 
-        LOG.debug("==> RangerRMSMappingCache.update(mappingVersion={})", rmsMappings.getMappingVersion());
+        if (Boolean.TRUE.equals(rmsMappings.getIsDelta())) {
+            applyDelta(rmsMappings);
+        } else {
+            applyFull(rmsMappings);
+        }
+    }
 
-        resourcesByGuid.clear();
-        mappingsByLlPath.clear();
-        mappingsByHlResource.clear();
+    private void applyFull(ServiceRMSMappings rmsMappings) {
+        LOG.debug("==> applyFull(mappingVersion={})", rmsMappings.getMappingVersion());
+
+        Map<String, RangerServiceResource> newResources = new HashMap<>();
+        Map<String, List<MappingEntry>> newPathMappings = new HashMap<>();
+        Map<String, MappingEntry> newHlMappings = new HashMap<>();
 
         if (MapUtils.isNotEmpty(rmsMappings.getServiceResources())) {
-            resourcesByGuid.putAll(rmsMappings.getServiceResources());
+            newResources.putAll(rmsMappings.getServiceResources());
         }
 
         if (CollectionUtils.isNotEmpty(rmsMappings.getResourceMappings())) {
             for (RMSResourceMapping mapping : rmsMappings.getResourceMappings()) {
-                processMapping(mapping);
+                processMapping(mapping, newResources, newPathMappings, newHlMappings);
             }
         }
 
-        this.mappingVersion = rmsMappings.getMappingVersion();
+        snapshot.set(new CacheSnapshot(newResources, newPathMappings, newHlMappings));
+        this.mappingVersion = rmsMappings.getMappingVersion() != null ? rmsMappings.getMappingVersion() : 0L;
 
-        LOG.debug("<== RangerRMSMappingCache.update(): resourceCount={}, mappingCount={}",
-                  resourcesByGuid.size(), mappingsByLlPath.size());
+        LOG.info("RangerRMSMappingCache full update: resourceCount={}, mappingCount={}, version={}",
+                 newResources.size(), newPathMappings.size(), mappingVersion);
     }
 
-    private void processMapping(RMSResourceMapping mapping) {
+    private void applyDelta(ServiceRMSMappings rmsMappings) {
+        LOG.debug("==> applyDelta(mappingVersion={})", rmsMappings.getMappingVersion());
+
+        CacheSnapshot current = snapshot.get();
+
+        Map<String, RangerServiceResource> mergedResources = new HashMap<>(current.resourcesByGuid);
+        Map<String, List<MappingEntry>> mergedPathMappings = new HashMap<>();
+        Map<String, MappingEntry> mergedHlMappings = new HashMap<>(current.mappingsByHlResource);
+
+        for (Map.Entry<String, List<MappingEntry>> entry : current.mappingsByLlPath.entrySet()) {
+            mergedPathMappings.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        }
+
+        // Remove deleted resources
+        List<String> removedGuids = rmsMappings.getRemovedResourceGuids();
+        if (CollectionUtils.isNotEmpty(removedGuids)) {
+            for (String removedGuid : removedGuids) {
+                RangerServiceResource removedResource = mergedResources.remove(removedGuid);
+                if (removedResource != null) {
+                    String path = extractPath(removedResource);
+                    if (StringUtils.isNotBlank(path)) {
+                        String normalizedPath = normalizePathForLookup(path);
+                        mergedPathMappings.remove(normalizedPath);
+                    }
+                }
+            }
+            // Clean up HL mappings that reference removed LL resources
+            mergedHlMappings.entrySet().removeIf(e ->
+                removedGuids.contains(e.getValue().getLlResource().getGuid()));
+        }
+
+        // Add new/updated resources and mappings
+        if (MapUtils.isNotEmpty(rmsMappings.getServiceResources())) {
+            mergedResources.putAll(rmsMappings.getServiceResources());
+        }
+
+        if (CollectionUtils.isNotEmpty(rmsMappings.getResourceMappings())) {
+            for (RMSResourceMapping mapping : rmsMappings.getResourceMappings()) {
+                processMapping(mapping, mergedResources, mergedPathMappings, mergedHlMappings);
+            }
+        }
+
+        snapshot.set(new CacheSnapshot(mergedResources, mergedPathMappings, mergedHlMappings));
+        this.mappingVersion = rmsMappings.getMappingVersion() != null ? rmsMappings.getMappingVersion() : 0L;
+
+        int addCount = rmsMappings.getResourceMappings() != null ? rmsMappings.getResourceMappings().size() : 0;
+        int removeCount = removedGuids != null ? removedGuids.size() : 0;
+
+        LOG.info("RangerRMSMappingCache delta update: +{} added, -{} removed, total mappings={}, version={}",
+                 addCount, removeCount, mergedPathMappings.size(), mappingVersion);
+    }
+
+    private void processMapping(RMSResourceMapping mapping,
+                                 Map<String, RangerServiceResource> resources,
+                                 Map<String, List<MappingEntry>> pathMappings,
+                                 Map<String, MappingEntry> hlMappings) {
         if (mapping == null) {
             return;
         }
@@ -98,8 +182,8 @@ public class RangerRMSMappingCache {
             return;
         }
 
-        RangerServiceResource hlResource = resourcesByGuid.get(hlGuid);
-        RangerServiceResource llResource = resourcesByGuid.get(llGuid);
+        RangerServiceResource hlResource = resources.get(hlGuid);
+        RangerServiceResource llResource = resources.get(llGuid);
 
         if (hlResource == null || llResource == null) {
             return;
@@ -112,11 +196,11 @@ public class RangerRMSMappingCache {
 
         MappingEntry entry = new MappingEntry(hlResource, llResource, mapping);
 
-        mappingsByLlPath.computeIfAbsent(normalizePathForLookup(llPath), k -> new ArrayList<>()).add(entry);
+        pathMappings.computeIfAbsent(normalizePathForLookup(llPath), k -> new ArrayList<>()).add(entry);
 
         String hlKey = buildHlResourceKey(hlResource);
         if (StringUtils.isNotBlank(hlKey)) {
-            mappingsByHlResource.put(hlKey, entry);
+            hlMappings.put(hlKey, entry);
         }
     }
 
@@ -130,33 +214,31 @@ public class RangerRMSMappingCache {
 
         LOG.debug("==> findMappingForPath({})", path);
 
+        CacheSnapshot current = snapshot.get();
         String normalizedPath = normalizePathForLookup(path);
         MappingEntry ret = null;
 
-        List<MappingEntry> exactMatches = mappingsByLlPath.get(normalizedPath);
+        List<MappingEntry> exactMatches = current.mappingsByLlPath.get(normalizedPath);
         if (CollectionUtils.isNotEmpty(exactMatches)) {
             ret = exactMatches.get(0);
         }
 
         if (ret == null) {
-            ret = findMappingForParentPath(normalizedPath);
+            ret = findMappingForParentPath(normalizedPath, current);
         }
 
         LOG.debug("<== findMappingForPath({}): found={}", path, ret != null);
         return ret;
     }
 
-    /**
-     * Find mapping by traversing parent paths.
-     */
-    private MappingEntry findMappingForParentPath(String path) {
+    private MappingEntry findMappingForParentPath(String path, CacheSnapshot current) {
         if (StringUtils.isBlank(path)) {
             return null;
         }
 
         String parentPath = getParentPath(path);
         while (StringUtils.isNotBlank(parentPath)) {
-            List<MappingEntry> matches = mappingsByLlPath.get(parentPath);
+            List<MappingEntry> matches = current.mappingsByLlPath.get(parentPath);
             if (CollectionUtils.isNotEmpty(matches)) {
                 for (MappingEntry entry : matches) {
                     if (entry.isRecursive()) {
@@ -192,7 +274,7 @@ public class RangerRMSMappingCache {
         }
 
         String key = buildHlResourceKey(databaseName, tableName);
-        return mappingsByHlResource.get(key);
+        return snapshot.get().mappingsByHlResource.get(key);
     }
 
     /**
@@ -265,7 +347,7 @@ public class RangerRMSMappingCache {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
 
-        return normalized.toLowerCase();
+        return normalized;
     }
 
     /**
@@ -322,7 +404,7 @@ public class RangerRMSMappingCache {
     }
 
     public int getMappingCount() {
-        return mappingsByLlPath.size();
+        return snapshot.get().mappingsByLlPath.size();
     }
 
     /**

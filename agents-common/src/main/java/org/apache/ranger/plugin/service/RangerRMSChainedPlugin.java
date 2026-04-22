@@ -21,6 +21,7 @@ package org.apache.ranger.plugin.service;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.ranger.admin.client.RangerAdminClient;
 import org.apache.ranger.authorization.hadoop.config.RangerChainedPluginConfig;
 import org.apache.ranger.authorization.hadoop.config.RangerPluginConfig;
 import org.apache.ranger.plugin.model.RangerPolicy;
@@ -31,6 +32,7 @@ import org.apache.ranger.plugin.policyengine.RangerAccessResult;
 import org.apache.ranger.plugin.policyengine.RangerResourceACLs;
 import org.apache.ranger.plugin.util.RangerRMSMappingCache;
 import org.apache.ranger.plugin.util.RangerRMSMappingCache.MappingEntry;
+import org.apache.ranger.plugin.util.RangerRMSMappingRefresher;
 import org.apache.ranger.plugin.util.ServiceRMSMappings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +66,11 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
     protected static final String STORAGE_ACCESS_TYPE_READ = "read";
     protected static final String STORAGE_ACCESS_TYPE_WRITE = "write";
     protected static final String STORAGE_ACCESS_TYPE_EXECUTE = "execute";
+    protected static final String STORAGE_ACCESS_TYPE_LIST = "list";
+    protected static final String STORAGE_ACCESS_TYPE_CREATE = "create";
+    protected static final String STORAGE_ACCESS_TYPE_DELETE = "delete";
+    protected static final String STORAGE_ACCESS_TYPE_READ_ACL = "read_acl";
+    protected static final String STORAGE_ACCESS_TYPE_WRITE_ACL = "write_acl";
 
     private final RangerRMSMappingCache mappingCache;
     private final boolean authorizeOnlyWithChainedPlugin;
@@ -71,6 +78,7 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
     private final Map<String, List<String>> dbAccessTypeMapping;
     private final Set<String> privilegedUsers;
     private final Set<String> serviceUsers;
+    private RangerRMSMappingRefresher mappingRefresher;
 
     protected RangerRMSChainedPlugin(RangerBasePlugin rootPlugin, String serviceType, String serviceName) {
         super(rootPlugin, serviceType, serviceName);
@@ -106,6 +114,19 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
         ret.put(STORAGE_ACCESS_TYPE_READ, parseAccessTypes(readMapping));
         ret.put(STORAGE_ACCESS_TYPE_WRITE, parseAccessTypes(writeMapping));
         ret.put(STORAGE_ACCESS_TYPE_EXECUTE, parseAccessTypes(executeMapping));
+
+        // Ozone/S3 extended access types
+        String listMapping = config.get(mappingPrefix + "list", HIVE_ACCESS_TYPE_SELECT);
+        String createMapping = config.get(mappingPrefix + "create", HIVE_ACCESS_TYPE_CREATE);
+        String deleteMapping = config.get(mappingPrefix + "delete", HIVE_ACCESS_TYPE_DROP);
+        String readAclMapping = config.get(mappingPrefix + "read_acl", HIVE_ACCESS_TYPE_SELECT);
+        String writeAclMapping = config.get(mappingPrefix + "write_acl", HIVE_ACCESS_TYPE_UPDATE);
+
+        ret.put(STORAGE_ACCESS_TYPE_LIST, parseAccessTypes(listMapping));
+        ret.put(STORAGE_ACCESS_TYPE_CREATE, parseAccessTypes(createMapping));
+        ret.put(STORAGE_ACCESS_TYPE_DELETE, parseAccessTypes(deleteMapping));
+        ret.put(STORAGE_ACCESS_TYPE_READ_ACL, parseAccessTypes(readAclMapping));
+        ret.put(STORAGE_ACCESS_TYPE_WRITE_ACL, parseAccessTypes(writeAclMapping));
 
         if (isDbLevel) {
             ret.put(STORAGE_ACCESS_TYPE_READ, parseAccessTypes(config.get(mappingPrefix + "read", HIVE_ACCESS_TYPE_ANY)));
@@ -146,6 +167,34 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
         RangerPluginConfig rootConfig = rootPlugin.getPluginContext().getConfig();
         RangerChainedPluginConfig chainedConfig = new RangerChainedPluginConfig(serviceType, serviceName, appId, rootConfig);
         return new RangerBasePlugin(chainedConfig);
+    }
+
+    @Override
+    public void init() {
+        LOG.info("==> RangerRMSChainedPlugin.init(serviceType={}, serviceName={})", serviceType, serviceName);
+
+        super.init();
+
+        try {
+            RangerAdminClient adminClient = RangerBasePlugin.createAdminClient(
+                plugin.getPluginContext().getConfig());
+            RangerPluginConfig config = rootPlugin.getPluginContext().getConfig();
+
+            mappingRefresher = new RangerRMSMappingRefresher(
+                this,
+                rootPlugin.getServiceName(),
+                serviceName,
+                adminClient,
+                config
+            );
+
+            mappingRefresher.startRefresher();
+            LOG.info("RMS Mapping Refresher started for service: {}", rootPlugin.getServiceName());
+        } catch (Exception e) {
+            LOG.error("Failed to start RMS Mapping Refresher", e);
+        }
+
+        LOG.info("<== RangerRMSChainedPlugin.init()");
     }
 
     @Override

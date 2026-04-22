@@ -45,6 +45,14 @@ public class XXRMSResourceMappingDao extends BaseDao<XXRMSResourceMapping> {
 		return getEntityManager().createNamedQuery("XXRMSResourceMapping.getResourceMapping").getResultList();
 	}
 
+	@SuppressWarnings("unchecked")
+	public List<Object[]> getResourceMappingsSinceVersion(Long sinceVersion) {
+		return getEntityManager()
+			.createNamedQuery("XXRMSResourceMapping.getResourceMappingsSinceVersion")
+			.setParameter("sinceVersion", sinceVersion)
+			.getResultList();
+	}
+
 	public void deleteByHlResourceId(Long resourceId) {
 		getEntityManager()
 			.createNamedQuery("XXRMSResourceMapping.deleteByHlResourceId")

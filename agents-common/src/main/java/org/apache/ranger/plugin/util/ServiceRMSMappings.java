@@ -45,6 +45,8 @@ public class ServiceRMSMappings implements Serializable {
     private String                        hlServiceName;
     private Long                          mappingVersion;
     private Long                          lastKnownVersion;
+    private Boolean                       isDelta;
+    private List<String>                  removedResourceGuids;
     private List<RMSResourceMapping>      resourceMappings;
     private Map<String, RangerServiceResource> serviceResources;
 
@@ -90,6 +92,29 @@ public class ServiceRMSMappings implements Serializable {
 
     public void setLastKnownVersion(Long lastKnownVersion) {
         this.lastKnownVersion = lastKnownVersion;
+    }
+
+    public Boolean getIsDelta() {
+        return isDelta;
+    }
+
+    public void setIsDelta(Boolean isDelta) {
+        this.isDelta = isDelta;
+    }
+
+    public List<String> getRemovedResourceGuids() {
+        return removedResourceGuids;
+    }
+
+    public void setRemovedResourceGuids(List<String> removedResourceGuids) {
+        this.removedResourceGuids = removedResourceGuids;
+    }
+
+    public void addRemovedResourceGuid(String guid) {
+        if (this.removedResourceGuids == null) {
+            this.removedResourceGuids = new ArrayList<>();
+        }
+        this.removedResourceGuids.add(guid);
     }
 
     public List<RMSResourceMapping> getResourceMappings() {

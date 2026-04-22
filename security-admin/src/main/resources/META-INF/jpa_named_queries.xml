@@ -2048,6 +2048,16 @@
 
 	<!-- RMS queries -->
 
+	<named-query name="XXRMSResourceMapping.getResourceMapping">
+		<query>SELECT obj.hlResourceId, obj.llResourceId FROM XXRMSResourceMapping obj
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSResourceMapping.getResourceMappingsSinceVersion">
+		<query>SELECT obj.hlResourceId, obj.llResourceId FROM XXRMSResourceMapping obj WHERE obj.mappingVersion &gt; :sinceVersion
+		</query>
+	</named-query>
+
 	<named-query name="XXRMSResourceMapping.deleteByHlResourceId">
 		<query>DELETE FROM XXRMSResourceMapping obj WHERE obj.hlResourceId = :resourceId
 		</query>

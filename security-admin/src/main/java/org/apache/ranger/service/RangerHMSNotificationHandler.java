@@ -62,10 +62,10 @@ import java.util.concurrent.TimeUnit;
 public class RangerHMSNotificationHandler {
     private static final Logger LOG = LoggerFactory.getLogger(RangerHMSNotificationHandler.class);
 
-    private static final String DEFAULT_HIVE_SERVICE_NAME = "cm_hive";
-    private static final String DEFAULT_HDFS_SERVICE_NAME = "cm_hdfs";
-    private static final String DEFAULT_OZONE_SERVICE_NAME = "cm_ozone";
-    private static final String DEFAULT_S3_SERVICE_NAME = "cm_s3";
+    private static final String DEFAULT_HIVE_SERVICE_NAME = "hive";
+    private static final String DEFAULT_HDFS_SERVICE_NAME = "hdfs";
+    private static final String DEFAULT_OZONE_SERVICE_NAME = "ozone";
+    private static final String DEFAULT_S3_SERVICE_NAME = "s3";
     private static final String DEFAULT_SUPPORTED_URI_SCHEMES = "hdfs,o3fs,ofs,s3a";
 
     private static final String HIVE_RESOURCE_DATABASE = "database";

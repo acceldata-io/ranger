@@ -36,8 +36,8 @@ import java.util.Map;
  * maps to a Hive table/database.
  *
  * Configuration:
- * - ranger.plugin.ozone.chained.services = cm_hive
- * - ranger.plugin.ozone.chained.services.cm_hive.impl = org.apache.ranger.chainedplugin.ozone.hive.RangerOzoneHiveChainedPlugin
+ * - ranger.plugin.ozone.chained.services = {hive_service_name}
+ * - ranger.plugin.ozone.chained.services.{hive_service_name}.impl = org.apache.ranger.chainedplugin.ozone.hive.RangerOzoneHiveChainedPlugin
  *
  * Access type mapping (Ozone -> Hive Table):
  * - read -> select

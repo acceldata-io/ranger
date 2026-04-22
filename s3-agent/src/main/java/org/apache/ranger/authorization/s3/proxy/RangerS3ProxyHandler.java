@@ -72,7 +72,7 @@ public class RangerS3ProxyHandler implements Filter {
 
         String serviceName = filterConfig.getInitParameter("ranger.service.name");
         if (StringUtils.isBlank(serviceName)) {
-            serviceName = "cm_s3";
+            serviceName = "s3";
         }
 
         this.authorizer = new RangerS3Authorizer(serviceName);

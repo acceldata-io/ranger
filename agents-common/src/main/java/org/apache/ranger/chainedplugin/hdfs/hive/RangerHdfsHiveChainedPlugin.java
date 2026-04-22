@@ -35,8 +35,8 @@ import java.util.Map;
  * maps to a Hive table/database.
  *
  * Configuration:
- * - ranger.plugin.hdfs.chained.services = cm_hive
- * - ranger.plugin.hdfs.chained.services.cm_hive.impl = org.apache.ranger.chainedplugin.hdfs.hive.RangerHdfsHiveChainedPlugin
+ * - ranger.plugin.hdfs.chained.services = {hive_service_name}
+ * - ranger.plugin.hdfs.chained.services.{hive_service_name}.impl = org.apache.ranger.chainedplugin.hdfs.hive.RangerHdfsHiveChainedPlugin
  *
  * Access type mapping (HDFS -> Hive):
  * - read -> select

@@ -1440,8 +1440,11 @@ public class RangerAdminRESTClient extends AbstractRangerAdminClient {
 			int statusCode = response.getStatus();
 			if (statusCode == HttpServletResponse.SC_OK) {
 				ret = JsonUtilsV2.readResponse(response, ServiceRMSMappings.class);
-			} else if (statusCode == HttpServletResponse.SC_NOT_MODIFIED) {
-				LOG.debug("No RMS mapping changes since last known version: {}", lastKnownVersion);
+			} else if (statusCode == HttpServletResponse.SC_NOT_MODIFIED
+					|| statusCode == HttpServletResponse.SC_NO_CONTENT) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("No RMS mapping changes since last known version: {} (status={})", lastKnownVersion, statusCode);
+				}
 			} else if (statusCode == HttpServletResponse.SC_NOT_FOUND) {
 				LOG.warn("RMS endpoint not found - RMS may not be enabled on Ranger Admin");
 			} else {

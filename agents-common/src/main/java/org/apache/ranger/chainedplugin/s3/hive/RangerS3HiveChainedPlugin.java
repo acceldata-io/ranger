@@ -38,8 +38,8 @@ import java.util.Map;
  * This plugin is designed to work with RAZ (Ranger Authorization Service) for AWS.
  *
  * Configuration:
- * - ranger.raz.service-type.s3.chained.services = cm_hive
- * - ranger.raz.service-type.s3.chained.services.cm_hive.impl = org.apache.ranger.chainedplugin.s3.hive.RangerS3HiveChainedPlugin
+ * - ranger.raz.service-type.s3.chained.services = {hive_service_name}
+ * - ranger.raz.service-type.s3.chained.services.{hive_service_name}.impl = org.apache.ranger.chainedplugin.s3.hive.RangerS3HiveChainedPlugin
  *
  * Access type mapping (S3 -> Hive):
  * - read -> select

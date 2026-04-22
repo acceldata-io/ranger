@@ -33,7 +33,7 @@ import java.util.*;
 
 /**
  * RangerS3RAZService provides a REST API for S3 authorization.
- * This is similar to Cloudera's RAZ (Ranger Authorization Service) architecture.
+ * This provides a RAZ (Ranger Authorization Service) architecture for S3.
  *
  * Integration points:
  * 1. S3 Proxy/Gateway can call this service before forwarding requests to S3
@@ -41,9 +41,9 @@ import java.util.*;
  * 3. Can be deployed as a sidecar service for S3-compatible storage
  *
  * Configuration:
- * - ranger.plugin.s3.service.name: S3 service name in Ranger (default: cm_s3)
- * - ranger.plugin.s3.chained.services: Chained services (e.g., cm_hive)
- * - ranger.plugin.s3.chained.services.cm_hive.impl: Hive chained plugin class
+ * - ranger.plugin.s3.service.name: S3 service name in Ranger
+ * - ranger.plugin.s3.chained.services: Chained services (e.g., {hive_service_name})
+ * - ranger.plugin.s3.chained.services.{hive_service_name}.impl: Hive chained plugin class
  */
 @Path("/s3/authz")
 public class RangerS3RAZService {
@@ -52,7 +52,7 @@ public class RangerS3RAZService {
     private final RangerS3Authorizer authorizer;
 
     public RangerS3RAZService() {
-        String serviceName = System.getProperty("ranger.plugin.s3.service.name", "cm_s3");
+        String serviceName = System.getProperty("ranger.plugin.s3.service.name", "s3");
         this.authorizer = new RangerS3Authorizer(serviceName);
         LOG.info("RangerS3RAZService initialized with service: {}", serviceName);
     }

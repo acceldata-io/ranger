@@ -33,8 +33,8 @@ import java.util.*;
  * RangerS3TokenService provides a REST API for obtaining time-limited,
  * scoped AWS credentials after Ranger authorization.
  *
- * This service implements a "token vending machine" pattern similar to
- * Cloudera RAZ (Ranger Authorization Service):
+ * This service implements a "token vending machine" pattern for
+ * Ranger Authorization Service (RAZ):
  *
  * 1. Client requests access to S3 path with their Kerberos/OAuth credentials
  * 2. Service performs Ranger authorization
