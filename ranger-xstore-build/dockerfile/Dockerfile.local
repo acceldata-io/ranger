@@ -1,13 +1,29 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 ######################################################################
 # Ranger Base image...
 ######################################################################
-FROM 191579300362.dkr.ecr.us-east-1.amazonaws.com/acceldata/internal/custom/amazoncorretto:1.0.1-1776333911444 AS ranger-base
+FROM ubuntu:22.04 AS ranger-base
 
-# Install Python, utilities (Java 11 already provided by base image)
+# Install tzdata, Python, Java 11, python-requests
 RUN apt-get update -y && \
     apt-get install curl -y && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata vim \
-    python3 python3-pip bc iputils-ping ssh pdsh xmlstarlet && \
+    python3 python3-pip openjdk-11-jdk bc iputils-ping ssh pdsh xmlstarlet && \
     pip3 install apache-ranger && \
     pip3 install requests
 
@@ -16,12 +32,15 @@ RUN printf '%s\n' '#!/usr/bin/env sh' 'exec python3 "$@"' > /usr/local/bin/ambar
     chmod +x /usr/local/bin/ambari-python-wrap
 
 # Set environment variables
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 ENV RANGER_DIST=/home/ranger/dist
 ENV RANGER_SCRIPTS=/home/ranger/scripts
 ENV RANGER_HOME=/opt/ranger
 # Hadoop credential tooling (buildks / JCEKS) logs DEBUG noise if unset; any existing dir is enough.
 ENV HADOOP_HOME=/opt/ranger/usersync
 ENV PATH=/usr/java/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# RUN update-java-alternatives --set java-1.11.0-openjdk-amd64
 
 # setup groups, users, directories
 RUN groupadd ranger && \
