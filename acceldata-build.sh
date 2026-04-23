@@ -47,7 +47,6 @@ FORCE_BUILD=false
 ECR_LOGIN=false
 AWS_REGION="us-east-1"
 
-# Reserved for future pipeline (e.g. alternate Dockerfile); build always uses Dockerfile today.
 USE_LOCAL_DOCKERFILE=false
 
 SKIP_UNIT_TESTS=false
@@ -126,7 +125,7 @@ OPTIONS:
     --force                       Rebuild Docker image even if the local tag already exists
     --ecr-login                   Log in to AWS ECR before build/push (requires aws CLI)
     --aws-region REGION           AWS region for ECR login (default: us-east-1)
-    --local-image                 Reserved for pipeline use; image build still uses Dockerfile (for now)
+    --local-image                 Use Dockerfile.local (installs Java/deps from scratch) instead of the default Dockerfile (ECR base image)
     --save-image-tar              Save the built image as a gzip-compressed tar under --output-dir
     --save-dist-tar               Copy the Ranger admin distribution tar to --output-dir
     --output-dir DIR              Output directory for tar artifacts (default: ./artifacts)
@@ -405,8 +404,12 @@ build_image() {
     usersync_tar_name="$(basename "${USERSYNC_TAR_PATH}")"
     local local_image="${LOCAL_IMAGE_BASENAME}:${TAG}"
 
-    # Same Dockerfile path as build_ranger_for_xstore.sh (not configurable yet).
-    local dockerfile_path="${RANGER_DOCKER_DIR}/Dockerfile"
+    local dockerfile_path
+    if [[ "${USE_LOCAL_DOCKERFILE}" == "true" ]]; then
+        dockerfile_path="${RANGER_DOCKER_DIR}/Dockerfile.local"
+    else
+        dockerfile_path="${RANGER_DOCKER_DIR}/Dockerfile"
+    fi
 
     log_info "Building Docker image for platform: ${PLATFORM}"
 
