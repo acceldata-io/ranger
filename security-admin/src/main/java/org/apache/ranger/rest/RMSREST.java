@@ -30,7 +30,6 @@ import org.apache.ranger.db.RangerDaoManager;
 import org.apache.ranger.rms.RangerRMSPollerService;
 import org.apache.ranger.entity.XXService;
 import org.apache.ranger.plugin.model.RangerPolicy;
-import org.apache.ranger.plugin.model.RangerService;
 import org.apache.ranger.plugin.util.RangerPerfTracer;
 import org.apache.ranger.plugin.util.ServiceRMSMappings;
 import org.slf4j.Logger;
@@ -131,7 +130,7 @@ public class RMSREST {
                 throw restErrorUtil.createRESTException("Service not found: " + serviceName);
             }
 
-            if (!isRMSDownloadAllowed(serviceName, request)) {
+            if (!isRMSDownloadAllowed(serviceName)) {
                 throw restErrorUtil.createRESTException(
                     HttpServletResponse.SC_FORBIDDEN,
                     "User is not authorized to download RMS mappings for service: " + serviceName,
@@ -441,7 +440,7 @@ public class RMSREST {
      * the plugin authenticates via pluginId parameter, consistent with
      * /service/plugins/policies/download/* and /service/tags/download/*.
      */
-    private boolean isRMSDownloadAllowed(String serviceName, HttpServletRequest request) {
+    private boolean isRMSDownloadAllowed(String serviceName) {
         try {
             XXService xxService = daoManager.getXXService().findByName(serviceName);
             if (xxService == null) {
