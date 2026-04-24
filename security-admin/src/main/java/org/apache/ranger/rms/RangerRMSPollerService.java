@@ -84,6 +84,12 @@ public class RangerRMSPollerService {
     private static final String CONFIG_HMS_SSL_ENABLED = "ranger.rms.hms.ssl.enabled";
     private static final String CONFIG_HMS_TRUSTSTORE_PATH = "ranger.rms.hms.ssl.truststore.path";
     private static final String CONFIG_HMS_TRUSTSTORE_PASSWORD = "ranger.rms.hms.ssl.truststore.password";
+    // Client-side principal/keytab the RMS poller logs in as when SASL is enabled.
+    // Falls back to ranger.admin.kerberos.* if not specified.
+    private static final String CONFIG_HMS_CLIENT_PRINCIPAL = "ranger.rms.hms.kerberos.client.principal";
+    private static final String CONFIG_HMS_CLIENT_KEYTAB = "ranger.rms.hms.kerberos.client.keytab";
+    private static final String CONFIG_RANGER_ADMIN_PRINCIPAL = "ranger.admin.kerberos.principal";
+    private static final String CONFIG_RANGER_ADMIN_KEYTAB = "ranger.admin.kerberos.keytab";
 
     private static final String DEFAULT_HIVE_SERVICE_NAME = "hive";
     private static final String DEFAULT_HDFS_SERVICE_NAME = "hdfs";
@@ -124,9 +130,12 @@ public class RangerRMSPollerService {
     private boolean initialFullSync;
     private boolean hmsSaslEnabled;
     private String hmsKerberosPrincipal;
+    private String hmsClientPrincipal;
+    private String hmsClientKeytab;
     private boolean hmsSslEnabled;
     private String hmsTruststorePath;
     private String hmsTruststorePassword;
+    private boolean kerberosLoginAttempted = false;
 
     private ScheduledExecutorService scheduler;
     private HMSClientWrapper hmsClient;
@@ -153,6 +162,8 @@ public class RangerRMSPollerService {
         LOG.info("  initialFullSync: {}", initialFullSync);
         LOG.info("  hmsSaslEnabled: {}", hmsSaslEnabled);
         LOG.info("  hmsKerberosPrincipal: {}", hmsKerberosPrincipal);
+        LOG.info("  hmsClientPrincipal:   {}", hmsClientPrincipal);
+        LOG.info("  hmsClientKeytab:      {}", hmsClientKeytab);
         LOG.info("  hmsSslEnabled: {}", hmsSslEnabled);
         LOG.info("  hmsTruststorePath: {}", hmsTruststorePath);
 
@@ -182,6 +193,18 @@ public class RangerRMSPollerService {
         hmsSslEnabled = PropertiesUtil.getBooleanProperty(CONFIG_HMS_SSL_ENABLED, false);
         hmsTruststorePath = PropertiesUtil.getProperty(CONFIG_HMS_TRUSTSTORE_PATH, "");
         hmsTruststorePassword = PropertiesUtil.getProperty(CONFIG_HMS_TRUSTSTORE_PASSWORD, "");
+
+        // Client identity for the SASL/Kerberos handshake. Prefer RMS-specific keys,
+        // fall back to ranger.admin.kerberos.{principal,keytab} so a single set of
+        // admin credentials suffices in the common case.
+        hmsClientPrincipal = PropertiesUtil.getProperty(CONFIG_HMS_CLIENT_PRINCIPAL, "");
+        if (StringUtils.isBlank(hmsClientPrincipal)) {
+            hmsClientPrincipal = PropertiesUtil.getProperty(CONFIG_RANGER_ADMIN_PRINCIPAL, "");
+        }
+        hmsClientKeytab = PropertiesUtil.getProperty(CONFIG_HMS_CLIENT_KEYTAB, "");
+        if (StringUtils.isBlank(hmsClientKeytab)) {
+            hmsClientKeytab = PropertiesUtil.getProperty(CONFIG_RANGER_ADMIN_KEYTAB, "");
+        }
 
         String schemes = PropertiesUtil.getProperty(CONFIG_SUPPORTED_URI_SCHEMES, DEFAULT_SUPPORTED_URI_SCHEMES);
         supportedUriSchemes = new HashSet<>();
@@ -804,6 +827,7 @@ public class RangerRMSPollerService {
 
             boolean connected;
             if (hmsSaslEnabled) {
+                ensureKerberosLogin();
                 connected = hmsClient.connectAsKerberosUser(hmsUri);
             } else {
                 connected = hmsClient.connect(hmsUri);
@@ -829,6 +853,51 @@ public class RangerRMSPollerService {
                 LOG.debug("Error closing HMS client", e);
             }
             hmsClient = null;
+        }
+    }
+
+    /**
+     * Ensure a Kerberos TGT exists for the JVM before any SASL/GSSAPI handshake.
+     *
+     * Performs a one-shot {@code UserGroupInformation.loginUserFromKeytab} on first call,
+     * then on subsequent calls invokes {@code checkTGTAndReloginFromKeytab} so the ticket
+     * is renewed before expiry. Reflection is used to avoid a hard compile-time dependency
+     * on hadoop-common.
+     */
+    private void ensureKerberosLogin() {
+        if (StringUtils.isBlank(hmsClientPrincipal) || StringUtils.isBlank(hmsClientKeytab)) {
+            LOG.debug("RMS Kerberos client principal/keytab not configured; "
+                    + "relying on existing JVM login (ranger.rms.hms.kerberos.client.principal/keytab "
+                    + "or ranger.admin.kerberos.principal/keytab not set)");
+            return;
+        }
+        try {
+            Class<?> ugiClass = Class.forName("org.apache.hadoop.security.UserGroupInformation");
+
+            if (!kerberosLoginAttempted) {
+                java.lang.reflect.Method loginFromKeytab = ugiClass.getMethod(
+                        "loginUserFromKeytab", String.class, String.class);
+                LOG.info("Performing Kerberos login for RMS poller: principal={}, keytab={}",
+                        hmsClientPrincipal, hmsClientKeytab);
+                loginFromKeytab.invoke(null, hmsClientPrincipal, hmsClientKeytab);
+                kerberosLoginAttempted = true;
+
+                java.lang.reflect.Method getLoginUser = ugiClass.getMethod("getLoginUser");
+                Object loginUser = getLoginUser.invoke(null);
+                LOG.info("Kerberos login successful: loginUser={}", loginUser);
+            } else {
+                java.lang.reflect.Method getLoginUser = ugiClass.getMethod("getLoginUser");
+                Object loginUser = getLoginUser.invoke(null);
+                if (loginUser != null) {
+                    java.lang.reflect.Method relogin = ugiClass.getMethod("checkTGTAndReloginFromKeytab");
+                    relogin.invoke(loginUser);
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            LOG.warn("Hadoop UserGroupInformation not found on classpath; cannot perform keytab login");
+        } catch (Exception e) {
+            LOG.error("Failed to login from keytab (principal={}, keytab={}): {}",
+                    hmsClientPrincipal, hmsClientKeytab, e.getMessage(), e);
         }
     }
 
