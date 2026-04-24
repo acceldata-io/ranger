@@ -26,6 +26,7 @@ import org.apache.ranger.biz.RangerBizUtil;
 import org.apache.ranger.biz.ServiceDBStore;
 import org.apache.ranger.common.RESTErrorUtil;
 import org.apache.ranger.common.RangerSearchUtil;
+import org.apache.ranger.common.ServiceUtil;
 import org.apache.ranger.db.RangerDaoManager;
 import org.apache.ranger.rms.RangerRMSPollerService;
 import org.apache.ranger.entity.XXService;
@@ -94,6 +95,9 @@ public class RMSREST {
     @Autowired
     RangerSearchUtil searchUtil;
 
+    @Autowired
+    ServiceUtil serviceUtil;
+
     @Autowired(required = false)
     RangerRMSPollerService rmsPollerService;
 
@@ -128,6 +132,19 @@ public class RMSREST {
             XXService xxService = daoManager.getXXService().findByName(serviceName);
             if (xxService == null) {
                 throw restErrorUtil.createRESTException("Service not found: " + serviceName);
+            }
+
+            // Apply the same authn/authz controls as /service/plugins/policies/download/{serviceName}.
+            // The endpoint is excluded from Spring Security (security="none") so the gating must
+            // happen here: reject anonymous downloads when not allowed and validate the plugin's
+            // service-level credentials (when configured).
+            bizUtil.failUnauthenticatedDownloadIfNotAllowed();
+
+            if (!serviceUtil.isValidateHttpsAuthentication(serviceName, request)) {
+                throw restErrorUtil.createRESTException(
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Unauthorized RMS mapping download for service: " + serviceName,
+                    true);
             }
 
             if (!isRMSDownloadAllowed(serviceName)) {
@@ -432,35 +449,16 @@ public class RMSREST {
     }
 
     /**
-     * Check if RMS mapping download is allowed for the requesting user.
-     */
-    /**
-     * RMS mapping download follows the same security model as policy download:
-     * the endpoint is excluded from Spring Security (security="none") and
-     * the plugin authenticates via pluginId parameter, consistent with
-     * /service/plugins/policies/download/* and /service/tags/download/*.
+     * Final coarse-grained check on top of the upstream gates
+     * (failUnauthenticatedDownloadIfNotAllowed + isValidateHttpsAuthentication).
+     * Confirms that the requested service still exists; the actual plugin/user
+     * authorization is delegated to ServiceUtil.isValidateHttpsAuthentication
+     * which honors policy.download.auth.users / tag.download.auth.users.
      */
     private boolean isRMSDownloadAllowed(String serviceName) {
         try {
             XXService xxService = daoManager.getXXService().findByName(serviceName);
-            if (xxService == null) {
-                return false;
-            }
-
-            // Allow if user is admin (for REST API / curl calls)
-            try {
-                if (bizUtil.isAdmin() || bizUtil.isKeyAdmin()) {
-                    return true;
-                }
-            } catch (Exception e) {
-                LOG.debug("No authenticated session (plugin download mode)");
-            }
-
-            // Allow plugin downloads — same as policy download pattern.
-            // Plugins identify via pluginId param; the endpoint is already
-            // behind security="none" just like policies/download.
-            return true;
-
+            return xxService != null;
         } catch (Exception e) {
             LOG.error("Error checking RMS download authorization", e);
             return false;

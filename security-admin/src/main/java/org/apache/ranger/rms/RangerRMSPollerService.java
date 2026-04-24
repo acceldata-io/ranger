@@ -336,22 +336,34 @@ public class RangerRMSPollerService {
 
                 if (events != null && !events.isEmpty()) {
                     LOG.info("Processing {} HMS notification events", events.size());
-                    
+
                     for (NotificationEventInfo event : events) {
                         processNotificationEvent(client, event);
                         lastEventId.set(event.eventId);
                     }
+                    persistState();
                 } else {
-                    // No events returned but ID advanced - skip ahead to avoid stuck watermark
+                    // HMS reports a higher current event ID than we've processed
+                    // but returns no events for the requested range. This is
+                    // typically a real gap (events trimmed/expired between two
+                    // polls) rather than a transient error, but we cannot tell
+                    // for sure. Log loudly and skip ahead to currentEventId so
+                    // the poller does not get permanently stuck; subsequent
+                    // events will continue to be processed.
+                    LOG.warn("No notification events returned for range ({}, {}], "
+                            + "advancing watermark to {} (possible event gap on HMS)",
+                            lastEventId.get(), currentEventId, currentEventId);
                     lastEventId.set(currentEventId);
-                    LOG.info("No notification events returned, advancing watermark to {}", currentEventId);
+                    persistState();
                 }
             } catch (Exception e) {
-                LOG.warn("Error fetching notifications, advancing watermark to {}", currentEventId);
-                lastEventId.set(currentEventId);
+                // On fetch / processing error keep the watermark unchanged so
+                // the next cycle retries the same range. Advancing here would
+                // permanently skip events and silently corrupt RMS state.
+                LOG.warn("Error fetching notifications from eventId {} (current={}). "
+                        + "Watermark unchanged; will retry next cycle.",
+                        lastEventId.get(), currentEventId, e);
             }
-
-            persistState();
             LOG.debug("<== pollHMS() processed events up to eventId={}", lastEventId.get());
 
         } catch (Exception e) {

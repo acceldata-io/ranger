@@ -34,8 +34,10 @@ import org.apache.hadoop.hive.metastore.events.DropTableEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.BufferedReader;
@@ -51,28 +53,42 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * RangerRMSMetaStoreEventListener is a Hive Metastore event listener that
- * sends notifications to Ranger RMS when tables and databases are created,
- * modified, or deleted.
+ * RangerRMSMetaStoreEventListener is an OPTIONAL push-based Hive Metastore
+ * event listener that sends notifications to a Ranger RMS notification
+ * endpoint when tables and databases are created, modified, or deleted.
+ *
+ * NOTE: The default RMS deployment uses the pull-based
+ * {@code RangerRMSPollerService} on Ranger Admin to poll HMS via Thrift.
+ * This listener is an alternative push-based mechanism that requires a
+ * compatible Admin-side notification REST endpoint (matching
+ * {@code ranger.rms.notification.url}) to be deployed; the standard
+ * Ranger Admin RMS REST surface does NOT expose such an endpoint by
+ * default. As a result this listener is disabled by default and must
+ * be explicitly enabled (and pointed at a custom endpoint) by operators
+ * who choose the push model.
  *
  * Configuration properties (in hive-site.xml):
- * - ranger.rms.notification.url: URL of Ranger RMS notification endpoint
- *   Default: http://localhost:6080/service/rms/notification
- * - ranger.rms.notification.username: Username for Ranger authentication
- *   Default: admin
- * - ranger.rms.notification.password: Password for Ranger authentication
- *   Default: admin
- * - ranger.rms.hive.service.name: Name of Hive service in Ranger
- *   Default: hive
  * - ranger.rms.notification.enabled: Enable/disable notifications
- *   Default: true
- * - ranger.rms.notification.ssl.verify: Verify SSL certificates
- *   Default: true
+ *   Default: false (must be explicitly enabled)
+ * - ranger.rms.notification.url: URL of the custom RMS notification endpoint
+ *   No safe default — must be set when enabled
+ * - ranger.rms.notification.username / password: HTTP basic auth credentials
+ *   No safe default — must be set when enabled
+ * - ranger.rms.hive.service.name: Name of Hive service in Ranger (default: hive)
+ * - ranger.rms.notification.ssl.verify: Verify SSL certificates (default: true)
  *
  * To enable, add to hive-site.xml:
  * <property>
  *   <name>hive.metastore.event.listeners</name>
  *   <value>org.apache.ranger.authorization.hive.metastore.RangerRMSMetaStoreEventListener</value>
+ * </property>
+ * <property>
+ *   <name>ranger.rms.notification.enabled</name>
+ *   <value>true</value>
+ * </property>
+ * <property>
+ *   <name>ranger.rms.notification.url</name>
+ *   <value>https://your-admin-host:6182/service/rms/notification</value>
  * </property>
  */
 public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
@@ -85,9 +101,12 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
     private static final String CONFIG_NOTIFICATION_ENABLED = "ranger.rms.notification.enabled";
     private static final String CONFIG_SSL_VERIFY = "ranger.rms.notification.ssl.verify";
 
-    private static final String DEFAULT_RMS_URL = "http://localhost:6080/service/rms/notification";
-    private static final String DEFAULT_USERNAME = "admin";
-    private static final String DEFAULT_PASSWORD = "admin";
+    // No safe default for the URL/credentials — operators must configure them
+    // when opting into the listener. The listener is disabled by default
+    // (see CONFIG_NOTIFICATION_ENABLED handling below).
+    private static final String DEFAULT_RMS_URL = "";
+    private static final String DEFAULT_USERNAME = "";
+    private static final String DEFAULT_PASSWORD = "";
     private static final String DEFAULT_HIVE_SERVICE_NAME = "hive";
 
     private static final String CHANGE_TYPE_CREATE_DATABASE = "CREATE_DATABASE";
@@ -105,6 +124,12 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
     private final boolean sslVerify;
     private final ExecutorService executor;
     private final String authHeader;
+    // Per-listener SSL plumbing used when sslVerify=false. Scoped to the
+    // individual HttpsURLConnections we create here, never installed as
+    // JVM defaults so other HTTPS code in the metastore process is not
+    // affected.
+    private final SSLSocketFactory insecureSocketFactory;
+    private final HostnameVerifier insecureHostnameVerifier;
 
     public RangerRMSMetaStoreEventListener(Configuration config) {
         super(config);
@@ -113,7 +138,18 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
         this.username = config.get(CONFIG_RMS_USERNAME, DEFAULT_USERNAME);
         this.password = config.get(CONFIG_RMS_PASSWORD, DEFAULT_PASSWORD);
         this.hiveServiceName = config.get(CONFIG_HIVE_SERVICE_NAME, DEFAULT_HIVE_SERVICE_NAME);
-        this.enabled = config.getBoolean(CONFIG_NOTIFICATION_ENABLED, true);
+        // Disabled by default. The push listener requires a custom Admin-side
+        // notification endpoint (not part of the standard RMSREST) and must be
+        // opted into explicitly.
+        boolean explicitlyEnabled = config.getBoolean(CONFIG_NOTIFICATION_ENABLED, false);
+        this.enabled = explicitlyEnabled
+                && !rmsUrl.isEmpty()
+                && !username.isEmpty();
+        if (explicitlyEnabled && !this.enabled) {
+            LOG.warn("RangerRMSMetaStoreEventListener: notifications were enabled "
+                    + "but '{}' or '{}' is not set; staying disabled.",
+                    CONFIG_RMS_URL, CONFIG_RMS_USERNAME);
+        }
         this.sslVerify = config.getBoolean(CONFIG_SSL_VERIFY, true);
 
         String credentials = username + ":" + password;
@@ -132,7 +168,13 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
         LOG.info("  sslVerify: {}", sslVerify);
 
         if (!sslVerify) {
-            disableSSLVerification();
+            this.insecureSocketFactory = createInsecureSocketFactory();
+            this.insecureHostnameVerifier = (hostname, session) -> true;
+            LOG.warn("SSL verification disabled for RangerRMSMetaStoreEventListener "
+                    + "(scoped to RMS notification connections only). DO NOT USE IN PRODUCTION.");
+        } else {
+            this.insecureSocketFactory = null;
+            this.insecureHostnameVerifier = null;
         }
     }
 
@@ -290,6 +332,19 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
 
             URL url = new URL(rmsUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            // Apply the insecure factory ONLY to this specific connection
+            // when sslVerify=false, instead of mutating JVM-global defaults.
+            if (!sslVerify && conn instanceof HttpsURLConnection) {
+                HttpsURLConnection httpsConn = (HttpsURLConnection) conn;
+                if (insecureSocketFactory != null) {
+                    httpsConn.setSSLSocketFactory(insecureSocketFactory);
+                }
+                if (insecureHostnameVerifier != null) {
+                    httpsConn.setHostnameVerifier(insecureHostnameVerifier);
+                }
+            }
+
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Authorization", authHeader);
@@ -372,7 +427,14 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
         return "";
     }
 
-    private void disableSSLVerification() {
+    /**
+     * Build a per-listener SSLSocketFactory that trusts all certificates.
+     * This is intentionally local to this listener and applied only to
+     * the HttpsURLConnections we open to the RMS notification URL — it does
+     * NOT mutate JVM-global SSL defaults and therefore does not affect any
+     * other HTTPS code running inside the Hive Metastore process.
+     */
+    private SSLSocketFactory createInsecureSocketFactory() {
         try {
             TrustManager[] trustAllCerts = new TrustManager[]{
                 new X509TrustManager() {
@@ -384,12 +446,11 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
 
             SSLContext sc = SSLContext.getInstance("TLS");
             sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-            HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
-
-            LOG.warn("SSL verification disabled for RMS notifications");
+            return sc.getSocketFactory();
         } catch (Exception e) {
-            LOG.error("Failed to disable SSL verification", e);
+            LOG.error("Failed to construct insecure SSL socket factory; "
+                    + "SSL verification will remain enabled", e);
+            return null;
         }
     }
 

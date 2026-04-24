@@ -31,8 +31,10 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -131,19 +133,38 @@ public class RangerRMSMappingCache {
         // Remove deleted resources
         List<String> removedGuids = rmsMappings.getRemovedResourceGuids();
         if (CollectionUtils.isNotEmpty(removedGuids)) {
+            Set<String> removedGuidSet = new HashSet<>(removedGuids);
             for (String removedGuid : removedGuids) {
                 RangerServiceResource removedResource = mergedResources.remove(removedGuid);
-                if (removedResource != null) {
-                    String path = extractPath(removedResource);
-                    if (StringUtils.isNotBlank(path)) {
-                        String normalizedPath = normalizePathForLookup(path);
-                        mergedPathMappings.remove(normalizedPath);
-                    }
+                if (removedResource == null) {
+                    continue;
+                }
+                String path = extractPath(removedResource);
+                if (StringUtils.isBlank(path)) {
+                    continue;
+                }
+                String normalizedPath = normalizePathForLookup(path);
+                List<MappingEntry> pathEntries = mergedPathMappings.get(normalizedPath);
+                if (CollectionUtils.isEmpty(pathEntries)) {
+                    continue;
+                }
+                // The cache supports multiple MappingEntry values per LL path
+                // (one Hive table can map to a path, and multiple Hive tables
+                // can share the same path). Only drop entries whose LL resource
+                // matches the removed GUID; leave any other entries that share
+                // this path intact.
+                pathEntries.removeIf(mappingEntry ->
+                    mappingEntry.getLlResource() != null
+                        && StringUtils.equals(mappingEntry.getLlResource().getGuid(), removedGuid));
+                if (pathEntries.isEmpty()) {
+                    mergedPathMappings.remove(normalizedPath);
                 }
             }
             // Clean up HL mappings that reference removed LL resources
             mergedHlMappings.entrySet().removeIf(e ->
-                removedGuids.contains(e.getValue().getLlResource().getGuid()));
+                e.getValue() != null
+                    && e.getValue().getLlResource() != null
+                    && removedGuidSet.contains(e.getValue().getLlResource().getGuid()));
         }
 
         // Add new/updated resources and mappings

@@ -417,7 +417,25 @@ public class RMSMgr {
             if (mapping != null) {
                 resourceMappingDao.remove(mapping.getId());
                 LOG.info("Deleted RMS mapping: id={}", mapping.getId());
+
+                // Record the deletion so that delta downloads return the removed
+                // LL resource GUID to plugins. Without this, plugins that use
+                // delta mode would never learn the mapping was removed and would
+                // continue to evaluate stale policies for the LL path.
+                List<DeletionRecord> deletions = new ArrayList<>();
+                deletions.add(new DeletionRecord(
+                    hlSvcResource.getGuid(), llSvcResource.getGuid(), llSvcResource.getServiceId()));
+
                 updateMappingProviderVersion();
+                Long version = getMappingProvider().getLastKnownVersion();
+                recordDeletions(version, deletions);
+
+                // If the LL resource is now orphaned (no other HL maps to it),
+                // drop the service-resource row too, mirroring deleteMappingsByHlResource.
+                List<Long> otherHlIds = resourceMappingDao.findByLlResourceId(llSvcResource.getId());
+                if (CollectionUtils.isEmpty(otherHlIds)) {
+                    serviceResourceDao.remove(llSvcResource.getId());
+                }
             }
         }
 
