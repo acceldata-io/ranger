@@ -111,6 +111,7 @@ OPTIONS:
     --tag TAG                     Image tag (default: latest)
     --push                        Push image to registry after building
     --latest                      Also tag and push as 'latest' when pushing
+    --image-only                  Skip Maven distro build; only build the Docker image using existing tars in target/
     --skip-distribution           Skip Maven distro build (use existing target/ranger-*-admin.tar.gz and usersync tar)
     --skip-unit-tests             Skip unit tests (-DskipTests)
     --skip-integration-tests      Skip integration tests (-DskipITs)
@@ -557,6 +558,10 @@ main() {
                 ;;
             --latest)
                 LATEST=true
+                shift
+                ;;
+            --image-only)
+                BUILD_DISTRIBUTION=false
                 shift
                 ;;
             --skip-distribution)
