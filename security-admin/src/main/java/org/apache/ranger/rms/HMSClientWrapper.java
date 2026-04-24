@@ -254,21 +254,42 @@ public class HMSClientWrapper implements AutoCloseable {
             LOG.info("Creating SASL GSSAPI transport: service={}, host={}", servicePrincipalName, serverHost);
 
             Class<?> saslClass = Class.forName(TSASL_CLIENT_TRANSPORT_CLASS);
-            Constructor<?> saslCtor = saslClass.getConstructor(
-                String.class,          // mechanism
-                String.class,          // protocol
-                String.class,          // serverName
-                java.util.Map.class,   // props
-                javax.security.auth.callback.CallbackHandler.class,
-                ttransportClass        // transport
-            );
 
             java.util.Map<String, String> saslProps = new java.util.HashMap<>();
             saslProps.put("javax.security.sasl.qop", "auth");
             saslProps.put("javax.security.sasl.server.authentication", "true");
 
-            Object saslTransport = saslCtor.newInstance(
-                "GSSAPI", servicePrincipalName, serverHost, saslProps, null, baseTransport);
+            // libthrift >= 0.9.x (including 0.16) exposes a 7-arg constructor with
+            // an authorizationId as the 2nd parameter. Some much older Thrift versions
+            // had a 6-arg variant without authorizationId. Try 7-arg first, fall back
+            // to 6-arg for backwards-compatibility.
+            Constructor<?> saslCtor;
+            Object saslTransport;
+            try {
+                saslCtor = saslClass.getConstructor(
+                    String.class,          // mechanism
+                    String.class,          // authorizationId
+                    String.class,          // protocol
+                    String.class,          // serverName
+                    java.util.Map.class,   // props
+                    javax.security.auth.callback.CallbackHandler.class,
+                    ttransportClass        // transport
+                );
+                saslTransport = saslCtor.newInstance(
+                    "GSSAPI", null, servicePrincipalName, serverHost, saslProps, null, baseTransport);
+            } catch (NoSuchMethodException nsme7) {
+                LOG.debug("7-arg TSaslClientTransport ctor not found, trying 6-arg legacy variant");
+                saslCtor = saslClass.getConstructor(
+                    String.class,          // mechanism
+                    String.class,          // protocol
+                    String.class,          // serverName
+                    java.util.Map.class,   // props
+                    javax.security.auth.callback.CallbackHandler.class,
+                    ttransportClass        // transport
+                );
+                saslTransport = saslCtor.newInstance(
+                    "GSSAPI", servicePrincipalName, serverHost, saslProps, null, baseTransport);
+            }
             LOG.info("SASL GSSAPI transport created");
             return saslTransport;
 
