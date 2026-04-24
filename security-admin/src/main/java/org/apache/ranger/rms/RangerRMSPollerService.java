@@ -883,15 +883,23 @@ public class RangerRMSPollerService {
                     + "or ranger.admin.kerberos.principal/keytab not set)");
             return;
         }
+
+        // UGI.loginUserFromKeytab() does NOT substitute _HOST in the principal —
+        // that is the job of SecurityUtil.getServerPrincipal(). If we hand a
+        // literal "service/_HOST@REALM" straight to loginUserFromKeytab, the
+        // JDK Krb5LoginModule fails with "Unable to obtain password from user"
+        // because the literal _HOST is not a real entry in the keytab.
+        String resolvedPrincipal = resolveHostInPrincipal(hmsClientPrincipal);
+
         try {
             Class<?> ugiClass = Class.forName("org.apache.hadoop.security.UserGroupInformation");
 
             if (!kerberosLoginAttempted) {
                 java.lang.reflect.Method loginFromKeytab = ugiClass.getMethod(
                         "loginUserFromKeytab", String.class, String.class);
-                LOG.info("Performing Kerberos login for RMS poller: principal={}, keytab={}",
-                        hmsClientPrincipal, hmsClientKeytab);
-                loginFromKeytab.invoke(null, hmsClientPrincipal, hmsClientKeytab);
+                LOG.info("Performing Kerberos login for RMS poller: principal={} (resolved from {}), keytab={}",
+                        resolvedPrincipal, hmsClientPrincipal, hmsClientKeytab);
+                loginFromKeytab.invoke(null, resolvedPrincipal, hmsClientKeytab);
                 kerberosLoginAttempted = true;
 
                 java.lang.reflect.Method getLoginUser = ugiClass.getMethod("getLoginUser");
@@ -909,8 +917,43 @@ public class RangerRMSPollerService {
             LOG.warn("Hadoop UserGroupInformation not found on classpath; cannot perform keytab login");
         } catch (Exception e) {
             LOG.error("Failed to login from keytab (principal={}, keytab={}): {}",
-                    hmsClientPrincipal, hmsClientKeytab, e.getMessage(), e);
+                    resolvedPrincipal, hmsClientKeytab, e.getMessage(), e);
         }
+    }
+
+    /**
+     * Expand the literal {@code _HOST} token in a Kerberos principal to the
+     * local host's FQDN. Prefers Hadoop's {@code SecurityUtil.getServerPrincipal}
+     * when available (which uses DNS and matches Hadoop's own semantics); falls
+     * back to {@code InetAddress.getLocalHost().getCanonicalHostName()} otherwise.
+     */
+    private String resolveHostInPrincipal(String principal) {
+        if (StringUtils.isBlank(principal) || !principal.contains("_HOST")) {
+            return principal;
+        }
+        // Try Hadoop's SecurityUtil first for parity with other Hadoop components.
+        try {
+            Class<?> securityUtilClass = Class.forName("org.apache.hadoop.security.SecurityUtil");
+            java.lang.reflect.Method getServerPrincipal = securityUtilClass.getMethod(
+                    "getServerPrincipal", String.class, String.class);
+            Object resolved = getServerPrincipal.invoke(null, principal, (String) null);
+            if (resolved instanceof String && StringUtils.isNotBlank((String) resolved)
+                    && !((String) resolved).contains("_HOST")) {
+                return (String) resolved;
+            }
+        } catch (Exception e) {
+            LOG.debug("SecurityUtil.getServerPrincipal unavailable, falling back to local FQDN: {}", e.getMessage());
+        }
+        // Fallback: local canonical hostname.
+        try {
+            String fqdn = java.net.InetAddress.getLocalHost().getCanonicalHostName();
+            if (StringUtils.isNotBlank(fqdn)) {
+                return principal.replace("_HOST", fqdn);
+            }
+        } catch (Exception e) {
+            LOG.warn("Unable to resolve local canonical hostname for principal _HOST substitution: {}", e.getMessage());
+        }
+        return principal;
     }
 
     /**
