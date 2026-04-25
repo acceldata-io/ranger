@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * RMSMgr handles all Resource Mapping Server (RMS) business logic.
@@ -89,6 +90,19 @@ public class RMSMgr {
 
     private final ConcurrentMap<Long, List<DeletionRecord>> deletionLog = new ConcurrentHashMap<>();
     private static final int MAX_DELETION_LOG_VERSIONS = 100;
+
+    /**
+     * Lowest mapping_version from which we have complete deletion history in
+     * this JVM. Initialised lazily to the current provider version on the
+     * first call to {@link #hasDeletionHistorySince(Long)}; deletions before
+     * this point are unknown to us (they happened in a prior JVM lifecycle),
+     * so plugins below this watermark must do a full download.
+     *
+     * Once set, this value never moves backwards: a deletion observed in this
+     * JVM is durably tracked in {@link #deletionLog} (subject to pruning by
+     * MAX_DELETION_LOG_VERSIONS), and pruning advances the watermark forward.
+     */
+    private final AtomicLong deletionTrackingFromVersion = new AtomicLong(-1L);
 
     public static class DeletionRecord {
         public final String hlResourceGuid;
@@ -562,16 +576,24 @@ public class RMSMgr {
         if (deletionLog.size() > MAX_DELETION_LOG_VERSIONS) {
             long cutoff = currentVersion - MAX_DELETION_LOG_VERSIONS;
             deletionLog.entrySet().removeIf(e -> e.getKey() <= cutoff);
+            // We just dropped deletion records at or below `cutoff`; advance
+            // the watermark so plugins still on lastKnownVersion <= cutoff
+            // get correctly forced to a full download.
+            advanceDeletionTrackingTo(cutoff + 1);
         }
     }
 
     /**
-     * Get all deletion records since a given version.
-     * Returns null if deletion history is incomplete (e.g., after restart).
+     * Get all deletion records since a given version. Caller must first
+     * verify {@link #hasDeletionHistorySince(Long)} for the same version;
+     * if that returned false, this method's output may be incomplete.
      */
     public List<DeletionRecord> getDeletionsSinceVersion(Long sinceVersion) {
-        if (sinceVersion == null || deletionLog.isEmpty()) {
+        if (sinceVersion == null) {
             return null;
+        }
+        if (deletionLog.isEmpty()) {
+            return Collections.emptyList();
         }
 
         List<DeletionRecord> ret = new ArrayList<>();
@@ -585,13 +607,43 @@ public class RMSMgr {
 
     /**
      * Check if we have complete deletion history since a given version.
+     *
+     * The deletion log is in-memory and is repopulated only when deletions
+     * actually happen. An empty log therefore does NOT mean "no history" —
+     * it means "no deletions have occurred since this JVM started tracking".
+     * To distinguish these two cases we lazily snapshot the current provider
+     * version on the first check and treat that as our tracking watermark.
+     * Anything at or above that watermark has complete history (possibly
+     * empty); anything below it predates this JVM and must full-download.
      */
     public boolean hasDeletionHistorySince(Long sinceVersion) {
-        if (sinceVersion == null || deletionLog.isEmpty()) {
+        if (sinceVersion == null) {
             return false;
         }
-        Long oldestTracked = deletionLog.keySet().stream().min(Long::compare).orElse(Long.MAX_VALUE);
-        return sinceVersion >= oldestTracked - 1;
+        return sinceVersion >= getOrInitDeletionTrackingFromVersion();
+    }
+
+    private long getOrInitDeletionTrackingFromVersion() {
+        long v = deletionTrackingFromVersion.get();
+        if (v >= 0) {
+            return v;
+        }
+        long current = getMappingVersion();
+        if (deletionTrackingFromVersion.compareAndSet(-1L, current)) {
+            LOG.info("Initialized deletion-tracking watermark at mapping version {}", current);
+            return current;
+        }
+        return deletionTrackingFromVersion.get();
+    }
+
+    private void advanceDeletionTrackingTo(long minVersion) {
+        long current;
+        do {
+            current = deletionTrackingFromVersion.get();
+            if (current >= minVersion) {
+                return;
+            }
+        } while (!deletionTrackingFromVersion.compareAndSet(current, minVersion));
     }
 
     private Long getNextMappingVersion() {
