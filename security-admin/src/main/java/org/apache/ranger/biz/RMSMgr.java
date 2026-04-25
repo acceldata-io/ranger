@@ -51,8 +51,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -190,41 +192,9 @@ public class RMSMgr {
 
         List<Object[]> changedMappings = resourceMappingDao.findChangedMappingsForService(
                 xxService.getId(), lastKnownVersion, currentVersion);
-        Map<Long, XXRMSServiceResource> resourceCache = new HashMap<>();
-
-        if (CollectionUtils.isNotEmpty(changedMappings)) {
-            for (Object[] mapping : changedMappings) {
-                Long hlResourceId = (Long) mapping[0];
-                Long llResourceId = (Long) mapping[1];
-
-                XXRMSServiceResource hlResource = getOrLoadResource(hlResourceId, resourceCache);
-                XXRMSServiceResource llResource = getOrLoadResource(llResourceId, resourceCache);
-
-                if (hlResource == null || llResource == null) {
-                    continue;
-                }
-
-                // The DB query already restricts to mappings whose ll-resource
-                // belongs to xxService, so no Java-side service filter is needed.
-                XXService hlService = serviceDao.getById(hlResource.getServiceId());
-                if (hlService != null) {
-                    ret.setHlServiceName(hlService.getName());
-                }
-
-                XXService llService = xxService;
-
-                RMSResourceMapping rmsMapping = new RMSResourceMapping();
-                rmsMapping.setHlResourceGuid(hlResource.getGuid());
-                rmsMapping.setLlResourceGuid(llResource.getGuid());
-                rmsMapping.setHlResourceElements(parseResourceElements(hlResource.getServiceResourceElements()));
-                rmsMapping.setLlResourceElements(parseResourceElements(llResource.getServiceResourceElements()));
-
-                ret.addResourceMapping(rmsMapping);
-
-                ret.addServiceResource(toRangerServiceResource(hlResource, hlService));
-                ret.addServiceResource(toRangerServiceResource(llResource, llService));
-            }
-        }
+        // The DB query already restricts to mappings whose ll-resource belongs
+        // to xxService, so we skip the Java-side llService filter.
+        assembleMappings(changedMappings, xxService, ret, false);
 
         List<DeletionRecord> deletions = getDeletionsSinceVersion(lastKnownVersion);
         if (CollectionUtils.isNotEmpty(deletions)) {
@@ -263,25 +233,64 @@ public class RMSMgr {
             return ret;
         }
 
-        Map<Long, XXRMSServiceResource> resourceCache = new HashMap<>();
+        // Full-mapping path returns rows for every service; filter to xxService in Java.
+        assembleMappings(mappings, xxService, ret, true);
 
-        for (Object[] mapping : mappings) {
-            Long hlResourceId = (Long) mapping[0];
-            Long llResourceId = (Long) mapping[1];
+        return ret;
+    }
 
-            XXRMSServiceResource hlResource = getOrLoadResource(hlResourceId, resourceCache);
-            XXRMSServiceResource llResource = getOrLoadResource(llResourceId, resourceCache);
+    /**
+     * Hydrate (hlResourceId, llResourceId) tuples into {@code ret} using two
+     * batched DB queries instead of the previous N+1 per-row pattern:
+     * <ol>
+     *   <li>One IN-list lookup for all distinct resource ids touched.</li>
+     *   <li>One getById() per distinct hl-service id (cardinality is
+     *       typically a single digit, and JPA's persistence-context cache
+     *       collapses repeats within a transaction).</li>
+     * </ol>
+     * For deltas, callers must pass {@code filterByLlService=false} because
+     * the SQL query already restricts results to xxService. For full builds,
+     * pass {@code true} to drop rows whose ll-resource belongs to a different
+     * service.
+     */
+    private void assembleMappings(List<Object[]> rows,
+                                  XXService xxService,
+                                  ServiceRMSMappings ret,
+                                  boolean filterByLlService) {
+        if (CollectionUtils.isEmpty(rows)) {
+            return;
+        }
+
+        Set<Long> resourceIds = new HashSet<>(rows.size() * 2);
+        for (Object[] row : rows) {
+            Long hlId = (Long) row[0];
+            Long llId = (Long) row[1];
+            if (hlId != null) resourceIds.add(hlId);
+            if (llId != null) resourceIds.add(llId);
+        }
+
+        Map<Long, XXRMSServiceResource> resourcesById = serviceResourceDao.findByIds(resourceIds);
+        Map<Long, XXService> servicesById = new HashMap<>();
+
+        for (Object[] row : rows) {
+            Long hlResourceId = (Long) row[0];
+            Long llResourceId = (Long) row[1];
+
+            XXRMSServiceResource hlResource = resourcesById.get(hlResourceId);
+            XXRMSServiceResource llResource = resourcesById.get(llResourceId);
 
             if (hlResource == null || llResource == null) {
                 continue;
             }
 
-            XXService llService = serviceDao.getById(llResource.getServiceId());
-            if (llService == null || !llService.getId().equals(xxService.getId())) {
-                continue;
+            if (filterByLlService) {
+                XXService llService = lookupServiceCached(llResource.getServiceId(), servicesById);
+                if (llService == null || !llService.getId().equals(xxService.getId())) {
+                    continue;
+                }
             }
 
-            XXService hlService = serviceDao.getById(hlResource.getServiceId());
+            XXService hlService = lookupServiceCached(hlResource.getServiceId(), servicesById);
             if (hlService != null) {
                 ret.setHlServiceName(hlService.getName());
             }
@@ -294,25 +303,22 @@ public class RMSMgr {
 
             ret.addResourceMapping(rmsMapping);
 
-            RangerServiceResource hlSvcResource = toRangerServiceResource(hlResource, hlService);
-            RangerServiceResource llSvcResource = toRangerServiceResource(llResource, llService);
-
-            ret.addServiceResource(hlSvcResource);
-            ret.addServiceResource(llSvcResource);
+            ret.addServiceResource(toRangerServiceResource(hlResource, hlService));
+            ret.addServiceResource(toRangerServiceResource(llResource, xxService));
         }
-
-        return ret;
     }
 
-    private XXRMSServiceResource getOrLoadResource(Long resourceId, Map<Long, XXRMSServiceResource> cache) {
-        XXRMSServiceResource ret = cache.get(resourceId);
-        if (ret == null) {
-            ret = serviceResourceDao.getById(resourceId);
-            if (ret != null) {
-                cache.put(resourceId, ret);
-            }
+    private XXService lookupServiceCached(Long serviceId, Map<Long, XXService> cache) {
+        if (serviceId == null) {
+            return null;
         }
-        return ret;
+        XXService cached = cache.get(serviceId);
+        if (cached != null || cache.containsKey(serviceId)) {
+            return cached;
+        }
+        XXService loaded = serviceDao.getById(serviceId);
+        cache.put(serviceId, loaded);
+        return loaded;
     }
 
     private String getServiceType(XXService xxService) {

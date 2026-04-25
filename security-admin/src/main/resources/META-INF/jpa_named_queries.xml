@@ -2068,6 +2068,11 @@
 		</query>
 	</named-query>
 
+	<named-query name="XXRMSServiceResource.findByIds">
+		<query>SELECT obj FROM XXRMSServiceResource obj WHERE obj.id IN :ids
+		</query>
+	</named-query>
+
 	<named-query name="XXRMSResourceMapping.deleteByHlResourceId">
 		<query>DELETE FROM XXRMSResourceMapping obj WHERE obj.hlResourceId = :resourceId
 		</query>
