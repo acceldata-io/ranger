@@ -638,36 +638,52 @@ public class RMSMgr {
         return sinceVersion >= getOrInitDeletionTrackingFromVersion();
     }
 
+    /**
+     * Read the persisted deletion-tracking watermark, lazily snapshotting it
+     * on first call after upgrade.
+     * <p>
+     * Both the lazy-init and the subsequent reads use {@link
+     * XXRMSMappingProviderDao#initDeletionTrackingFromVersion} which writes
+     * <em>only</em> the watermark column with a guarded WHERE. This is critical
+     * because this method runs on the read (download) path and would otherwise
+     * race with the RMS poller's concurrent {@code last_known_version} write
+     * via {@code mappingProviderDao.update(entity)} — a stale read on the
+     * download side could overwrite the poller's bumped version (lost update).
+     */
     private long getOrInitDeletionTrackingFromVersion() {
         XXRMSMappingProvider provider = getMappingProvider();
         Long persisted = provider != null ? provider.getDeletionTrackingFromVersion() : null;
         if (persisted != null && persisted > 0L) {
             return persisted;
         }
-        // First read after upgrade: snapshot the current mapping version and
-        // persist it. We only persist if the row exists; getMappingProvider
-        // creates it lazily so this is safe.
-        long current = provider != null && provider.getLastKnownVersion() != null
-                ? provider.getLastKnownVersion() : 0L;
-        if (provider != null) {
-            provider.setDeletionTrackingFromVersion(current);
-            mappingProviderDao.update(provider);
-            LOG.info("Initialized persisted deletion-tracking watermark at mapping version {}", current);
+        if (provider == null) {
+            return 0L;
         }
-        return current;
+        long current = provider.getLastKnownVersion() != null ? provider.getLastKnownVersion() : 0L;
+        int updated = mappingProviderDao.initDeletionTrackingFromVersion(RMS_MAPPING_PROVIDER_NAME, current);
+        if (updated > 0) {
+            LOG.info("Initialized persisted deletion-tracking watermark at mapping version {}", current);
+            return current;
+        }
+        // Either another Admin/thread won the race or the column is already
+        // set to a non-zero value; re-read to find the authoritative value.
+        Long fresh = mappingProviderDao.getEntityManager()
+                .createNamedQuery("XXRMSMappingProvider.findByName", XXRMSMappingProvider.class)
+                .setParameter("name", RMS_MAPPING_PROVIDER_NAME)
+                .getSingleResult()
+                .getDeletionTrackingFromVersion();
+        return fresh != null ? fresh : current;
     }
 
+    /**
+     * Atomically move the watermark forward; no-op if already at/beyond
+     * {@code minVersion}. The update is monotonic forward-only at the SQL
+     * layer thanks to the {@code WHERE deletion_tracking_from_version &lt;
+     * :minVersion} guard, so concurrent calls (and concurrent Admins in HA)
+     * collapse safely.
+     */
     private void advanceDeletionTrackingTo(long minVersion) {
-        XXRMSMappingProvider provider = getMappingProvider();
-        if (provider == null) {
-            return;
-        }
-        Long current = provider.getDeletionTrackingFromVersion();
-        if (current != null && current >= minVersion) {
-            return;
-        }
-        provider.setDeletionTrackingFromVersion(minVersion);
-        mappingProviderDao.update(provider);
+        mappingProviderDao.advanceDeletionTrackingFromVersion(RMS_MAPPING_PROVIDER_NAME, minVersion);
     }
 
     private Long getNextMappingVersion() {
