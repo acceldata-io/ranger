@@ -303,13 +303,28 @@ public class RangerRMSPollerService {
             // Perform full sync on first run if enabled
             if (initialFullSync && !fullSyncCompleted.get()) {
                 LOG.info("Performing initial full sync from HMS...");
-                performFullSync(client);
+                FullSyncStats stats = performFullSync(client);
+
+                if (stats.isFullyFailed()) {
+                    // Every mapping write failed (e.g. schema patch missing,
+                    // DB connection broken). Don't flip fullSyncCompleted to
+                    // true — leave it false so a future trigger / next cycle
+                    // retries once the underlying issue is fixed. Also keep
+                    // lastEventId where it was so we don't silently skip past
+                    // events that should have produced mappings.
+                    LOG.error("Full sync attempted {} mappings, all failed. "
+                            + "Leaving fullSyncCompleted=false; check Admin DB / schema patches.",
+                            stats.attempted);
+                    return;
+                }
+
                 fullSyncCompleted.set(true);
-                
+
                 long currentId = client.getCurrentNotificationEventId();
                 lastEventId.set(currentId);
                 persistState();
-                LOG.info("Full sync completed. Current event ID: {}", lastEventId.get());
+                LOG.info("Full sync completed (attempted={}, failed={}). Current event ID: {}",
+                        stats.attempted, stats.failed, lastEventId.get());
                 return;
             }
 
@@ -374,17 +389,33 @@ public class RangerRMSPollerService {
         }
     }
 
-    private void performFullSync(HMSClientWrapper client) throws Exception {
+    /**
+     * Result summary of a full-sync pass: how many mappings were attempted and
+     * how many failed. Used by the caller to decide whether the sync truly
+     * completed (e.g. don't mark fullSyncCompleted=true if every mapping
+     * failed — that usually indicates a systemic problem like a missing schema
+     * patch that we want to surface instead of silently flipping to "done").
+     */
+    static final class FullSyncStats {
+        int attempted;
+        int failed;
+
+        boolean isFullyFailed() {
+            return attempted > 0 && failed >= attempted;
+        }
+    }
+
+    private FullSyncStats performFullSync(HMSClientWrapper client) throws Exception {
         LOG.info("==> performFullSync()");
 
+        FullSyncStats stats = new FullSyncStats();
+
         try {
-            // Get all databases
             List<String> databases = client.getAllDatabases();
             LOG.info("Found {} databases in HMS", databases.size());
 
             for (String dbName : databases) {
                 try {
-                    // Skip system databases
                     if ("sys".equalsIgnoreCase(dbName) || "information_schema".equalsIgnoreCase(dbName)) {
                         continue;
                     }
@@ -392,22 +423,26 @@ public class RangerRMSPollerService {
                     DatabaseInfo db = client.getDatabase(dbName);
                     if (db != null) {
                         String dbLocation = db.locationUri;
-
-                        // Process database
                         if (StringUtils.isNotBlank(dbLocation) && isSupportedLocation(dbLocation)) {
-                            processCreateDatabase(dbName, dbLocation);
+                            stats.attempted++;
+                            if (!processCreateDatabase(dbName, dbLocation)) {
+                                stats.failed++;
+                            }
                         }
                     }
 
-                    // Get all tables in database
                     List<String> tables = client.getAllTables(dbName);
                     LOG.info("Database {}: found {} tables", dbName, tables.size());
 
                     for (String tableName : tables) {
                         try {
                             TableInfo table = client.getTable(dbName, tableName);
-                            processTable(table);
+                            stats.attempted++;
+                            if (!processTable(table)) {
+                                stats.failed++;
+                            }
                         } catch (Exception e) {
+                            stats.failed++;
                             LOG.warn("Error processing table {}.{}: {}", dbName, tableName, e.getMessage());
                         }
                     }
@@ -422,7 +457,8 @@ public class RangerRMSPollerService {
             throw e;
         }
 
-        LOG.info("<== performFullSync()");
+        LOG.info("<== performFullSync() attempted={}, failed={}", stats.attempted, stats.failed);
+        return stats;
     }
 
     private void processNotificationEvent(HMSClientWrapper client, NotificationEventInfo event) {
@@ -599,9 +635,9 @@ public class RangerRMSPollerService {
         return null;
     }
 
-    private void processTable(TableInfo table) {
+    private boolean processTable(TableInfo table) {
         if (table == null) {
-            return;
+            return true;
         }
 
         String dbName = table.dbName;
@@ -611,12 +647,12 @@ public class RangerRMSPollerService {
 
         if (!mapManagedTables && isManaged) {
             LOG.debug("Skipping managed table: {}.{}", dbName, tableName);
-            return;
+            return true;
         }
 
         if (StringUtils.isBlank(location) || !isSupportedLocation(location)) {
             LOG.debug("Skipping table with unsupported location: {}.{} -> {}", dbName, tableName, location);
-            return;
+            return true;
         }
 
         LOG.info("Processing table: {}.{} -> {} (managed={})", dbName, tableName, location, isManaged);
@@ -629,12 +665,14 @@ public class RangerRMSPollerService {
             if (llServiceName != null && storageResource != null) {
                 rmsMgr.createOrUpdateMapping(hiveServiceName, hiveResource, llServiceName, storageResource, location);
             }
+            return true;
         } catch (Exception e) {
             LOG.error("Failed to create mapping for table {}.{}", dbName, tableName, e);
+            return false;
         }
     }
 
-    private void processCreateDatabase(String dbName, String location) {
+    private boolean processCreateDatabase(String dbName, String location) {
         LOG.info("Processing database: {} -> {}", dbName, location);
 
         try {
@@ -645,8 +683,10 @@ public class RangerRMSPollerService {
             if (llServiceName != null && storageResource != null) {
                 rmsMgr.createOrUpdateMapping(hiveServiceName, hiveResource, llServiceName, storageResource, location);
             }
+            return true;
         } catch (Exception e) {
             LOG.error("Failed to create mapping for database {}", dbName, e);
+            return false;
         }
     }
 

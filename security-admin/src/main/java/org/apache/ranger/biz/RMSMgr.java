@@ -365,24 +365,30 @@ public class RMSMgr {
         XXRMSResourceMapping existingMapping = resourceMappingDao.findByHlAndLlResourceId(
             hlSvcResource.getId(), llSvcResource.getId());
 
-        Long newVersion = getNextMappingVersion();
-
         if (existingMapping == null) {
+            // Genuine new mapping: bump the global version and persist it on the row.
+            Long newVersion = getNextMappingVersion();
             XXRMSResourceMapping newMapping = new XXRMSResourceMapping();
             newMapping.setHlResourceId(hlSvcResource.getId());
             newMapping.setLlResourceId(llSvcResource.getId());
             newMapping.setChangeTimestamp(new Date());
             newMapping.setMappingVersion(newVersion);
             resourceMappingDao.create(newMapping);
-            LOG.info("Created new RMS mapping: hl={}, ll={}, version={}", hlSvcResource.getGuid(), llSvcResource.getGuid(), newVersion);
+            LOG.info("Created new RMS mapping: hl={}, ll={}, version={}",
+                     hlSvcResource.getGuid(), llSvcResource.getGuid(), newVersion);
+            updateMappingProviderVersion();
         } else {
-            existingMapping.setChangeTimestamp(new Date());
-            existingMapping.setMappingVersion(newVersion);
-            resourceMappingDao.update(existingMapping);
-            LOG.debug("Updated existing RMS mapping: id={}, version={}", existingMapping.getId(), newVersion);
+            // The mapping is keyed by (hl_resource_id, ll_resource_id); both are
+            // resolved from stable signatures by findOrCreateServiceResource. If
+            // both look-ups returned existing rows AND the (hl, ll) pair is
+            // already in x_rms_resource_mapping, the mapping is unchanged. Do
+            // not bump mapping_version or the provider version — otherwise every
+            // full-sync would trigger every HDFS plugin to re-download the full
+            // mapping payload (isDelta=false) for no real change.
+            LOG.debug("RMS mapping unchanged (no-op): id={}, hl={}, ll={}, version={}",
+                      existingMapping.getId(), hlSvcResource.getGuid(),
+                      llSvcResource.getGuid(), existingMapping.getMappingVersion());
         }
-
-        updateMappingProviderVersion();
 
         LOG.debug("<== RMSMgr.createOrUpdateMapping()");
     }
