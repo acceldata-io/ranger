@@ -2073,6 +2073,23 @@
 		</query>
 	</named-query>
 
+	<named-query name="XXRMSDeletionLog.findByServiceSinceVersion">
+		<query>SELECT obj FROM XXRMSDeletionLog obj
+			WHERE obj.llServiceId = :serviceId AND obj.version &gt; :sinceVersion
+			ORDER BY obj.version ASC, obj.id ASC
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSDeletionLog.getMinVersion">
+		<query>SELECT MIN(obj.version) FROM XXRMSDeletionLog obj
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSDeletionLog.deleteOlderThanVersion">
+		<query>DELETE FROM XXRMSDeletionLog obj WHERE obj.version &lt; :minRetainedVersion
+		</query>
+	</named-query>
+
 	<named-query name="XXRMSResourceMapping.deleteByHlResourceId">
 		<query>DELETE FROM XXRMSResourceMapping obj WHERE obj.hlResourceId = :resourceId
 		</query>

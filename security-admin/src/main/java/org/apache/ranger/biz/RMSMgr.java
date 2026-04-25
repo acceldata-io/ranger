@@ -25,11 +25,13 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.ranger.authorization.utils.JsonUtils;
 import org.apache.ranger.common.GUIDUtil;
 import org.apache.ranger.db.RangerDaoManager;
+import org.apache.ranger.db.XXRMSDeletionLogDao;
 import org.apache.ranger.db.XXRMSMappingProviderDao;
 import org.apache.ranger.db.XXRMSNotificationDao;
 import org.apache.ranger.db.XXRMSResourceMappingDao;
 import org.apache.ranger.db.XXRMSServiceResourceDao;
 import org.apache.ranger.db.XXServiceDao;
+import org.apache.ranger.entity.XXRMSDeletionLog;
 import org.apache.ranger.entity.XXRMSMappingProvider;
 import org.apache.ranger.entity.XXRMSNotification;
 import org.apache.ranger.entity.XXRMSResourceMapping;
@@ -55,9 +57,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * RMSMgr handles all Resource Mapping Server (RMS) business logic.
@@ -88,23 +87,17 @@ public class RMSMgr {
     private XXRMSNotificationDao notificationDao;
     private XXRMSServiceResourceDao serviceResourceDao;
     private XXRMSResourceMappingDao resourceMappingDao;
+    private XXRMSDeletionLogDao deletionLogDao;
     private XXServiceDao serviceDao;
 
-    private final ConcurrentMap<Long, List<DeletionRecord>> deletionLog = new ConcurrentHashMap<>();
-    private static final int MAX_DELETION_LOG_VERSIONS = 100;
-
     /**
-     * Lowest mapping_version from which we have complete deletion history in
-     * this JVM. Initialised lazily to the current provider version on the
-     * first call to {@link #hasDeletionHistorySince(Long)}; deletions before
-     * this point are unknown to us (they happened in a prior JVM lifecycle),
-     * so plugins below this watermark must do a full download.
-     *
-     * Once set, this value never moves backwards: a deletion observed in this
-     * JVM is durably tracked in {@link #deletionLog} (subject to pruning by
-     * MAX_DELETION_LOG_VERSIONS), and pruning advances the watermark forward.
+     * How many mapping_version slots of deletion history to keep in
+     * {@code x_rms_deletion_log}. At typical DDL rates (10K tables with 1%
+     * delete/day -> ~100 deletions/day) this gives several months of
+     * history at a few KB; at very high churn the table is bounded and
+     * pruning is exercised regularly.
      */
-    private final AtomicLong deletionTrackingFromVersion = new AtomicLong(-1L);
+    private static final int DELETION_LOG_RETAINED_VERSIONS = 10_000;
 
     public static class DeletionRecord {
         public final String hlResourceGuid;
@@ -125,6 +118,7 @@ public class RMSMgr {
         notificationDao = daoMgr.getXXRMSNotification();
         serviceResourceDao = daoMgr.getXXRMSServiceResource();
         resourceMappingDao = daoMgr.getXXRMSResourceMapping();
+        deletionLogDao = daoMgr.getXXRMSDeletionLog();
         serviceDao = daoMgr.getXXService();
         LOG.info("<== RMSMgr.init()");
     }
@@ -196,12 +190,10 @@ public class RMSMgr {
         // to xxService, so we skip the Java-side llService filter.
         assembleMappings(changedMappings, xxService, ret, false);
 
-        List<DeletionRecord> deletions = getDeletionsSinceVersion(lastKnownVersion);
+        List<DeletionRecord> deletions = getDeletionsSinceVersion(xxService.getId(), lastKnownVersion);
         if (CollectionUtils.isNotEmpty(deletions)) {
             for (DeletionRecord deletion : deletions) {
-                if (deletion.llServiceId != null && deletion.llServiceId.equals(xxService.getId())) {
-                    ret.addRemovedResourceGuid(deletion.llResourceGuid);
-                }
+                ret.addRemovedResourceGuid(deletion.llResourceGuid);
             }
         }
 
@@ -571,56 +563,73 @@ public class RMSMgr {
         return provider;
     }
 
+    /**
+     * Persist a batch of deletions made at {@code version}, then prune old
+     * entries that have aged out of the retention window. Runs inside the
+     * caller's transaction (callers are already {@code @Transactional}), so
+     * a deletion is durably visible to other Admin instances as soon as
+     * the enclosing transaction commits.
+     */
     private void recordDeletions(Long version, List<DeletionRecord> deletions) {
-        if (CollectionUtils.isNotEmpty(deletions)) {
-            deletionLog.put(version, deletions);
-            pruneOldDeletions(version);
+        if (version == null || CollectionUtils.isEmpty(deletions)) {
+            return;
         }
+        List<XXRMSDeletionLog> rows = new ArrayList<>(deletions.size());
+        for (DeletionRecord d : deletions) {
+            rows.add(new XXRMSDeletionLog(version, d.hlResourceGuid, d.llResourceGuid, d.llServiceId));
+        }
+        deletionLogDao.recordAll(rows);
+        pruneOldDeletions(version);
     }
 
+    /**
+     * Drop persisted deletion records older than the retention window and,
+     * if any rows were removed, advance the persisted watermark so plugins
+     * below the new minimum version are correctly forced to full-download.
+     */
     private void pruneOldDeletions(Long currentVersion) {
-        if (deletionLog.size() > MAX_DELETION_LOG_VERSIONS) {
-            long cutoff = currentVersion - MAX_DELETION_LOG_VERSIONS;
-            deletionLog.entrySet().removeIf(e -> e.getKey() <= cutoff);
-            // We just dropped deletion records at or below `cutoff`; advance
-            // the watermark so plugins still on lastKnownVersion <= cutoff
-            // get correctly forced to a full download.
-            advanceDeletionTrackingTo(cutoff + 1);
+        if (currentVersion == null || currentVersion <= DELETION_LOG_RETAINED_VERSIONS) {
+            return;
+        }
+        long cutoff = currentVersion - DELETION_LOG_RETAINED_VERSIONS;
+        int removed = deletionLogDao.deleteOlderThanVersion(cutoff);
+        if (removed > 0) {
+            advanceDeletionTrackingTo(cutoff);
+            LOG.info("Pruned {} deletion-log rows older than version {}", removed, cutoff);
         }
     }
 
     /**
-     * Get all deletion records since a given version. Caller must first
-     * verify {@link #hasDeletionHistorySince(Long)} for the same version;
-     * if that returned false, this method's output may be incomplete.
+     * Return persisted deletion records affecting {@code serviceId} that
+     * happened strictly after {@code sinceVersion}. The query is bounded by
+     * an index on (ll_service_id, version) so multi-tenant Admins with one
+     * heavy tenant don't block lighter ones.
      */
-    public List<DeletionRecord> getDeletionsSinceVersion(Long sinceVersion) {
-        if (sinceVersion == null) {
-            return null;
-        }
-        if (deletionLog.isEmpty()) {
+    public List<DeletionRecord> getDeletionsSinceVersion(Long serviceId, Long sinceVersion) {
+        if (serviceId == null || sinceVersion == null) {
             return Collections.emptyList();
         }
-
-        List<DeletionRecord> ret = new ArrayList<>();
-        for (Map.Entry<Long, List<DeletionRecord>> entry : deletionLog.entrySet()) {
-            if (entry.getKey() > sinceVersion) {
-                ret.addAll(entry.getValue());
-            }
+        List<XXRMSDeletionLog> rows = deletionLogDao.findByServiceSinceVersion(serviceId, sinceVersion);
+        if (CollectionUtils.isEmpty(rows)) {
+            return Collections.emptyList();
+        }
+        List<DeletionRecord> ret = new ArrayList<>(rows.size());
+        for (XXRMSDeletionLog row : rows) {
+            ret.add(new DeletionRecord(row.getHlResourceGuid(), row.getLlResourceGuid(), row.getLlServiceId()));
         }
         return ret;
     }
 
     /**
-     * Check if we have complete deletion history since a given version.
+     * Check whether the persisted deletion log is complete from
+     * {@code sinceVersion} onwards. The watermark lives on
+     * {@code x_rms_mapping_provider.deletion_tracking_from_version}, which
+     * is shared across every Admin instance and survives restart, so all
+     * Admins agree on the cutoff a plugin must be at to be served deltas.
      *
-     * The deletion log is in-memory and is repopulated only when deletions
-     * actually happen. An empty log therefore does NOT mean "no history" —
-     * it means "no deletions have occurred since this JVM started tracking".
-     * To distinguish these two cases we lazily snapshot the current provider
-     * version on the first check and treat that as our tracking watermark.
-     * Anything at or above that watermark has complete history (possibly
-     * empty); anything below it predates this JVM and must full-download.
+     * On a fresh upgrade the column is 0; the first check after upgrade
+     * lazily snapshots it to the then-current mapping version, after which
+     * it only moves forward when older records are pruned.
      */
     public boolean hasDeletionHistorySince(Long sinceVersion) {
         if (sinceVersion == null) {
@@ -630,26 +639,35 @@ public class RMSMgr {
     }
 
     private long getOrInitDeletionTrackingFromVersion() {
-        long v = deletionTrackingFromVersion.get();
-        if (v >= 0) {
-            return v;
+        XXRMSMappingProvider provider = getMappingProvider();
+        Long persisted = provider != null ? provider.getDeletionTrackingFromVersion() : null;
+        if (persisted != null && persisted > 0L) {
+            return persisted;
         }
-        long current = getMappingVersion();
-        if (deletionTrackingFromVersion.compareAndSet(-1L, current)) {
-            LOG.info("Initialized deletion-tracking watermark at mapping version {}", current);
-            return current;
+        // First read after upgrade: snapshot the current mapping version and
+        // persist it. We only persist if the row exists; getMappingProvider
+        // creates it lazily so this is safe.
+        long current = provider != null && provider.getLastKnownVersion() != null
+                ? provider.getLastKnownVersion() : 0L;
+        if (provider != null) {
+            provider.setDeletionTrackingFromVersion(current);
+            mappingProviderDao.update(provider);
+            LOG.info("Initialized persisted deletion-tracking watermark at mapping version {}", current);
         }
-        return deletionTrackingFromVersion.get();
+        return current;
     }
 
     private void advanceDeletionTrackingTo(long minVersion) {
-        long current;
-        do {
-            current = deletionTrackingFromVersion.get();
-            if (current >= minVersion) {
-                return;
-            }
-        } while (!deletionTrackingFromVersion.compareAndSet(current, minVersion));
+        XXRMSMappingProvider provider = getMappingProvider();
+        if (provider == null) {
+            return;
+        }
+        Long current = provider.getDeletionTrackingFromVersion();
+        if (current != null && current >= minVersion) {
+            return;
+        }
+        provider.setDeletionTrackingFromVersion(minVersion);
+        mappingProviderDao.update(provider);
     }
 
     private Long getNextMappingVersion() {
