@@ -80,8 +80,16 @@ public class RangerRMSMappingCache {
     /**
      * Update the cache atomically with new mappings (copy-on-write).
      * Supports both full replacement (isDelta=false) and incremental merge (isDelta=true).
+     *
+     * Writer-side serialization: the periodic {@link RangerRMSMappingRefresher}
+     * already single-flights via an AtomicBoolean, but {@link #update} is also
+     * reachable from {@code loadFromCache()} during plugin init and from any
+     * other future caller. Synchronize the writer path on {@code this} so a
+     * delta can never read a snapshot that another delta is mid-replacing and
+     * lose merged state. Readers ({@link #findMappingForPath}, etc.) remain
+     * lock-free via {@code AtomicReference.get()}.
      */
-    public void update(ServiceRMSMappings rmsMappings) {
+    public synchronized void update(ServiceRMSMappings rmsMappings) {
         if (rmsMappings == null) {
             return;
         }
@@ -308,46 +316,61 @@ public class RangerRMSMappingCache {
 
         Map<String, RangerPolicy.RangerPolicyResource> elements = resource.getResourceElements();
 
-        RangerPolicy.RangerPolicyResource pathResource = elements.get("path");
-        if (pathResource != null && CollectionUtils.isNotEmpty(pathResource.getValues())) {
-            return pathResource.getValues().get(0);
+        // HDFS / Hive path resource. Capture the value list reference once so a
+        // concurrent mutation of the underlying List between an isNotEmpty() check
+        // and a get(0) call cannot trigger an IndexOutOfBoundsException.
+        String pathValue = firstValueOf(elements.get("path"));
+        if (pathValue != null) {
+            return pathValue;
         }
 
-        RangerPolicy.RangerPolicyResource keyResource = elements.get("key");
-        if (keyResource != null && CollectionUtils.isNotEmpty(keyResource.getValues())) {
+        String keyValue = firstValueOf(elements.get("key"));
+        if (keyValue != null) {
             StringBuilder sb = new StringBuilder();
 
-            RangerPolicy.RangerPolicyResource volumeResource = elements.get("volume");
-            RangerPolicy.RangerPolicyResource bucketResource = elements.get("bucket");
+            String volumeValue = firstValueOf(elements.get("volume"));
+            String bucketValue = firstValueOf(elements.get("bucket"));
 
-            if (volumeResource != null && CollectionUtils.isNotEmpty(volumeResource.getValues())) {
-                sb.append("/").append(volumeResource.getValues().get(0));
+            if (volumeValue != null) {
+                sb.append("/").append(volumeValue);
             }
-            if (bucketResource != null && CollectionUtils.isNotEmpty(bucketResource.getValues())) {
-                sb.append("/").append(bucketResource.getValues().get(0));
+            if (bucketValue != null) {
+                sb.append("/").append(bucketValue);
             }
-            sb.append("/").append(keyResource.getValues().get(0));
+            sb.append("/").append(keyValue);
 
             return sb.toString();
         }
 
-        RangerPolicy.RangerPolicyResource s3PathResource = elements.get("path");
-        if (s3PathResource == null) {
-            s3PathResource = elements.get("object");
-        }
-        if (s3PathResource != null && CollectionUtils.isNotEmpty(s3PathResource.getValues())) {
-            RangerPolicy.RangerPolicyResource bucketResource = elements.get("bucket");
+        // S3-style: path or object element, optionally prefixed by bucket.
+        String s3PathValue = firstValueOf(elements.get("object"));
+        if (s3PathValue != null) {
+            String bucketValue = firstValueOf(elements.get("bucket"));
             StringBuilder sb = new StringBuilder();
-
-            if (bucketResource != null && CollectionUtils.isNotEmpty(bucketResource.getValues())) {
-                sb.append(bucketResource.getValues().get(0)).append("/");
+            if (bucketValue != null) {
+                sb.append(bucketValue).append("/");
             }
-            sb.append(s3PathResource.getValues().get(0));
-
+            sb.append(s3PathValue);
             return sb.toString();
         }
 
         return null;
+    }
+
+    /**
+     * Return the first non-blank value of a {@link RangerPolicy.RangerPolicyResource},
+     * or {@code null} if the resource is null/empty. Snapshots the value list reference
+     * so callers cannot observe a "non-empty then empty" race between two getValues() calls.
+     */
+    private static String firstValueOf(RangerPolicy.RangerPolicyResource policyResource) {
+        if (policyResource == null) {
+            return null;
+        }
+        List<String> values = policyResource.getValues();
+        if (CollectionUtils.isEmpty(values)) {
+            return null;
+        }
+        return values.get(0);
     }
 
     /**
@@ -381,20 +404,8 @@ public class RangerRMSMappingCache {
 
         Map<String, RangerPolicy.RangerPolicyResource> elements = resource.getResourceElements();
 
-        String database = null;
-        String table = null;
-
-        RangerPolicy.RangerPolicyResource dbResource = elements.get("database");
-        if (dbResource != null && CollectionUtils.isNotEmpty(dbResource.getValues())) {
-            database = dbResource.getValues().get(0);
-        }
-
-        RangerPolicy.RangerPolicyResource tableResource = elements.get("table");
-        if (tableResource != null && CollectionUtils.isNotEmpty(tableResource.getValues())) {
-            table = tableResource.getValues().get(0);
-        }
-
-        return buildHlResourceKey(database, table);
+        return buildHlResourceKey(firstValueOf(elements.get("database")),
+                                  firstValueOf(elements.get("table")));
     }
 
     private String buildHlResourceKey(String database, String table) {
@@ -480,13 +491,7 @@ public class RangerRMSMappingCache {
             if (resource == null || MapUtils.isEmpty(resource.getResourceElements())) {
                 return null;
             }
-
-            RangerPolicy.RangerPolicyResource policyResource = resource.getResourceElements().get(key);
-            if (policyResource != null && CollectionUtils.isNotEmpty(policyResource.getValues())) {
-                return policyResource.getValues().get(0);
-            }
-
-            return null;
+            return firstValueOf(resource.getResourceElements().get(key));
         }
     }
 }

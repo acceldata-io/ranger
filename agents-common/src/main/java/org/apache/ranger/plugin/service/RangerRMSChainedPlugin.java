@@ -180,6 +180,15 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
                 plugin.getPluginContext().getConfig());
             RangerPluginConfig config = rootPlugin.getPluginContext().getConfig();
 
+            // Defensive: if init() is called more than once on the same instance
+            // (e.g. plugin re-init on policy failover), stop the previous refresher
+            // before allocating a new one so the old daemon thread does not leak.
+            if (mappingRefresher != null) {
+                LOG.warn("RangerRMSChainedPlugin.init invoked while a previous mappingRefresher exists; stopping it first");
+                mappingRefresher.stopRefresher();
+                mappingRefresher = null;
+            }
+
             mappingRefresher = new RangerRMSMappingRefresher(
                 this,
                 rootPlugin.getServiceName(),
@@ -195,6 +204,42 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
         }
 
         LOG.info("<== RangerRMSChainedPlugin.init()");
+    }
+
+    /**
+     * Stop the periodic mapping refresher when the underlying plugin is torn
+     * down. {@link RangerChainedPlugin} does not declare a cleanup() hook (it
+     * is not a {@link RangerBasePlugin} subclass), so this is a new public API
+     * that callers responsible for plugin lifecycle (e.g. NameNode RMS plugin
+     * shutdown / re-init) should invoke. Without it, a re-init / failover
+     * would leak the daemon thread created by
+     * {@link RangerRMSMappingRefresher#startRefresher()} for every cycle,
+     * accumulating threads that continue to hit Ranger Admin.
+     */
+    public void cleanup() {
+        LOG.info("==> RangerRMSChainedPlugin.cleanup(serviceName={})", rootPlugin.getServiceName());
+
+        try {
+            RangerRMSMappingRefresher toStop = mappingRefresher;
+            mappingRefresher = null;
+            if (toStop != null) {
+                toStop.stopRefresher();
+            }
+        } catch (Exception e) {
+            LOG.error("Error stopping RMS Mapping Refresher during cleanup", e);
+        }
+
+        // Symmetric to init() (which calls plugin.init() via super.init()): release the
+        // inner RangerBasePlugin's policy refresher and engine state.
+        try {
+            if (plugin != null) {
+                plugin.cleanup();
+            }
+        } catch (Exception e) {
+            LOG.error("Error during inner plugin cleanup", e);
+        }
+
+        LOG.info("<== RangerRMSChainedPlugin.cleanup()");
     }
 
     @Override

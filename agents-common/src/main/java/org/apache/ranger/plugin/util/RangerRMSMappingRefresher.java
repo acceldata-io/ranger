@@ -99,10 +99,17 @@ public class RangerRMSMappingRefresher implements Runnable {
     }
 
     /**
-     * Start the periodic refresh task.
+     * Start the periodic refresh task. Safe to call once per refresher
+     * instance; subsequent calls are ignored to prevent leaking a second
+     * scheduler on accidental double-init.
      */
-    public void startRefresher() {
+    public synchronized void startRefresher() {
         LOG.info("==> RangerRMSMappingRefresher.startRefresher()");
+
+        if (scheduler != null && !scheduler.isShutdown()) {
+            LOG.warn("RangerRMSMappingRefresher already started for serviceName={}; ignoring duplicate start", serviceName);
+            return;
+        }
 
         loadFromCache();
 
@@ -118,19 +125,24 @@ public class RangerRMSMappingRefresher implements Runnable {
     }
 
     /**
-     * Stop the periodic refresh task.
+     * Stop the periodic refresh task. Idempotent: safe to call multiple times
+     * (e.g. from a chained-plugin cleanup() override that may itself be invoked
+     * more than once during plugin re-init / failover).
      */
-    public void stopRefresher() {
+    public synchronized void stopRefresher() {
         LOG.info("==> RangerRMSMappingRefresher.stopRefresher()");
 
-        if (scheduler != null) {
-            scheduler.shutdown();
+        ScheduledExecutorService toStop = scheduler;
+        scheduler = null;
+
+        if (toStop != null && !toStop.isShutdown()) {
+            toStop.shutdown();
             try {
-                if (!scheduler.awaitTermination(30, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
+                if (!toStop.awaitTermination(30, TimeUnit.SECONDS)) {
+                    toStop.shutdownNow();
                 }
             } catch (InterruptedException e) {
-                scheduler.shutdownNow();
+                toStop.shutdownNow();
                 Thread.currentThread().interrupt();
             }
         }
