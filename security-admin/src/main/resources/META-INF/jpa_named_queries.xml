@@ -2048,6 +2048,48 @@
 
 	<!-- RMS queries -->
 
+	<named-query name="XXRMSResourceMapping.getResourceMapping">
+		<query>SELECT obj.hlResourceId, obj.llResourceId FROM XXRMSResourceMapping obj
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSResourceMapping.getResourceMappingsSinceVersion">
+		<query>SELECT obj.hlResourceId, obj.llResourceId FROM XXRMSResourceMapping obj WHERE obj.mappingVersion &gt; :sinceVersion
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSResourceMapping.findChangedMappingsForService">
+		<query>SELECT m.hlResourceId, m.llResourceId
+			FROM XXRMSResourceMapping m, XXRMSServiceResource ll
+			WHERE m.llResourceId = ll.id
+			  AND ll.serviceId = :serviceId
+			  AND m.mappingVersion &gt; :sinceVersion
+			  AND m.mappingVersion &lt;= :currentVersion
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSServiceResource.findByIds">
+		<query>SELECT obj FROM XXRMSServiceResource obj WHERE obj.id IN :ids
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSDeletionLog.findByServiceSinceVersion">
+		<query>SELECT obj FROM XXRMSDeletionLog obj
+			WHERE obj.llServiceId = :serviceId AND obj.version &gt; :sinceVersion
+			ORDER BY obj.version ASC, obj.id ASC
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSDeletionLog.getMinVersion">
+		<query>SELECT MIN(obj.version) FROM XXRMSDeletionLog obj
+		</query>
+	</named-query>
+
+	<named-query name="XXRMSDeletionLog.deleteOlderThanVersion">
+		<query>DELETE FROM XXRMSDeletionLog obj WHERE obj.version &lt; :minRetainedVersion
+		</query>
+	</named-query>
+
 	<named-query name="XXRMSResourceMapping.deleteByHlResourceId">
 		<query>DELETE FROM XXRMSResourceMapping obj WHERE obj.hlResourceId = :resourceId
 		</query>
@@ -2151,6 +2193,37 @@
 
 	<named-query name="XXRMSMappingProvider.findByName">
 		<query>select obj from XXRMSMappingProvider obj where obj.name = :name</query>
+	</named-query>
+
+	<!--
+		Atomic, monotonic forward-only update of the deletion-tracking watermark.
+		Used by both the lazy-init path (after upgrade) and the prune path. By
+		updating only the watermark column with a guarded WHERE, we cannot lose
+		the concurrent last_known_version write performed by the RMS poller.
+	-->
+	<named-query name="XXRMSMappingProvider.advanceDeletionTrackingFromVersion">
+		<query>UPDATE XXRMSMappingProvider obj
+			SET obj.deletionTrackingFromVersion = :minVersion
+			WHERE obj.name = :name
+			  AND (obj.deletionTrackingFromVersion IS NULL
+			       OR obj.deletionTrackingFromVersion &lt; :minVersion)
+		</query>
+	</named-query>
+
+	<!--
+		Conditional initial-snapshot of the watermark: set it to :initVersion
+		only if no real value was ever persisted. We treat NULL and 0 as
+		"unset" (the latter is the schema default for upgraded installs that
+		already had x_rms_mapping_provider rows). A subsequent prune that
+		advances the watermark always wins because of the &lt; guard above.
+	-->
+	<named-query name="XXRMSMappingProvider.initDeletionTrackingFromVersion">
+		<query>UPDATE XXRMSMappingProvider obj
+			SET obj.deletionTrackingFromVersion = :initVersion
+			WHERE obj.name = :name
+			  AND (obj.deletionTrackingFromVersion IS NULL
+			       OR obj.deletionTrackingFromVersion = 0)
+		</query>
 	</named-query>
 
 	<named-query name="XXRole.findByUserId">

@@ -30,6 +30,10 @@
         <skipJSTests>false</skipJSTests>
     </properties>
     <dependencies>
+        <!-- RMS HMS polling uses reflection to load Hive Metastore classes.
+             Build with -Prms to bundle them, or manually add to WEB-INF/lib:
+               hive-standalone-metastore-common-{version}.jar
+               libfb303-0.9.3.jar -->
         <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr-runtime</artifactId>
@@ -1338,4 +1342,33 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>rms</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.hive</groupId>
+                    <artifactId>hive-standalone-metastore-common</artifactId>
+                    <version>${hive.version}</version>
+                    <scope>runtime</scope>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>*</groupId>
+                            <artifactId>*</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.thrift</groupId>
+                    <artifactId>libfb303</artifactId>
+                    <version>0.9.3</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>
