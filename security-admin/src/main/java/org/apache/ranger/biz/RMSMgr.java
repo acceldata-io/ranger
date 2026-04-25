@@ -54,9 +54,12 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * RMSMgr handles all Resource Mapping Server (RMS) business logic.
@@ -89,6 +92,53 @@ public class RMSMgr {
     private XXRMSResourceMappingDao resourceMappingDao;
     private XXRMSDeletionLogDao deletionLogDao;
     private XXServiceDao serviceDao;
+
+    /**
+     * Process-local memo of fully-built mapping payloads, keyed by service
+     * name and version. When N plugins simultaneously request a full sync at
+     * the same currentVersion (a common pattern after Admin restart, when a
+     * version bump invalidates plugin caches, or when a stale poller falls
+     * below the deletion-tracking watermark), the heavy DB+JSON work runs
+     * exactly once and the rest of the requests reuse the snapshot.
+     *
+     * <p>Bounded size keeps memory predictable in multi-tenant Admins; the
+     * version field embedded in {@link CachedFullMappings} ensures stale
+     * entries can never be served after a mapping write bumps the version.
+     */
+    private static final int FULL_MAPPINGS_CACHE_CAPACITY = 16;
+    private final Map<String, CachedFullMappings> fullMappingsCache =
+            Collections.synchronizedMap(new LinkedHashMap<String, CachedFullMappings>(
+                    FULL_MAPPINGS_CACHE_CAPACITY + 1, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CachedFullMappings> eldest) {
+                    return size() > FULL_MAPPINGS_CACHE_CAPACITY;
+                }
+            });
+    private final ConcurrentMap<String, Object> fullMappingsBuildLocks = new ConcurrentHashMap<>();
+
+    /**
+     * Immutable snapshot of a fully-built mapping payload for a service.
+     * The collections are populated once by {@link #buildServiceMappings}
+     * and never mutated thereafter, so we can safely share their references
+     * with concurrent JSON-serialization paths in different responses.
+     */
+    private static final class CachedFullMappings {
+        final long                                version;
+        final String                              serviceName;
+        final String                              hlServiceName;
+        final List<RMSResourceMapping>            resourceMappings;
+        final Map<String, RangerServiceResource>  serviceResources;
+
+        CachedFullMappings(ServiceRMSMappings src) {
+            this.version          = src.getMappingVersion() != null ? src.getMappingVersion() : 0L;
+            this.serviceName      = src.getServiceName();
+            this.hlServiceName    = src.getHlServiceName();
+            this.resourceMappings = src.getResourceMappings() != null
+                    ? src.getResourceMappings() : Collections.emptyList();
+            this.serviceResources = src.getServiceResources() != null
+                    ? src.getServiceResources() : Collections.emptyMap();
+        }
+    }
 
     /**
      * How many mapping_version slots of deletion history to keep in
@@ -150,7 +200,11 @@ public class RMSMgr {
         } else if (lastKnownVersion != null && lastKnownVersion > 0 && lastKnownVersion < currentVersion) {
             ret = buildDeltaMappings(xxService, lastKnownVersion, currentVersion);
         } else {
-            ret = buildServiceMappings(xxService, currentVersion);
+            // Initial or refresh download: serve from the per-service memo so
+            // a thundering-herd of plugin restarts collapses to a single DB
+            // build per (service, version).
+            ret = buildOrGetCachedFullMappings(xxService, currentVersion);
+            ret.setLastKnownVersion(lastKnownVersion);
             ret.setIsDelta(false);
         }
 
@@ -172,7 +226,7 @@ public class RMSMgr {
 
         if (!hasDeletionHistorySince(lastKnownVersion)) {
             LOG.info("Deletion history incomplete since version {}, falling back to full download", lastKnownVersion);
-            ServiceRMSMappings full = buildServiceMappings(xxService, currentVersion);
+            ServiceRMSMappings full = buildOrGetCachedFullMappings(xxService, currentVersion);
             full.setIsDelta(false);
             full.setLastKnownVersion(lastKnownVersion);
             return full;
@@ -204,6 +258,66 @@ public class RMSMgr {
                  lastKnownVersion, currentVersion);
 
         return ret;
+    }
+
+    /**
+     * Stampede-safe accessor for the fully-built mapping payload.
+     * <p>
+     * The hot path is a lock-free read of {@link #fullMappingsCache}; on a
+     * cache hit at the requested version we return a fresh
+     * {@link ServiceRMSMappings} header that <em>shares</em> the immutable
+     * resource-mapping list and resource map from the cache. Sharing is safe
+     * because nothing mutates those collections after they're populated by
+     * {@link #buildServiceMappings}.
+     * <p>
+     * On miss we serialize concurrent rebuilders behind a per-service lock,
+     * so 100 simultaneous full-sync requests collapse to a single DB build.
+     * Cache eviction is automatic: a stale (lower-version) entry simply
+     * fails the version check and is replaced under the lock.
+     */
+    private ServiceRMSMappings buildOrGetCachedFullMappings(XXService xxService, Long currentVersion) {
+        String name = xxService.getName();
+        long   wantVersion = currentVersion != null ? currentVersion : 0L;
+
+        CachedFullMappings hit = fullMappingsCache.get(name);
+        if (hit != null && hit.version == wantVersion) {
+            return wrapCachedFullMappings(hit);
+        }
+
+        Object lock = fullMappingsBuildLocks.computeIfAbsent(name, k -> new Object());
+        synchronized (lock) {
+            hit = fullMappingsCache.get(name);
+            if (hit != null && hit.version == wantVersion) {
+                return wrapCachedFullMappings(hit);
+            }
+            ServiceRMSMappings fresh = buildServiceMappings(xxService, currentVersion);
+            fullMappingsCache.put(name, new CachedFullMappings(fresh));
+            return fresh;
+        }
+    }
+
+    private ServiceRMSMappings wrapCachedFullMappings(CachedFullMappings cached) {
+        ServiceRMSMappings ret = new ServiceRMSMappings();
+        ret.setServiceName(cached.serviceName);
+        ret.setHlServiceName(cached.hlServiceName);
+        ret.setMappingVersion(cached.version);
+        ret.setIsDelta(false);
+        // Share immutable references with the cache. The REST layer only
+        // serializes these to JSON, never mutates them.
+        ret.setResourceMappings(cached.resourceMappings);
+        ret.setServiceResources(cached.serviceResources);
+        return ret;
+    }
+
+    /**
+     * Drop all cached full payloads. Called whenever a write operation
+     * mutates mappings; the next reader will rebuild from the source of
+     * truth at the new currentVersion. (Strictly speaking, the version
+     * check in the read path already guarantees correctness, but eagerly
+     * clearing avoids carrying obsolete bytes in memory.)
+     */
+    private void invalidateFullMappingsCache() {
+        fullMappingsCache.clear();
     }
 
     /**
@@ -692,7 +806,11 @@ public class RMSMgr {
     }
 
     /**
-     * Update mapping provider version after changes.
+     * Update mapping provider version after changes. Also drops the cached
+     * full-mapping snapshots so subsequent readers rebuild against the new
+     * version. Strictly speaking the version check in the read path already
+     * guarantees correctness, but eager invalidation reclaims memory and
+     * keeps the cache state synchronized with the DB.
      */
     private void updateMappingProviderVersion() {
         XXRMSMappingProvider provider = getMappingProvider();
@@ -700,6 +818,7 @@ public class RMSMgr {
             provider.setLastKnownVersion(provider.getLastKnownVersion() + 1);
             provider.setChangeTimestamp(new Date());
             mappingProviderDao.update(provider);
+            invalidateFullMappingsCache();
         }
     }
 
