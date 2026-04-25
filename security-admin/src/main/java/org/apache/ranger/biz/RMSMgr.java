@@ -188,7 +188,8 @@ public class RMSMgr {
         ret.setLastKnownVersion(lastKnownVersion);
         ret.setIsDelta(true);
 
-        List<Object[]> changedMappings = resourceMappingDao.getResourceMappingsSinceVersion(lastKnownVersion);
+        List<Object[]> changedMappings = resourceMappingDao.findChangedMappingsForService(
+                xxService.getId(), lastKnownVersion, currentVersion);
         Map<Long, XXRMSServiceResource> resourceCache = new HashMap<>();
 
         if (CollectionUtils.isNotEmpty(changedMappings)) {
@@ -203,15 +204,14 @@ public class RMSMgr {
                     continue;
                 }
 
-                XXService llService = serviceDao.getById(llResource.getServiceId());
-                if (llService == null || !llService.getId().equals(xxService.getId())) {
-                    continue;
-                }
-
+                // The DB query already restricts to mappings whose ll-resource
+                // belongs to xxService, so no Java-side service filter is needed.
                 XXService hlService = serviceDao.getById(hlResource.getServiceId());
                 if (hlService != null) {
                     ret.setHlServiceName(hlService.getName());
                 }
+
+                XXService llService = xxService;
 
                 RMSResourceMapping rmsMapping = new RMSResourceMapping();
                 rmsMapping.setHlResourceGuid(hlResource.getGuid());

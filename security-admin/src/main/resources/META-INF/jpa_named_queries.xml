@@ -2058,6 +2058,16 @@
 		</query>
 	</named-query>
 
+	<named-query name="XXRMSResourceMapping.findChangedMappingsForService">
+		<query>SELECT m.hlResourceId, m.llResourceId
+			FROM XXRMSResourceMapping m, XXRMSServiceResource ll
+			WHERE m.llResourceId = ll.id
+			  AND ll.serviceId = :serviceId
+			  AND m.mappingVersion &gt; :sinceVersion
+			  AND m.mappingVersion &lt;= :currentVersion
+		</query>
+	</named-query>
+
 	<named-query name="XXRMSResourceMapping.deleteByHlResourceId">
 		<query>DELETE FROM XXRMSResourceMapping obj WHERE obj.hlResourceId = :resourceId
 		</query>
