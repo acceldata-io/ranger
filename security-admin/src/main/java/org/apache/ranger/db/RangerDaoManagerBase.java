@@ -323,6 +323,7 @@ public abstract class RangerDaoManagerBase {
 	public XXRMSNotificationDao getXXRMSNotification() { return new XXRMSNotificationDao(this); }
 	public XXRMSServiceResourceDao getXXRMSServiceResource() { return new XXRMSServiceResourceDao(this); }
 	public XXRMSResourceMappingDao getXXRMSResourceMapping() { return new XXRMSResourceMappingDao(this); }
+	public XXRMSDeletionLogDao getXXRMSDeletionLog() { return new XXRMSDeletionLogDao(this); }
 
 	public XXGdsDatasetDao getXXGdsDataset() { return new XXGdsDatasetDao(this); }
 	public XXGdsProjectDao getXXGdsProject() { return new XXGdsProjectDao(this); }

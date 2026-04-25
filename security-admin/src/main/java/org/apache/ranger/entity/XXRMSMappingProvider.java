@@ -62,6 +62,17 @@ public class XXRMSMappingProvider implements Serializable {
     @Column(name = "last_known_version")
     protected Long lastKnownVersion;
 
+    /**
+     * Lowest mapping_version from which the persisted deletion log (table
+     * {@code x_rms_deletion_log}) is known to be complete. Plugins polling
+     * with a {@code lastKnownVersion} below this value cannot be served a
+     * delta safely and must full-download. Set lazily on the first delta
+     * request after upgrade to the then-current {@code lastKnownVersion},
+     * and advanced forward whenever older deletion records are pruned.
+     */
+    @Column(name = "deletion_tracking_from_version")
+    protected Long deletionTrackingFromVersion;
+
     public XXRMSMappingProvider() {}
 
     public XXRMSMappingProvider(String name) {
@@ -105,6 +116,14 @@ public class XXRMSMappingProvider implements Serializable {
      */
     public void setLastKnownVersion(Long lastKnownVersion) {
         this.lastKnownVersion = lastKnownVersion;
+    }
+
+    public Long getDeletionTrackingFromVersion() {
+        return deletionTrackingFromVersion;
+    }
+
+    public void setDeletionTrackingFromVersion(Long deletionTrackingFromVersion) {
+        this.deletionTrackingFromVersion = deletionTrackingFromVersion;
     }
 
     public int getMyClassType() {
