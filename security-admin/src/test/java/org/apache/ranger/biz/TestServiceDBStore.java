@@ -2942,11 +2942,11 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		rangerStmt1.setAction(java.util.Arrays.asList("s3:PutObject"));
 
 		List<org.apache.ranger.s3.PolicyStatement> iamStatements = java.util.Arrays.asList(iamStmt1);
-		Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList(rangerStmt1.getResource()));
+		List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(rangerStmt1);
 
 		// Execute
 		List<org.apache.ranger.s3.PolicyStatement> result =
-			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerManagedResources);
+			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerStatements);
 
 		// Assert: IAM statement should be preserved
 		Assert.assertEquals(1, result.size());
@@ -2972,11 +2972,11 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		rangerStmt1.setAction(java.util.Arrays.asList("s3:GetObject"));
 
 		List<org.apache.ranger.s3.PolicyStatement> iamStatements = java.util.Arrays.asList(iamStmt1, iamStmt2);
-		Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList(rangerStmt1.getResource()));
+		List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(rangerStmt1);
 
 		// Execute
 		List<org.apache.ranger.s3.PolicyStatement> result =
-			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerManagedResources);
+			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerStatements);
 
 		// Assert: only IAM-only statement should be preserved
 		Assert.assertEquals(1, result.size());
@@ -2992,11 +2992,11 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		rangerStmt1.setEffect("Allow");
 		rangerStmt1.setResource("arn:aws:s3:::ranger-bucket/*");
 		rangerStmt1.setAction(java.util.Arrays.asList("s3:GetObject"));
-		Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList(rangerStmt1.getResource()));
+		List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(rangerStmt1);
 
 		// Execute
 		List<org.apache.ranger.s3.PolicyStatement> result =
-			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerManagedResources);
+			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerStatements);
 
 		// Assert: result should be empty
 		Assert.assertEquals(0, result.size());
@@ -3011,11 +3011,11 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		stmt1.setAction(java.util.Arrays.asList("s3:GetObject"));
 
 		List<org.apache.ranger.s3.PolicyStatement> iamStatements = java.util.Arrays.asList(stmt1);
-		Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList(stmt1.getResource()));
+		List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(stmt1);
 
 		// Execute
 		List<org.apache.ranger.s3.PolicyStatement> result =
-			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerManagedResources);
+			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerStatements);
 
 		// Assert: no IAM-only statements
 		Assert.assertEquals(0, result.size());
