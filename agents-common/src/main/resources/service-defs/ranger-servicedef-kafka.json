@@ -226,6 +226,22 @@
 		},
 
 		{
+			"itemId": 6,
+			"name": "kafka.principal",
+			"type": "string",
+			"mandatory": false,
+			"label": "Kafka Service Principal"
+		},
+
+		{
+			"itemId": 7,
+			"name": "kafka.keytab",
+			"type": "string",
+			"mandatory": false,
+			"label": "Kafka Keytab Path"
+		},
+
+		{
 			"itemId": 5,
 			"name": "ranger.plugin.audit.filters",
 			"type": "string",
