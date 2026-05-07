@@ -319,6 +319,30 @@
 		},
 
 		{
+			"itemId": 7,
+			"name": "lookupprincipal",
+			"type": "string",
+			"subType": "",
+			"mandatory": false,
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Lookup Service Principal"
+		},
+
+		{
+			"itemId": 8,
+			"name": "lookupkeytab",
+			"type": "string",
+			"subType": "",
+			"mandatory": false,
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Lookup Keytab Path"
+		},
+
+		{
 			"itemId": 6,
 			"name": "ranger.plugin.audit.filters",
 			"type": "string",
