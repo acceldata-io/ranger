@@ -92,9 +92,9 @@ RUN set -eux; \
     mkdir -p /usr/share/java/; \
     mkdir -p ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/
 
-RUN curl -s -f -L -o /usr/share/java/postgresql.jar https://repo1.maven.org/maven2/org/postgresql/postgresql/42.2.16.jre7/postgresql-42.2.16.jre7.jar && \
-    curl -s -f -L -o /usr/share/java/mysql-connector.jar https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar && \
-    curl -s -f -L -o ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/log4jdbc-1.2.jar https://repo1.maven.org/maven2/com/googlecode/log4jdbc/log4jdbc/1.2/log4jdbc-1.2.jar
+RUN curl -s -f -L -o /usr/share/java/postgresql.jar https://sonatype.nexus.acceldata.tech/repository/maven-public/org/postgresql/postgresql/42.2.16.jre7/postgresql-42.2.16.jre7.jar && \
+    curl -s -f -L -o /usr/share/java/mysql-connector.jar https://sonatype.nexus.acceldata.tech/repository/maven-public/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar && \
+    curl -s -f -L -o ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/log4jdbc-1.2.jar https://sonatype.nexus.acceldata.tech/repository/maven-public/com/googlecode/log4jdbc/log4jdbc/1.2/log4jdbc-1.2.jar
 
 USER ranger
 
