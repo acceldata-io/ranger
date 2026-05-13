@@ -1,0 +1,137 @@
+{
+  "id": 22,
+  "name": "gcs",
+  "displayName": "GCS",
+  "implClass": "org.apache.ranger.services.gcs.RangerServiceGCS",
+  "label": "GCS Repository",
+  "description": "Google Cloud Storage Repository",
+  "guid": "",
+  "options": { "enableDenyAndExceptionsInPolicies": "true" },
+  "resources":
+  [
+    {
+      "itemId": 1,
+      "name": "bucket",
+      "type": "string",
+      "level": 10,
+      "parent": "",
+      "mandatory": true,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": { "wildCard": true, "ignoreCase": false },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "GCS Bucket",
+      "description": "GCS Bucket Name"
+    },
+    {
+      "itemId": 2,
+      "name": "object",
+      "type": "path",
+      "level": 20,
+      "parent": "bucket",
+      "mandatory": false,
+      "lookupSupported": true,
+      "recursiveSupported": true,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerPathResourceMatcher",
+      "matcherOptions": { "wildCard": true, "ignoreCase": false },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "GCS Object",
+      "description": "GCS Object path within the bucket"
+    }
+  ],
+
+  "accessTypes":
+  [
+    {
+      "itemId": 1,
+      "name": "storage.buckets.list",
+      "label": "BucketsList"
+    },
+    {
+      "itemId": 2,
+      "name": "storage.buckets.get",
+      "label": "BucketsGet"
+    },
+    {
+      "itemId": 3,
+      "name": "storage.objects.list",
+      "label": "ObjectsList"
+    },
+    {
+      "itemId": 4,
+      "name": "storage.objects.get",
+      "label": "ObjectsGet"
+    },
+    {
+      "itemId": 5,
+      "name": "storage.objects.create",
+      "label": "ObjectsCreate"
+    },
+    {
+      "itemId": 6,
+      "name": "storage.objects.delete",
+      "label": "ObjectsDelete"
+    }
+  ],
+
+  "configs":
+  [
+    {
+      "itemId": 1,
+      "name": "username",
+      "type": "string",
+      "subType": "",
+      "mandatory": true,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Username"
+    },
+    {
+      "itemId": 2,
+      "name": "credential_file",
+      "type": "string",
+      "subType": "",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Service Account Credential File"
+    },
+    {
+      "itemId": 3,
+      "name": "projectid",
+      "type": "string",
+      "subType": "",
+      "mandatory": true,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "GCP Project ID"
+    },
+    {
+      "itemId": 4,
+      "name": "bucketname",
+      "type": "string",
+      "subType": "",
+      "mandatory": true,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Bucket Name"
+    }
+  ],
+
+  "enums": [],
+
+  "contextEnrichers": [],
+
+  "policyConditions": []
+}

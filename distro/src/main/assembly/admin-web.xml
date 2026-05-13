@@ -573,6 +573,32 @@
         </includes>
       </binaries>
     </moduleSet>
+
+    <moduleSet>
+      <useAllReactorProjects>true</useAllReactorProjects>
+      <includes>
+        <include>org.apache.ranger:gcs-agent</include>
+      </includes>
+      <binaries>
+        <outputDirectory>ews/webapp/WEB-INF/classes/ranger-plugins/gcs</outputDirectory>
+        <includeDependencies>true</includeDependencies>
+        <unpack>false</unpack>
+        <directoryMode>755</directoryMode>
+        <fileMode>644</fileMode>
+        <includes>
+          <include>com.google.cloud:google-cloud-storage</include>
+          <include>com.google.auth:google-auth-library-oauth2-http</include>
+          <include>com.google.auth:google-auth-library-credentials</include>
+          <include>com.google.api-client:google-api-client</include>
+          <include>com.google.http-client:google-http-client</include>
+          <include>com.google.http-client:google-http-client-jackson2</include>
+          <include>com.google.cloud:google-cloud-core</include>
+          <include>com.google.cloud:google-cloud-core-http</include>
+          <include>io.grpc:grpc-context</include>
+          <include>com.google.guava:guava</include>
+        </includes>
+      </binaries>
+    </moduleSet>
   </moduleSets>
 
   <fileSets>

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# 1. Define the marker message
+MARKER_MSG=" Changed version from '3.2.3.5-SNAPSHOT' to "
+
+# 2. Get the commit hash of the marker
+# We use -1 to get the most recent instance if it appears multiple times
+START_COMMIT=$(git log --oneline --grep="$MARKER_MSG" --format=%H -1)
+
+if [ -z "$START_COMMIT" ]; then
+    echo "Error: Marker commit not found."
+    exit 1
+fi
+
+echo "--- Generating Changelog since $START_COMMIT ---"
+echo ""
+
+# 3. Fetch logs from that commit to HEAD
+# %s gives the subject line only
+git log "${START_COMMIT}..HEAD" --format="%s" | \
+    # Filter: Exclude lines starting with OSV
+    # Cleanup: Remove trailing (#number) and any trailing whitespace
+    sed -E 's/[[:space:]]*\(#[0-9]+\)[[:space:]]*$//'

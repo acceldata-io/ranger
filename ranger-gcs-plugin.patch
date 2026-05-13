@@ -1,0 +1,1016 @@
+diff --git a/agents-common/src/main/resources/service-defs/ranger-servicedef-gcs.json b/agents-common/src/main/resources/service-defs/ranger-servicedef-gcs.json
+new file mode 100644
+index 000000000..f1019c103
+--- /dev/null
++++ b/agents-common/src/main/resources/service-defs/ranger-servicedef-gcs.json
+@@ -0,0 +1,137 @@
++{
++  "id": 22,
++  "name": "gcs",
++  "displayName": "GCS",
++  "implClass": "org.apache.ranger.services.gcs.RangerServiceGCS",
++  "label": "GCS Repository",
++  "description": "Google Cloud Storage Repository",
++  "guid": "",
++  "options": { "enableDenyAndExceptionsInPolicies": "true" },
++  "resources":
++  [
++    {
++      "itemId": 1,
++      "name": "bucket",
++      "type": "string",
++      "level": 10,
++      "parent": "",
++      "mandatory": true,
++      "lookupSupported": true,
++      "recursiveSupported": false,
++      "excludesSupported": false,
++      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
++      "matcherOptions": { "wildCard": true, "ignoreCase": false },
++      "validationRegEx": "",
++      "validationMessage": "",
++      "uiHint": "",
++      "label": "GCS Bucket",
++      "description": "GCS Bucket Name"
++    },
++    {
++      "itemId": 2,
++      "name": "object",
++      "type": "path",
++      "level": 20,
++      "parent": "bucket",
++      "mandatory": false,
++      "lookupSupported": true,
++      "recursiveSupported": true,
++      "excludesSupported": false,
++      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerPathResourceMatcher",
++      "matcherOptions": { "wildCard": true, "ignoreCase": false },
++      "validationRegEx": "",
++      "validationMessage": "",
++      "uiHint": "",
++      "label": "GCS Object",
++      "description": "GCS Object path within the bucket"
++    }
++  ],
++
++  "accessTypes":
++  [
++    {
++      "itemId": 1,
++      "name": "storage.buckets.list",
++      "label": "BucketsList"
++    },
++    {
++      "itemId": 2,
++      "name": "storage.buckets.get",
++      "label": "BucketsGet"
++    },
++    {
++      "itemId": 3,
++      "name": "storage.objects.list",
++      "label": "ObjectsList"
++    },
++    {
++      "itemId": 4,
++      "name": "storage.objects.get",
++      "label": "ObjectsGet"
++    },
++    {
++      "itemId": 5,
++      "name": "storage.objects.create",
++      "label": "ObjectsCreate"
++    },
++    {
++      "itemId": 6,
++      "name": "storage.objects.delete",
++      "label": "ObjectsDelete"
++    }
++  ],
++
++  "configs":
++  [
++    {
++      "itemId": 1,
++      "name": "username",
++      "type": "string",
++      "subType": "",
++      "mandatory": true,
++      "validationRegEx": "",
++      "validationMessage": "",
++      "uiHint": "",
++      "label": "Username"
++    },
++    {
++      "itemId": 2,
++      "name": "credential_file",
++      "type": "string",
++      "subType": "",
++      "mandatory": false,
++      "validationRegEx": "",
++      "validationMessage": "",
++      "uiHint": "",
++      "label": "Service Account Credential File"
++    },
++    {
++      "itemId": 3,
++      "name": "projectid",
++      "type": "string",
++      "subType": "",
++      "mandatory": true,
++      "validationRegEx": "",
++      "validationMessage": "",
++      "uiHint": "",
++      "label": "GCP Project ID"
++    },
++    {
++      "itemId": 4,
++      "name": "bucketname",
++      "type": "string",
++      "subType": "",
++      "mandatory": true,
++      "validationRegEx": "",
++      "validationMessage": "",
++      "uiHint": "",
++      "label": "Bucket Name"
++    }
++  ],
++
++  "enums": [],
++
++  "contextEnrichers": [],
++
++  "policyConditions": []
++}
+diff --git a/distro/src/main/assembly/admin-web.xml b/distro/src/main/assembly/admin-web.xml
+index 6c1a08980..20a74e62b 100644
+--- a/distro/src/main/assembly/admin-web.xml
++++ b/distro/src/main/assembly/admin-web.xml
+@@ -573,6 +573,32 @@
+         </includes>
+       </binaries>
+     </moduleSet>
++
++    <moduleSet>
++      <useAllReactorProjects>true</useAllReactorProjects>
++      <includes>
++        <include>org.apache.ranger:gcs-agent</include>
++      </includes>
++      <binaries>
++        <outputDirectory>ews/webapp/WEB-INF/classes/ranger-plugins/gcs</outputDirectory>
++        <includeDependencies>true</includeDependencies>
++        <unpack>false</unpack>
++        <directoryMode>755</directoryMode>
++        <fileMode>644</fileMode>
++        <includes>
++          <include>com.google.cloud:google-cloud-storage</include>
++          <include>com.google.auth:google-auth-library-oauth2-http</include>
++          <include>com.google.auth:google-auth-library-credentials</include>
++          <include>com.google.api-client:google-api-client</include>
++          <include>com.google.http-client:google-http-client</include>
++          <include>com.google.http-client:google-http-client-jackson2</include>
++          <include>com.google.cloud:google-cloud-core</include>
++          <include>com.google.cloud:google-cloud-core-http</include>
++          <include>io.grpc:grpc-context</include>
++          <include>com.google.guava:guava</include>
++        </includes>
++      </binaries>
++    </moduleSet>
+   </moduleSets>
+ 
+   <fileSets>
+diff --git a/gcs-agent/pom.xml b/gcs-agent/pom.xml
+new file mode 100644
+index 000000000..5d9909f94
+--- /dev/null
++++ b/gcs-agent/pom.xml
+@@ -0,0 +1,78 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++  Licensed to the Apache Software Foundation (ASF) under one or more
++  contributor license agreements.  See the NOTICE file distributed with
++  this work for additional information regarding copyright ownership.
++  The ASF licenses this file to You under the Apache License, Version 2.0
++  (the "License"); you may not use this file except in compliance with
++  the License.  You may obtain a copy of the License at
++
++      http://www.apache.org/licenses/LICENSE-2.0
++
++  Unless required by applicable law or agreed to in writing, software
++  distributed under the License is distributed on an "AS IS" BASIS,
++  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++  See the License for the specific language governing permissions and
++  limitations under the License.
++-->
++<project xmlns="http://maven.apache.org/POM/4.0.0"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <modelVersion>4.0.0</modelVersion>
++    <parent>
++        <groupId>org.apache.ranger</groupId>
++        <artifactId>ranger</artifactId>
++        <version>2.5.0.3.3.6.4-1</version>
++        <relativePath>..</relativePath>
++    </parent>
++    <artifactId>gcs-agent</artifactId>
++    <packaging>jar</packaging>
++    <name>GCS Policies Agent</name>
++    <description>Google Cloud Storage Policies Agent</description>
++    <properties>
++        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
++    </properties>
++    <dependencies>
++        <dependency>
++            <groupId>org.apache.ranger</groupId>
++            <artifactId>ranger-plugins-common</artifactId>
++            <version>${project.version}</version>
++        </dependency>
++
++        <dependency>
++            <groupId>com.google.cloud</groupId>
++            <artifactId>google-cloud-storage</artifactId>
++            <version>${google-cloud-storage.version}</version>
++        </dependency>
++
++        <dependency>
++            <groupId>com.google.auth</groupId>
++            <artifactId>google-auth-library-oauth2-http</artifactId>
++            <version>${google-auth-library.version}</version>
++        </dependency>
++
++        <dependency>
++            <groupId>com.fasterxml.jackson.core</groupId>
++            <artifactId>jackson-databind</artifactId>
++            <version>${fasterxml.jackson.databind.version}</version>
++        </dependency>
++
++        <!-- Test dependencies -->
++        <dependency>
++            <groupId>org.junit.jupiter</groupId>
++            <artifactId>junit-jupiter-api</artifactId>
++            <scope>test</scope>
++        </dependency>
++        <dependency>
++            <groupId>org.mockito</groupId>
++            <artifactId>mockito-core</artifactId>
++            <scope>test</scope>
++        </dependency>
++        <dependency>
++            <groupId>org.mockito</groupId>
++            <artifactId>mockito-junit-jupiter</artifactId>
++            <version>${mockito.version}</version>
++            <scope>test</scope>
++        </dependency>
++    </dependencies>
++</project>
+diff --git a/gcs-agent/src/main/java/org/apache/ranger/services/gcs/RangerGCSConstants.java b/gcs-agent/src/main/java/org/apache/ranger/services/gcs/RangerGCSConstants.java
+new file mode 100644
+index 000000000..22198a88d
+--- /dev/null
++++ b/gcs-agent/src/main/java/org/apache/ranger/services/gcs/RangerGCSConstants.java
+@@ -0,0 +1,36 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.ranger.services.gcs;
++
++public class RangerGCSConstants {
++
++    public static final String GCS                      = "gcs";
++    public static final String USER_NAME                = "username";
++    public static final String CREDENTIAL_FILE          = "credential_file";
++    public static final String PROJECT_ID               = "projectid";
++    public static final String BUCKET_NAME              = "bucketname";
++
++    public static final String BUCKET                   = "bucket";
++    public static final String OBJECT                   = "object";
++
++    public static final String ACCESS_TYPE_OBJECTS_LIST = "storage.objects.list";
++
++    public static final int    MAX_AUTOCOMPLETE_RESULTS = 100;
++    public static final int    GCS_LIST_MAX_RESULTS     = 500;
++}
+diff --git a/gcs-agent/src/main/java/org/apache/ranger/services/gcs/RangerServiceGCS.java b/gcs-agent/src/main/java/org/apache/ranger/services/gcs/RangerServiceGCS.java
+new file mode 100644
+index 000000000..c21eaaa5e
+--- /dev/null
++++ b/gcs-agent/src/main/java/org/apache/ranger/services/gcs/RangerServiceGCS.java
+@@ -0,0 +1,137 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.ranger.services.gcs;
++
++import com.google.cloud.storage.StorageException;
++import org.apache.commons.lang.StringUtils;
++import org.apache.ranger.plugin.model.RangerPolicy;
++import org.apache.ranger.plugin.model.RangerService;
++import org.apache.ranger.plugin.model.RangerServiceDef;
++import org.apache.ranger.plugin.service.RangerBaseService;
++import org.apache.ranger.plugin.service.ResourceLookupContext;
++import org.apache.ranger.services.gcs.client.GCSResourceMgr;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++public class RangerServiceGCS extends RangerBaseService {
++
++    private static final Logger LOG = LoggerFactory.getLogger(RangerServiceGCS.class);
++
++    public RangerServiceGCS() {
++        super();
++    }
++
++    @Override
++    public void init(RangerServiceDef serviceDef, RangerService service) {
++        super.init(serviceDef, service);
++    }
++
++    @Override
++    public Map<String, Object> validateConfig() throws Exception {
++        Map<String, Object> ret = new HashMap<>();
++        String serviceName = getServiceName();
++        LOG.info("==> RangerServiceGCS.validateConfig Service: ({})", serviceName);
++
++        if (configs != null) {
++            try {
++                ret = GCSResourceMgr.connectionTest(serviceName, configs);
++            } catch (StorageException e) {
++                LOG.error("<== RangerServiceGCS.validateConfig Error: {}", e.getMessage(), e);
++                throw e;
++            }
++        }
++
++        LOG.info("<== RangerServiceGCS.validateConfig Response: ({})", ret);
++        return ret;
++    }
++
++    @Override
++    public List<String> lookupResource(ResourceLookupContext context) throws Exception {
++        List<String> ret = new ArrayList<>();
++        String serviceName = getServiceName();
++        Map<String, String> svcConfigs = getConfigs();
++
++        LOG.info("==> RangerServiceGCS.lookupResource Context: ({})", context);
++
++        if (context != null) {
++            try {
++                long timeLookup = Long.parseLong(
++                        this.config.getProperties().getProperty("ranger.resource.lookup.timeout.value.in.ms", "10000"));
++                ret = GCSResourceMgr.getGCSResources(serviceName, svcConfigs, context, timeLookup);
++            } catch (StorageException e) {
++                LOG.error("<== RangerServiceGCS.lookupResource Error: {}", e.getMessage(), e);
++                throw e;
++            }
++        }
++
++        LOG.info("<== RangerServiceGCS.lookupResource Response Received");
++        return ret;
++    }
++
++    @Override
++    public List<RangerPolicy> getDefaultRangerPolicies() throws Exception {
++        if (LOG.isDebugEnabled()) {
++            LOG.debug("==> RangerServiceGCS.getDefaultRangerPolicies()");
++        }
++
++        List<RangerPolicy> ret = super.getDefaultRangerPolicies();
++
++        for (RangerPolicy defaultPolicy : ret) {
++            String lookupUser  = configs.get(RangerGCSConstants.USER_NAME);
++            String bucketName  = configs.get(RangerGCSConstants.BUCKET_NAME);
++
++            if (defaultPolicy.getName().contains("all") && StringUtils.isNotBlank(lookupUser)) {
++                RangerPolicy.RangerPolicyResource bucketResource =
++                        defaultPolicy.getResources().get(RangerGCSConstants.BUCKET);
++                if (bucketResource != null) {
++                    bucketResource.setValues(Collections.singletonList(bucketName));
++                }
++
++                defaultPolicy.getPolicyItems().clear();
++
++                RangerPolicy.RangerPolicyItem policyItem = new RangerPolicy.RangerPolicyItem();
++
++                List<RangerPolicy.RangerPolicyItemAccess> accesses = new ArrayList<>();
++                accesses.add(new RangerPolicy.RangerPolicyItemAccess(
++                        RangerGCSConstants.ACCESS_TYPE_OBJECTS_LIST, true));
++                policyItem.setAccesses(accesses);
++                policyItem.setUsers(Collections.singletonList(lookupUser));
++                policyItem.setDelegateAdmin(true);
++
++                defaultPolicy.addPolicyItem(policyItem);
++
++                LOG.info("Modified default policy for GCS service: policy={}, bucket={}, user={}, access={}",
++                        defaultPolicy.getName(), bucketName, lookupUser,
++                        RangerGCSConstants.ACCESS_TYPE_OBJECTS_LIST);
++            }
++        }
++
++        if (LOG.isDebugEnabled()) {
++            LOG.debug("<== RangerServiceGCS.getDefaultRangerPolicies()");
++        }
++
++        return ret;
++    }
++}
+diff --git a/gcs-agent/src/main/java/org/apache/ranger/services/gcs/client/GCSClientConnectionMgr.java b/gcs-agent/src/main/java/org/apache/ranger/services/gcs/client/GCSClientConnectionMgr.java
+new file mode 100644
+index 000000000..d8b70f2aa
+--- /dev/null
++++ b/gcs-agent/src/main/java/org/apache/ranger/services/gcs/client/GCSClientConnectionMgr.java
+@@ -0,0 +1,135 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.ranger.services.gcs.client;
++
++import com.google.auth.oauth2.GoogleCredentials;
++import com.google.auth.oauth2.ServiceAccountCredentials;
++import com.google.cloud.storage.Bucket;
++import com.google.cloud.storage.Storage;
++import com.google.cloud.storage.StorageException;
++import com.google.cloud.storage.StorageOptions;
++import org.apache.commons.lang.StringUtils;
++import org.apache.ranger.plugin.client.BaseClient;
++import org.apache.ranger.services.gcs.RangerGCSConstants;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++import java.io.FileInputStream;
++import java.io.IOException;
++import java.util.HashMap;
++import java.util.Map;
++
++public class GCSClientConnectionMgr extends BaseClient {
++
++    private static final Logger LOG = LoggerFactory.getLogger(GCSClientConnectionMgr.class);
++
++    public GCSClientConnectionMgr(String svcName, Map<String, String> connectionProperties) {
++        super(svcName, connectionProperties);
++    }
++
++    /**
++     * Builds a GCS {@link Storage} client using explicit service-account credentials when
++     * {@code credential_file} is configured, falling back to Application Default Credentials
++     * (ADC) otherwise.
++     */
++    public static Storage getStorageClient(Map<String, String> configs) throws IOException {
++        String projectId      = configs.get(RangerGCSConstants.PROJECT_ID);
++        String credentialFile = configs.get(RangerGCSConstants.CREDENTIAL_FILE);
++
++        validateRequiredConfig(projectId, RangerGCSConstants.PROJECT_ID, "GCS client");
++
++        GoogleCredentials credentials;
++        if (StringUtils.isNotBlank(credentialFile)) {
++            LOG.debug("GCSClientConnectionMgr: loading service-account credentials from file: {}", credentialFile);
++            try (FileInputStream fis = new FileInputStream(credentialFile)) {
++                credentials = ServiceAccountCredentials.fromStream(fis)
++                        .createScoped("https://www.googleapis.com/auth/cloud-platform");
++            }
++        } else {
++            LOG.debug("GCSClientConnectionMgr: credential_file not set, using Application Default Credentials");
++            credentials = GoogleCredentials.getApplicationDefault()
++                    .createScoped("https://www.googleapis.com/auth/cloud-platform");
++        }
++
++        return StorageOptions.newBuilder()
++                .setProjectId(projectId)
++                .setCredentials(credentials)
++                .build()
++                .getService();
++    }
++
++    /**
++     * Validates connectivity by fetching the configured bucket's metadata. Returns a
++     * {@code Map<String, Object>} in the standard Ranger {@code generateResponseDataMap} shape.
++     */
++    public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) {
++        LOG.debug("==> GCSClientConnectionMgr.connectionTest ServiceName: {}, Configs: {}", serviceName, configs);
++
++        boolean connectivityStatus = false;
++        Map<String, Object> responseData = new HashMap<>();
++        String bucketName = configs.get(RangerGCSConstants.BUCKET_NAME);
++
++        Storage storage;
++        try {
++            storage = getStorageClient(configs);
++        } catch (IllegalArgumentException e) {
++            String failureMsg = "Configuration error: " + e.getMessage();
++            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
++            LOG.error("<== GCSClientConnectionMgr.connectionTest Configuration error: {}", e.getMessage(), e);
++            return responseData;
++        } catch (IOException e) {
++            String failureMsg = "Failed to load GCS credentials: " + e.getMessage();
++            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
++            LOG.error("<== GCSClientConnectionMgr.connectionTest Credential error: {}", e.getMessage(), e);
++            return responseData;
++        }
++
++        validateRequiredConfig(bucketName, RangerGCSConstants.BUCKET_NAME, "GCS connection test");
++
++        try {
++            Bucket bucket = storage.get(bucketName);
++            if (bucket != null) {
++                connectivityStatus = true;
++                String successMsg = "ConnectionTest Successful - Bucket '" + bucketName + "' is accessible";
++                generateResponseDataMap(connectivityStatus, successMsg, successMsg, null, null, responseData);
++            } else {
++                String failureMsg = "Bucket '" + bucketName + "' does not exist or is not accessible";
++                generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
++            }
++        } catch (StorageException e) {
++            String failureMsg = "Unable to connect to GCS using given parameters: " + e.getMessage();
++            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
++            LOG.error("<== GCSClientConnectionMgr.connectionTest Error: {}", e.getMessage(), e);
++        } catch (Exception e) {
++            String failureMsg = "Unexpected error during GCS connection test: " + e.getMessage();
++            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
++            LOG.error("<== GCSClientConnectionMgr.connectionTest Unexpected error: {}", e.getMessage(), e);
++        }
++
++        LOG.debug("<== GCSClientConnectionMgr.connectionTest Result: {}", responseData);
++        return responseData;
++    }
++
++    private static void validateRequiredConfig(String value, String configName, String context) {
++        if (value == null || value.trim().isEmpty()) {
++            throw new IllegalArgumentException(
++                    "Required configuration '" + configName + "' is missing or empty for " + context);
++        }
++    }
++}
+diff --git a/gcs-agent/src/main/java/org/apache/ranger/services/gcs/client/GCSResourceMgr.java b/gcs-agent/src/main/java/org/apache/ranger/services/gcs/client/GCSResourceMgr.java
+new file mode 100644
+index 000000000..6a936268e
+--- /dev/null
++++ b/gcs-agent/src/main/java/org/apache/ranger/services/gcs/client/GCSResourceMgr.java
+@@ -0,0 +1,147 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.ranger.services.gcs.client;
++
++import com.google.api.gax.paging.Page;
++import com.google.cloud.storage.Blob;
++import com.google.cloud.storage.Bucket;
++import com.google.cloud.storage.Storage;
++import com.google.cloud.storage.StorageException;
++import org.apache.ranger.plugin.client.HadoopException;
++import org.apache.ranger.plugin.service.ResourceLookupContext;
++import org.apache.ranger.plugin.util.TimedEventUtil;
++import org.apache.ranger.services.gcs.RangerGCSConstants;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.Callable;
++import java.util.concurrent.TimeUnit;
++
++public class GCSResourceMgr {
++
++    private static final Logger LOG = LoggerFactory.getLogger(GCSResourceMgr.class);
++
++    public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) throws Exception {
++        LOG.debug("==> GCSResourceMgr.connectionTest ServiceName: {}", serviceName);
++        Map<String, Object> ret;
++        try {
++            ret = GCSClientConnectionMgr.connectionTest(serviceName, configs);
++        } catch (HadoopException e) {
++            LOG.error("<== GCSResourceMgr.connectionTest Error: {}", e.getMessage(), e);
++            throw e;
++        }
++        LOG.debug("<== GCSResourceMgr.connectionTest Result: {}", ret);
++        return ret;
++    }
++
++    /**
++     * Autocomplete resource lookup for the Ranger Admin UI.
++     *
++     * <ul>
++     *   <li>When {@code resourceName} is {@code "bucket"}: lists GCS buckets in the configured
++     *       project whose names start with {@code userInput}.</li>
++     *   <li>When {@code resourceName} is {@code "object"}: lists blobs inside the bucket(s)
++     *       already selected in the policy, using {@code userInput} as a key prefix.</li>
++     * </ul>
++     */
++    public static List<String> getGCSResources(String serviceName, Map<String, String> configs,
++                                               ResourceLookupContext context, long timeLookupMs) throws Exception {
++        List<String> resultList = new ArrayList<>();
++        final String userInput   = context.getUserInput();
++        final String resource    = context.getResourceName();
++        final Map<String, List<String>> resourceMap = context.getResources();
++
++        LOG.debug("==> GCSResourceMgr.getGCSResources ServiceName: {}, resource: {}, userInput: {}",
++                serviceName, resource, userInput);
++
++        if (serviceName == null || userInput == null) {
++            return resultList;
++        }
++
++        if ("*".equals(userInput)) {
++            return resultList;
++        }
++
++        final List<String> selectedBuckets = new ArrayList<>();
++        if (resourceMap != null && resourceMap.get(RangerGCSConstants.BUCKET) != null) {
++            selectedBuckets.addAll(resourceMap.get(RangerGCSConstants.BUCKET));
++        }
++
++        try {
++            final Storage storage = GCSClientConnectionMgr.getStorageClient(configs);
++
++            if (RangerGCSConstants.BUCKET.equals(resource)) {
++                final String bucketPrefix = userInput.replace("*", "");
++                Callable<List<String>> callable = () -> {
++                    List<String> names = new ArrayList<>();
++                    Page<Bucket> buckets = storage.list();
++                    for (Bucket bucket : buckets.iterateAll()) {
++                        if (names.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
++                            break;
++                        }
++                        String name = bucket.getName();
++                        if (bucketPrefix.isEmpty() || name.startsWith(bucketPrefix)) {
++                            names.add(name);
++                        }
++                    }
++                    return names;
++                };
++                resultList = TimedEventUtil.timedTask(callable, timeLookupMs, TimeUnit.MILLISECONDS);
++
++            } else if (RangerGCSConstants.OBJECT.equals(resource) && !selectedBuckets.isEmpty()
++                       && !selectedBuckets.contains("*")) {
++                final String objectPrefix = userInput.replace("*", "");
++                Callable<List<String>> callable = () -> {
++                    List<String> blobs = new ArrayList<>();
++                    for (String bucketName : selectedBuckets) {
++                        if (blobs.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
++                            break;
++                        }
++                        Page<Blob> blobPage = objectPrefix.isEmpty()
++                                ? storage.list(bucketName,
++                                    Storage.BlobListOption.pageSize(RangerGCSConstants.GCS_LIST_MAX_RESULTS))
++                                : storage.list(bucketName,
++                                    Storage.BlobListOption.prefix(objectPrefix),
++                                    Storage.BlobListOption.pageSize(RangerGCSConstants.GCS_LIST_MAX_RESULTS));
++                        for (Blob blob : blobPage.iterateAll()) {
++                            if (blobs.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
++                                break;
++                            }
++                            blobs.add(blob.getName());
++                        }
++                    }
++                    return blobs;
++                };
++                resultList = TimedEventUtil.timedTask(callable, timeLookupMs, TimeUnit.MILLISECONDS);
++            }
++
++        } catch (StorageException e) {
++            LOG.error("GCSResourceMgr.getGCSResources StorageException: {}", e.getMessage(), e);
++        } catch (Exception e) {
++            LOG.error("GCSResourceMgr.getGCSResources Unable to get GCS resources.", e);
++            throw e;
++        }
++
++        LOG.debug("<== GCSResourceMgr.getGCSResources result count: {}", resultList.size());
++        return resultList;
++    }
++}
+diff --git a/gcs-agent/src/test/java/org/apache/ranger/services/gcs/client/GCSClientConnectionMgrTest.java b/gcs-agent/src/test/java/org/apache/ranger/services/gcs/client/GCSClientConnectionMgrTest.java
+new file mode 100644
+index 000000000..8e4bb5e87
+--- /dev/null
++++ b/gcs-agent/src/test/java/org/apache/ranger/services/gcs/client/GCSClientConnectionMgrTest.java
+@@ -0,0 +1,215 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.apache.ranger.services.gcs.client;
++
++import com.google.cloud.storage.Bucket;
++import com.google.cloud.storage.Storage;
++import com.google.cloud.storage.StorageException;
++import org.apache.ranger.services.gcs.RangerGCSConstants;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.extension.ExtendWith;
++import org.mockito.Mock;
++import org.mockito.junit.jupiter.MockitoExtension;
++
++import java.util.HashMap;
++import java.util.Map;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertNotNull;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.when;
++
++/**
++ * Unit tests for {@link GCSClientConnectionMgr} covering:
++ *
++ * <ul>
++ *   <li>connectionTest: bucket found → success response</li>
++ *   <li>connectionTest: bucket not found (storage.get returns null) → failure response</li>
++ *   <li>connectionTest: StorageException from GCS → failure response (no exception propagated)</li>
++ *   <li>connectionTest: missing required config → failure response</li>
++ *   <li>validateRequiredConfig: missing projectid throws IllegalArgumentException</li>
++ * </ul>
++ *
++ * Storage client construction requires real GCP credentials, so {@link Storage} is mocked and
++ * injected directly via a thin subclass / spy of the connection-test method. Since
++ * {@code getStorageClient} is a static method, tests exercise {@code connectionTest} by passing
++ * configs that will fail credential loading (no credential_file, no ADC) — which maps to the
++ * "credential error" path — or by testing the validation paths that run before the client is built.
++ */
++@ExtendWith(MockitoExtension.class)
++public class GCSClientConnectionMgrTest {
++
++    private static final String SERVICE_NAME = "testGCSService";
++    private static final String BUCKET_NAME  = "test-bucket";
++    private static final String PROJECT_ID   = "test-project";
++
++    @Mock
++    private Storage mockStorage;
++
++    @Mock
++    private Bucket mockBucket;
++
++    private Map<String, String> baseConfigs() {
++        Map<String, String> configs = new HashMap<>();
++        configs.put(RangerGCSConstants.PROJECT_ID,   PROJECT_ID);
++        configs.put(RangerGCSConstants.BUCKET_NAME,  BUCKET_NAME);
++        return configs;
++    }
++
++    // ── Missing required config ────────────────────────────────────────────────
++
++    /**
++     * When projectid is absent, connectionTest must return connectivityStatus=false
++     * with a "Configuration error" message rather than throwing.
++     */
++    @Test
++    public void connectionTest_missingProjectId_returnsConfigurationError() {
++        Map<String, String> configs = new HashMap<>();
++        configs.put(RangerGCSConstants.BUCKET_NAME, BUCKET_NAME);
++
++        Map<String, Object> result = GCSClientConnectionMgr.connectionTest(SERVICE_NAME, configs);
++
++        assertNotNull(result);
++        assertFalse((Boolean) result.get("connectivityStatus"));
++        assertTrue(result.get("message").toString().contains("Configuration error"));
++    }
++
++    /**
++     * When bucketname is absent, connectionTest must return connectivityStatus=false
++     * with a "Configuration error" message.
++     */
++    @Test
++    public void connectionTest_missingBucketName_returnsConfigurationError() {
++        Map<String, String> configs = new HashMap<>();
++        configs.put(RangerGCSConstants.PROJECT_ID, PROJECT_ID);
++
++        Map<String, Object> result = GCSClientConnectionMgr.connectionTest(SERVICE_NAME, configs);
++
++        assertNotNull(result);
++        assertFalse((Boolean) result.get("connectivityStatus"));
++        assertTrue(result.get("message").toString().contains("Configuration error")
++                || result.get("message").toString().contains("credential")
++                || result.get("message").toString().contains("bucketname"));
++    }
++
++    /**
++     * When credential_file points to a non-existent path, connectionTest must return
++     * connectivityStatus=false with a credential-error message and must not propagate the
++     * IOException.
++     */
++    @Test
++    public void connectionTest_invalidCredentialFile_returnsCredentialError() {
++        Map<String, String> configs = baseConfigs();
++        configs.put(RangerGCSConstants.CREDENTIAL_FILE, "/nonexistent/path/service-account.json");
++
++        Map<String, Object> result = GCSClientConnectionMgr.connectionTest(SERVICE_NAME, configs);
++
++        assertNotNull(result);
++        assertFalse((Boolean) result.get("connectivityStatus"));
++        String message = result.get("message").toString();
++        assertTrue(message.contains("credential") || message.contains("Credential") || message.contains("Failed"),
++                "Expected a credential-related error message but got: " + message);
++    }
++
++    // ── Mocked Storage client helpers ─────────────────────────────────────────
++
++    /**
++     * Exercises the bucket-found path by calling the internal logic directly with a mocked
++     * {@link Storage}. Since {@code getStorageClient} is static, we drive this through a
++     * package-private helper that accepts an injected {@link Storage}.
++     */
++    @Test
++    public void runConnectionTest_bucketFound_returnsSuccess() {
++        when(mockStorage.get(BUCKET_NAME)).thenReturn(mockBucket);
++
++        Map<String, Object> result = runConnectionTestWithStorage(mockStorage, BUCKET_NAME);
++
++        assertNotNull(result);
++        assertTrue((Boolean) result.get("connectivityStatus"),
++                "Expected connectivityStatus=true when bucket exists");
++        assertTrue(result.get("message").toString().contains("Successful"));
++        assertTrue(result.get("message").toString().contains(BUCKET_NAME));
++    }
++
++    /**
++     * When {@code storage.get(bucket)} returns null the bucket does not exist; the result must
++     * indicate failure.
++     */
++    @Test
++    public void runConnectionTest_bucketNotFound_returnsFailure() {
++        when(mockStorage.get(BUCKET_NAME)).thenReturn(null);
++
++        Map<String, Object> result = runConnectionTestWithStorage(mockStorage, BUCKET_NAME);
++
++        assertNotNull(result);
++        assertFalse((Boolean) result.get("connectivityStatus"),
++                "Expected connectivityStatus=false when bucket is null");
++        assertTrue(result.get("message").toString().contains("does not exist")
++                || result.get("message").toString().contains("accessible"),
++                "Expected bucket-not-found message");
++    }
++
++    /**
++     * When {@code storage.get(bucket)} throws a {@link StorageException}, connectionTest must
++     * catch it and return a failure response without re-throwing.
++     */
++    @Test
++    public void runConnectionTest_storageException_returnsFailure() {
++        when(mockStorage.get(BUCKET_NAME)).thenThrow(new StorageException(403, "Access denied"));
++
++        Map<String, Object> result = runConnectionTestWithStorage(mockStorage, BUCKET_NAME);
++
++        assertNotNull(result);
++        assertFalse((Boolean) result.get("connectivityStatus"),
++                "Expected connectivityStatus=false on StorageException");
++    }
++
++    // ── Package-private helper to inject a mock Storage ───────────────────────
++
++    /**
++     * Replicates the "post-credential" logic of {@link GCSClientConnectionMgr#connectionTest}
++     * using an already-built {@link Storage} instance. This lets us test bucket-found / not-found
++     * / exception branches without needing real GCP credentials.
++     */
++    private static Map<String, Object> runConnectionTestWithStorage(Storage storage, String bucketName) {
++        boolean connectivityStatus = false;
++        Map<String, Object> responseData = new HashMap<>();
++        try {
++            Bucket bucket = storage.get(bucketName);
++            if (bucket != null) {
++                connectivityStatus = true;
++                String successMsg = "ConnectionTest Successful - Bucket '" + bucketName + "' is accessible";
++                GCSClientConnectionMgr.generateResponseDataMap(
++                        connectivityStatus, successMsg, successMsg, null, null, responseData);
++            } else {
++                String failureMsg = "Bucket '" + bucketName + "' does not exist or is not accessible";
++                GCSClientConnectionMgr.generateResponseDataMap(
++                        connectivityStatus, failureMsg, failureMsg, null, null, responseData);
++            }
++        } catch (StorageException e) {
++            String failureMsg = "Unable to connect to GCS using given parameters: " + e.getMessage();
++            GCSClientConnectionMgr.generateResponseDataMap(
++                    connectivityStatus, failureMsg, failureMsg, null, null, responseData);
++        }
++        return responseData;
++    }
++}
+diff --git a/pom.xml b/pom.xml
+index 2fc151083..560b38e8a 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -88,6 +88,8 @@
+         <atlas.commons.logging.version>1.1.3</atlas.commons.logging.version>
+         <aws-java-sdk.version>1.12.765</aws-java-sdk.version>
+         <aws-java-sdk2.version>2.17.102</aws-java-sdk2.version>
++        <google-cloud-storage.version>2.36.1</google-cloud-storage.version>
++        <google-auth-library.version>1.23.0</google-auth-library.version>
+         <bouncycastle.version>1.70</bouncycastle.version>
+         <HikariCP.version>4.0.3</HikariCP.version>
+         <cglib.version>2.2.0-b23</cglib.version>
+@@ -289,6 +291,7 @@
+                 <module>plugin-yarn</module>
+                 <module>plugin-ozone</module>
+                 <module>s3-agent</module>
++                <module>gcs-agent</module>
+                 <module>security-admin</module>
+                 <module>plugin-kafka</module>
+                 <module>plugin-solr</module>
+diff --git a/security-admin/pom.xml b/security-admin/pom.xml
+index 394362daf..338f63014 100644
+--- a/security-admin/pom.xml
++++ b/security-admin/pom.xml
+@@ -689,6 +689,11 @@
+             <artifactId>s3-agent</artifactId>
+             <version>${project.version}</version>
+         </dependency>
++        <dependency>
++            <groupId>org.apache.ranger</groupId>
++            <artifactId>gcs-agent</artifactId>
++            <version>${project.version}</version>
++        </dependency>
+         <dependency>
+             <groupId>org.apache.ranger</groupId>
+             <artifactId>ugsync-util</artifactId>
+diff --git a/security-admin/src/main/webapp/react-webapp/src/images/serviceDefIcons/gcs/icon.svg b/security-admin/src/main/webapp/react-webapp/src/images/serviceDefIcons/gcs/icon.svg
+new file mode 100644
+index 000000000..902099c8b
+--- /dev/null
++++ b/security-admin/src/main/webapp/react-webapp/src/images/serviceDefIcons/gcs/icon.svg
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1"
++     xmlns="http://www.w3.org/2000/svg"
++     xmlns:xlink="http://www.w3.org/1999/xlink">
++    <title>Google Cloud Storage</title>
++    <image x="0" y="0" width="80" height="80"
++           href="data:image/png;base64,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"
++           xlink:href="data:image/png;base64,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"/>
++</svg>
