@@ -443,12 +443,18 @@ public class RangerRMSPollerService {
                             }
                         } catch (Exception e) {
                             stats.failed++;
-                            LOG.warn("Error processing table {}.{}: {}", dbName, tableName, e.getMessage());
+                            Throwable rootCause = e;
+                            while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+                                rootCause = rootCause.getCause();
+                            }
+                            LOG.warn("Error processing table {}.{}: [{}] {}",
+                                    dbName, tableName, rootCause.getClass().getName(), rootCause.getMessage(), e);
                         }
                     }
 
                 } catch (Exception e) {
-                    LOG.warn("Error processing database {}: {}", dbName, e.getMessage());
+                    LOG.warn("Error processing database {}: [{}] {}",
+                            dbName, e.getClass().getName(), e.getMessage(), e);
                 }
             }
 
