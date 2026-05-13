@@ -384,6 +384,18 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
     }
 
     /**
+     * Accessor for the underlying mapping cache. Used by
+     * {@link org.apache.ranger.plugin.util.RangerRMSMappingRefresher} to
+     * snapshot the cumulative cache state into a {@link ServiceRMSMappings}
+     * before persisting to the on-disk policycache JSON, so a delta payload
+     * doesn't overwrite the cumulative state on disk and cause data loss
+     * across plugin restarts.
+     */
+    public RangerRMSMappingCache getMappingCache() {
+        return mappingCache;
+    }
+
+    /**
      * Extract storage path from the request. Override in subclasses for specific resource types.
      */
     protected abstract String extractStoragePath(RangerAccessRequest request);
