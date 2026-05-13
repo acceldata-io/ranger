@@ -390,15 +390,14 @@ public class HMSClientWrapper implements AutoCloseable {
 
     public TableInfo getTable(String dbName, String tableName) throws Exception {
         ensureConnected();
-        Method method = thriftClient.getClass().getMethod("get_table", String.class, String.class);
-        Object table = method.invoke(thriftClient, dbName, tableName);
 
+        Object table = fetchTable(dbName, tableName);
         if (table == null) {
             return null;
         }
 
         TableInfo info = new TableInfo();
-        info.dbName = (String) table.getClass().getMethod("getDbName").invoke(table);
+        info.dbName    = (String) table.getClass().getMethod("getDbName").invoke(table);
         info.tableName = (String) table.getClass().getMethod("getTableName").invoke(table);
         info.tableType = (String) table.getClass().getMethod("getTableType").invoke(table);
 
@@ -408,6 +407,57 @@ public class HMSClientWrapper implements AutoCloseable {
         }
 
         return info;
+    }
+
+    /**
+     * Fetch a Table via the newest available HMS Thrift signature.
+     *
+     * Hive 4 HMS filters out tables whose {@code transactional_properties=insert_only}
+     * (and full-ACID) unless the caller declares
+     * {@link org.apache.hadoop.hive.metastore.api.ClientCapability#INSERT_ONLY_TABLES}.
+     * The legacy two-arg {@code get_table(String, String)} has no way to pass
+     * capabilities, so on Hive 4 it server-side NPEs for those tables and surfaces
+     * client-side as an {@link java.lang.reflect.InvocationTargetException} with a
+     * null message.
+     *
+     * Strategy (mirrors {@code wrapWithSASL} 7-arg-vs-6-arg drift tolerance):
+     *   1. Try {@code get_table_req(GetTableRequest)} (Hive 3.0+) with
+     *      {@code ClientCapabilities([INSERT_ONLY_TABLES])} so ACID v2 tables are
+     *      returned. Unwrap {@code GetTableResult.getTable()}.
+     *   2. Fall back to legacy {@code get_table(String, String)} on older HMS that
+     *      doesn't expose the v2 signature.
+     */
+    private Object fetchTable(String dbName, String tableName) throws Exception {
+        try {
+            Class<?> reqClass  = Class.forName("org.apache.hadoop.hive.metastore.api.GetTableRequest");
+            Class<?> capsClass = Class.forName("org.apache.hadoop.hive.metastore.api.ClientCapabilities");
+            Class<?> capClass  = Class.forName("org.apache.hadoop.hive.metastore.api.ClientCapability");
+
+            // ClientCapabilities(List<ClientCapability>) with INSERT_ONLY_TABLES.
+            Object insertOnlyCap = capClass.getMethod("valueOf", String.class).invoke(null, "INSERT_ONLY_TABLES");
+            java.util.List<Object> capList = new java.util.ArrayList<>();
+            capList.add(insertOnlyCap);
+            Object caps = capsClass.getConstructor(java.util.List.class).newInstance(capList);
+
+            // GetTableRequest(dbName, tblName) + setCapabilities(...).
+            Object req = reqClass.getConstructor(String.class, String.class).newInstance(dbName, tableName);
+            reqClass.getMethod("setCapabilities", capsClass).invoke(req, caps);
+
+            Method getTableReq = thriftClient.getClass().getMethod("get_table_req", reqClass);
+            Object resp = getTableReq.invoke(thriftClient, req);
+
+            if (resp == null) {
+                return null;
+            }
+            return resp.getClass().getMethod("getTable").invoke(resp);
+        } catch (ClassNotFoundException | NoSuchMethodException olderHms) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("get_table_req not available on this HMS; falling back to legacy get_table: {}",
+                          olderHms.toString());
+            }
+            Method legacy = thriftClient.getClass().getMethod("get_table", String.class, String.class);
+            return legacy.invoke(thriftClient, dbName, tableName);
+        }
     }
 
     public long getCurrentNotificationEventId() throws Exception {
