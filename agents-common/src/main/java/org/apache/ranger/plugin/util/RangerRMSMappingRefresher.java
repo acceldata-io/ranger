@@ -193,7 +193,21 @@ public class RangerRMSMappingRefresher implements Runnable {
                              serviceName, lastKnownVersion, newVersion, mappings.getIsDelta());
 
                     chainedPlugin.updateMappings(mappings);
-                    saveToCache(mappings);
+
+                    // Persist the cumulative cache state, not the raw wire payload.
+                    // The payload may be a delta (only newly-added mappings); writing
+                    // it directly would cause a NameNode restart to load only those
+                    // delta-shaped mappings -- with lastKnownVersion already equal
+                    // to the server's currentVersion, the server would then return
+                    // 304 / no-change and the plugin would permanently miss the
+                    // cumulative state until a watermark fallback forced a full
+                    // re-download. Snapshot from the cache instead so the on-disk
+                    // file is always a complete picture of what's authoritative
+                    // for this service.
+                    ServiceRMSMappings snapshot = chainedPlugin.getMappingCache() != null
+                            ? chainedPlugin.getMappingCache().toServiceRMSMappings()
+                            : null;
+                    saveToCache(snapshot != null ? snapshot : mappings);
 
                     this.lastKnownVersion = newVersion;
                 } else {
