@@ -440,6 +440,50 @@ public class RangerRMSMappingCache {
     }
 
     /**
+     * Snapshot the current in-memory cache state as a {@link ServiceRMSMappings}
+     * suitable for persisting to the on-disk policycache JSON.
+     *
+     * Why this exists: the plugin-side refresher persists the wire payload it
+     * just received -- but that payload may be a delta that contains only the
+     * newly-added mappings. Writing the raw delta to disk loses cumulative
+     * state, so a NameNode restart that then reads the cache JSON would see
+     * only the most recent delta's worth of mappings (correct mappingVersion,
+     * but a sparse resourceMappings list) and `lastKnownVersion` would already
+     * equal the server's current version -- meaning the plugin would never
+     * re-download the full set until a watermark fallback forces it.
+     *
+     * Persisting the cumulative snapshot built here keeps load-from-cache
+     * restart-safe and consistent with the developer-guide §3 lifecycle
+     * contract ("Plugin restart: policycache JSON on disk survives").
+     */
+    public ServiceRMSMappings toServiceRMSMappings() {
+        CacheSnapshot snap = snapshot.get();
+        if (snap == null) {
+            return null;
+        }
+
+        ServiceRMSMappings ret = new ServiceRMSMappings(serviceName, hlServiceName, mappingVersion);
+        ret.setIsDelta(false);
+        ret.setLastKnownVersion(mappingVersion);
+
+        if (snap.resourcesByGuid != null && !snap.resourcesByGuid.isEmpty()) {
+            ret.setServiceResources(new HashMap<>(snap.resourcesByGuid));
+        }
+
+        if (snap.mappingsByHlResource != null && !snap.mappingsByHlResource.isEmpty()) {
+            List<RMSResourceMapping> mappings = new ArrayList<>(snap.mappingsByHlResource.size());
+            for (MappingEntry entry : snap.mappingsByHlResource.values()) {
+                if (entry != null && entry.getMapping() != null) {
+                    mappings.add(entry.getMapping());
+                }
+            }
+            ret.setResourceMappings(mappings);
+        }
+
+        return ret;
+    }
+
+    /**
      * Mapping entry containing both HL and LL resources.
      */
     public static class MappingEntry {
