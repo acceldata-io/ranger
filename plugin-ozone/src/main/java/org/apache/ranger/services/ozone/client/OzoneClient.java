@@ -54,8 +54,12 @@ public class OzoneClient extends BaseClient {
             }
         }
         Subject.doAs(getLoginSubject(), (PrivilegedExceptionAction<Void>) () -> {
-            String[] serviceIds = conf.getTrimmedStrings("ozone.om.service.ids", "ozone1");
-            ozoneClient = OzoneClientFactory.getRpcClient(serviceIds[0], conf);
+            String[] serviceIds = conf.getTrimmedStrings("ozone.om.service.ids");
+            if (serviceIds != null && serviceIds.length > 0 && serviceIds[0] != null && !serviceIds[0].isEmpty()) {
+                ozoneClient = OzoneClientFactory.getRpcClient(serviceIds[0], conf);
+            } else {
+                ozoneClient = OzoneClientFactory.getRpcClient(conf);
+            }
             return null;
         });
     }
