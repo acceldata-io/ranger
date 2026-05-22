@@ -85,6 +85,13 @@ public class GCSClientConnectionMgr extends BaseClient {
         Map<String, Object> responseData = new HashMap<>();
         String bucketName = configs.get(RangerGCSConstants.BUCKET_NAME);
 
+        if (StringUtils.isBlank(bucketName)) {
+            String failureMsg = "Configuration error: Required configuration '" + RangerGCSConstants.BUCKET_NAME + "' is missing or empty for GCS connection test";
+            generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
+            LOG.error("<== GCSClientConnectionMgr.connectionTest Configuration error: {}", failureMsg);
+            return responseData;
+        }
+
         Storage storage;
         try {
             storage = getStorageClient(configs);
@@ -99,8 +106,6 @@ public class GCSClientConnectionMgr extends BaseClient {
             LOG.error("<== GCSClientConnectionMgr.connectionTest Credential error: {}", e.getMessage(), e);
             return responseData;
         }
-
-        validateRequiredConfig(bucketName, RangerGCSConstants.BUCKET_NAME, "GCS connection test");
 
         try {
             Bucket bucket = storage.get(bucketName);
