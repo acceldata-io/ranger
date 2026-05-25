@@ -20,7 +20,7 @@ package org.apache.ranger.services.gcs;
 
 public class RangerGCSConstants {
 
-    public static final String GCS                      = "gcs";
+    public static final String GCS             = "gcs";
     public static final String USER_NAME                = "username";
     public static final String CREDENTIAL_FILE          = "credential_file";
     public static final String PROJECT_ID               = "projectid";
