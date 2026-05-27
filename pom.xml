@@ -991,6 +991,7 @@
                 <module>plugin-ozone</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
+                <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>ranger-atlas-plugin-shim</module>
@@ -1007,6 +1008,7 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-solr-plugin-shim</module>
+                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
@@ -1167,8 +1169,10 @@
                 <module>common-utils</module>
                 <module>credentialbuilder</module>
                 <module>plugin-solr</module>
+                <module>plugin-atlas</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-solr-plugin-shim</module>
+                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-util</module>
             </modules>
         </profile>
@@ -1323,6 +1327,7 @@
                 <module>plugin-ozone</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
+                <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>ranger-atlas-plugin-shim</module>
@@ -1339,6 +1344,7 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-solr-plugin-shim</module>
+                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
@@ -1402,6 +1408,7 @@
                 <module>plugin-ozone</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
+                <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>ranger-atlas-plugin-shim</module>
@@ -1418,6 +1425,7 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-solr-plugin-shim</module>
+                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
