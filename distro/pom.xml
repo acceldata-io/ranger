@@ -60,6 +60,7 @@
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-solr.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
                                         <descriptor>src/main/assembly/admin-web.xml</descriptor>
                                         <descriptor>src/main/assembly/solr_audit_conf.xml</descriptor>
                                         <descriptor>src/main/assembly/usersync.xml</descriptor>
@@ -495,6 +496,7 @@
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-solr.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
                                         <descriptor>src/main/assembly/admin-web.xml</descriptor>
                                         <descriptor>src/main/assembly/solr_audit_conf.xml</descriptor>
                                         <descriptor>src/main/assembly/usersync.xml</descriptor>
@@ -623,6 +625,18 @@
         <dependency>
             <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-solr-plugin</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ranger</groupId>
+            <artifactId>ranger-atlas-plugin-shim</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ranger</groupId>
+            <artifactId>ranger-atlas-plugin</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
