@@ -301,6 +301,7 @@
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>
+                <module>plugin-atlas</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
                 <module>ugsync-util</module>
@@ -321,6 +322,7 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
+                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
@@ -498,6 +500,8 @@
                 <module>credentialbuilder</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
+                <module>plugin-atlas</module>
+                <module>ranger-atlas-plugin-shim</module>
             </modules>
         </profile>
         <profile>
@@ -601,6 +605,7 @@
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>
+                <module>plugin-atlas</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
                 <module>ugsync-util</module>
@@ -621,6 +626,7 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
+                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
@@ -677,6 +683,7 @@
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>
+                <module>plugin-atlas</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
                 <module>ugsync-util</module>
@@ -696,6 +703,7 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
+                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-tools</module>
