@@ -7447,6 +7447,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		try {
 			Map<String, String> configs = service.getConfigs();
 			Storage storage = GCSClientConnectionMgr.getStorageClient(configs);
+			String projectId = configs.get(RangerGCSConstants.PROJECT_ID);
 			String defaultBucket = configs.get(RangerGCSConstants.BUCKET_NAME);
 
 			// Collect all distinct bucket names referenced by the policies
@@ -7455,9 +7456,11 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 				affectedBuckets.addAll(extractAffectedBucketsGCS(policy, defaultBucket));
 			}
 
-			// For each bucket, remove Ranger-managed role bindings (pass empty bindings)
+			// Remove only members that Ranger contributed; preserve IAM members added outside Ranger.
 			for (String bucketName : affectedBuckets) {
-				applyGCSIAMPolicy(storage, bucketName, Collections.emptyMap());
+				Map<Role, Set<Identity>> previousRangerBindings =
+						computeGCSIAMBindings(policiesToDelete, bucketName, projectId);
+				applyGCSIAMPolicy(storage, bucketName, previousRangerBindings, Collections.emptyMap());
 			}
 		} catch (Exception e) {
 			LOG.error("GCS IAM cleanup failed for service {}: {}", service.getName(), e.getMessage(), e);
@@ -7469,19 +7472,6 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	}
 
 	/**
-	 * GCP IAM roles that Ranger manages for GCS bucket-level access.
-	 * Bindings for these roles are fully owned by Ranger; all other roles
-	 * (e.g. roles/storage.admin set by a human admin) are left untouched.
-	 */
-	private static final Set<String> RANGER_MANAGED_GCS_ROLES;
-	static {
-		RANGER_MANAGED_GCS_ROLES = new HashSet<>();
-		RANGER_MANAGED_GCS_ROLES.add("roles/storage.legacyBucketReader");
-		RANGER_MANAGED_GCS_ROLES.add("roles/storage.objectViewer");
-		RANGER_MANAGED_GCS_ROLES.add("roles/storage.objectCreator");
-		RANGER_MANAGED_GCS_ROLES.add("roles/storage.legacyObjectOwner");
-	}
-
 	/** Mapping from a Ranger GCS access type to the corresponding predefined GCP IAM role. */
 	private static final Map<String, String> GCS_ACCESS_TO_ROLE_MAP;
 	static {
@@ -7525,17 +7515,20 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 				affectedBuckets.addAll(extractAffectedBucketsGCS(oldPolicy, defaultBucket));
 			}
 
-			// Build the post-change view of all service policies
+			// Build the post-change and pre-change views of all service policies.
 			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
 			List<RangerPolicy> combinedPolicies = combinePolicies(servicePolicies, rangerPolicy, action);
+			List<RangerPolicy> previousPolicies = buildPreviousGCSPolicies(servicePolicies, rangerPolicy, oldPolicy);
 
 			LOG.info("GCS IAM sync: {} affected bucket(s), {} combined policies for service {}",
 					affectedBuckets.size(), combinedPolicies.size(), serviceName);
 
 			for (String bucketName : affectedBuckets) {
+				Map<Role, Set<Identity>> previousRangerBindings =
+						computeGCSIAMBindings(previousPolicies, bucketName, projectId);
 				Map<Role, Set<Identity>> rangerBindings =
 						computeGCSIAMBindings(combinedPolicies, bucketName, projectId);
-				applyGCSIAMPolicy(storage, bucketName, rangerBindings);
+				applyGCSIAMPolicy(storage, bucketName, previousRangerBindings, rangerBindings);
 			}
 		} catch (StorageException e) {
 			LOG.error("GCS storage error during IAM sync for service {}: {}", serviceName, e.getMessage(), e);
@@ -7549,6 +7542,29 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			LOG.debug("<== ServiceDBStore.createGCSBucketIAMPolicy()");
 		}
 		return true;
+	}
+
+	/**
+	 * Reconstructs the service policy set as it existed before the current GCS
+	 * policy mutation so IAM cleanup can remove stale Ranger members precisely.
+	 */
+	private List<RangerPolicy> buildPreviousGCSPolicies(List<RangerPolicy> servicePolicies, RangerPolicy rangerPolicy, RangerPolicy oldPolicy) {
+		List<RangerPolicy> previousPolicies = new ArrayList<>();
+		Long policyId = rangerPolicy != null ? rangerPolicy.getId() : null;
+
+		if (CollectionUtils.isNotEmpty(servicePolicies)) {
+			for (RangerPolicy policy : servicePolicies) {
+				if (policyId == null || policy.getId() == null || !policy.getId().equals(policyId)) {
+					previousPolicies.add(policy);
+				}
+			}
+		}
+
+		if (oldPolicy != null) {
+			previousPolicies.add(oldPolicy);
+		}
+
+		return previousPolicies;
 	}
 
 	/**
@@ -7623,27 +7639,44 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	/**
 	 * Pushes the Ranger-computed IAM bindings for one bucket to GCS.
 	 *
-	 * <p>Only roles in {@link #RANGER_MANAGED_GCS_ROLES} are replaced; all other
-	 * role bindings that exist in GCS (e.g. set manually by a GCP admin) are
-	 * preserved unchanged.
+	 * <p>This performs a member-level differential merge: members Ranger
+	 * previously granted are removed, members Ranger currently wants are added,
+	 * and all other live IAM members remain unchanged.
 	 */
-	void applyGCSIAMPolicy(Storage storage, String bucketName, Map<Role, Set<Identity>> rangerBindings) {
+	void applyGCSIAMPolicy(Storage storage, String bucketName, Map<Role, Set<Identity>> previousRangerBindings,
+						  Map<Role, Set<Identity>> rangerBindings) {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("==> ServiceDBStore.applyGCSIAMPolicy() bucket={}", bucketName);
 		}
 
 		Policy existingPolicy = storage.getIamPolicy(bucketName);
 
-		// Start from existing bindings and remove Ranger-owned roles (to be replaced)
-		Map<Role, Set<Identity>> updatedBindings = new HashMap<>(existingPolicy.getBindings());
-		for (String managedRole : RANGER_MANAGED_GCS_ROLES) {
-			updatedBindings.remove(Role.of(managedRole));
+		Map<Role, Set<Identity>> updatedBindings = new HashMap<>();
+		for (Map.Entry<Role, Set<Identity>> entry : existingPolicy.getBindings().entrySet()) {
+			updatedBindings.put(entry.getKey(), new HashSet<>(entry.getValue()));
 		}
 
-		// Merge in fresh Ranger bindings (only non-empty role sets)
-		for (Map.Entry<Role, Set<Identity>> entry : rangerBindings.entrySet()) {
-			if (!entry.getValue().isEmpty()) {
-				updatedBindings.put(entry.getKey(), entry.getValue());
+		Set<Role> touchedRoles = new HashSet<>();
+		if (previousRangerBindings != null) {
+			touchedRoles.addAll(previousRangerBindings.keySet());
+		}
+		if (rangerBindings != null) {
+			touchedRoles.addAll(rangerBindings.keySet());
+		}
+
+		for (Role role : touchedRoles) {
+			Set<Identity> updatedMembers = updatedBindings.computeIfAbsent(role, r -> new HashSet<>());
+			Set<Identity> previousMembers = previousRangerBindings != null ? previousRangerBindings.get(role) : null;
+			Set<Identity> currentMembers = rangerBindings != null ? rangerBindings.get(role) : null;
+
+			if (CollectionUtils.isNotEmpty(previousMembers)) {
+				updatedMembers.removeAll(previousMembers);
+			}
+			if (CollectionUtils.isNotEmpty(currentMembers)) {
+				updatedMembers.addAll(currentMembers);
+			}
+			if (updatedMembers.isEmpty()) {
+				updatedBindings.remove(role);
 			}
 		}
 
