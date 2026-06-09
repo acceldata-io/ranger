@@ -19,7 +19,7 @@
     <description>
         Apache Ranger Build Release Tasks
     </description>
-	
+
     <property name="release-dir"  value="target"/>
 	<property name="release-name" value="apache-ranger-${ranger-release-version}"/>
 	<property name="build-release-tar-file" value="${release-name}.tar.gz"/>
@@ -27,7 +27,7 @@
  	<target name="version-check">
 		<fail message="Missing ranger-release-version; -Dranger-release-version=&lt;version-number&gt; should be defined" unless="ranger-release-version"/>
     </target>
-	
+
 	<target name="build-release" depends="version-check">
 		<tstamp/>
 		<exec executable="mvn">
