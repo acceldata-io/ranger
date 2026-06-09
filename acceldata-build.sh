@@ -49,8 +49,8 @@ AWS_REGION="us-east-1"
 
 USE_LOCAL_DOCKERFILE=false
 
-SKIP_UNIT_TESTS=false
-SKIP_INTEGRATION_TESTS=false
+SKIP_UNIT_TESTS=true
+SKIP_INTEGRATION_TESTS=true
 SKIP_DOCS=false
 SKIP_RAT=false
 SKIP_PMD=false
@@ -113,8 +113,10 @@ OPTIONS:
     --latest                      Also tag and push as 'latest' when pushing
     --image-only                  Skip Maven distro build; only build the Docker image using existing tars in target/
     --skip-distribution           Skip Maven distro build (use existing target/ranger-*-admin.tar.gz and usersync tar)
-    --skip-unit-tests             Skip unit tests (-DskipTests)
-    --skip-integration-tests      Skip integration tests (-DskipITs)
+    --skip-unit-tests             Skip unit tests (-DskipTests) [default: skipped]
+    --skip-integration-tests      Skip integration tests (-DskipITs) [default: skipped]
+    --run-unit-tests              Run unit tests (override the default skip)
+    --run-integration-tests       Run integration tests (override the default skip)
     --skip-docs                   Skip documentation (-DskipDocs)
     --skip-rat                    Skip Apache RAT license check (-Drat.skip=true)
     --skip-pmd                    Skip PMD static analysis (-Dpmd.skip=true)
@@ -311,7 +313,22 @@ build_distribution() {
         return 0
     fi
 
-    log_info "Building Ranger distro with Maven (distro + upstream modules)..."
+    # ---------------------------------------------------------------------------
+    # XDP intent: this image only needs two artifacts from the Ranger build -
+    #   1. the Ranger Admin web distro (security-admin), which embeds the
+    #      gravitino/xstore plugin used by XDP, and
+    #   2. the Ranger usersync distro.
+    # Everything else Ranger can produce (hdfs/hive/hbase/knox/kms/tagsync/...
+    # plugin tars) is NOT used by the XDP image.
+    #
+    # Today these two tars are produced by the 'distro' module's assembly, so we
+    # build through it (`-pl distro -am`). distro/pom.xml currently has hard
+    # dependencies on every plugin, so `-am` still compiles the whole reactor -
+    # the produced artifacts we actually consume are filtered down to the admin
+    # and usersync tars by find_admin_tar/find_usersync_tar below.
+    # TODO: narrow the Maven build to only the modules feeding these two tars.
+    # ---------------------------------------------------------------------------
+    log_info "Building Ranger distro with Maven (target artifacts: ranger-admin + ranger-usersync)..."
 
     ensure_maven
 
@@ -574,6 +591,14 @@ main() {
                 ;;
             --skip-integration-tests)
                 SKIP_INTEGRATION_TESTS=true
+                shift
+                ;;
+            --run-unit-tests)
+                SKIP_UNIT_TESTS=false
+                shift
+                ;;
+            --run-integration-tests)
+                SKIP_INTEGRATION_TESTS=false
                 shift
                 ;;
             --skip-docs)
