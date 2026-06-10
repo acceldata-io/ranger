@@ -91,6 +91,8 @@ public class RangerKeyStoreProvider extends KeyProvider {
     private final boolean               keyVaultEnabled;
     private       boolean               changed = false;
 
+    private Map<String, String> oldToNewVersionMapping =  new HashMap<String, String>();
+
     public RangerKeyStoreProvider(Configuration conf) throws Throwable {
         super(conf);
 
@@ -219,9 +221,36 @@ public class RangerKeyStoreProvider extends KeyProvider {
 
             dbStore   = new RangerKeyStore(daoManager);
             masterKey = this.generateAndGetMasterKey(masterKeyProvider, password);
+            String oldVersionMappingConfig = conf.get("ranger.kms.kts.mapping");
+            logger.info("OldVersionMappingConfig :" + oldVersionMappingConfig);
+            populateOldVersionHashMap(oldVersionMappingConfig);
         }
 
         reloadKeys();
+    }
+
+    private void populateOldVersionHashMap(String versionString) {
+        if (versionString == null || versionString.trim().isEmpty()) {
+            return;
+        }
+
+        for (String keyValue : versionString.trim().split("\\s+")) {
+            if (keyValue.isEmpty()) {
+                continue;
+            }
+
+            String[] kv = keyValue.split(":", 2);
+
+            if (kv.length != 2 || kv[0].trim().isEmpty() || kv[1].trim().isEmpty()) {
+                logger.warn("Skipping malformed ranger.kms.kts.mapping entry: '{}'", keyValue);
+                continue;
+            }
+
+            oldToNewVersionMapping.put(kv[0].trim(), kv[1].trim());
+        }
+
+        logger.info("Loaded {} old->new key version mappings from ranger.kms.kts.mapping",
+            oldToNewVersionMapping.size());
     }
 
     public static Configuration getDBKSConf() {
@@ -350,6 +379,13 @@ public class RangerKeyStoreProvider extends KeyProvider {
 
         KeyVersion ret = null;
 
+        String originalVersionName = versionName;
+        logger.info("###### In Ranger getKeyVersion ##########");
+        if (oldToNewVersionMapping.containsKey(versionName)) {
+            logger.info("###### Got old key version ##########");
+            versionName = oldToNewVersionMapping.get(versionName);
+        }
+
         try (AutoClosableReadLock ignored = new AutoClosableReadLock(lock)) {
             if (keyVaultEnabled) {
                 try {
@@ -403,7 +439,8 @@ public class RangerKeyStoreProvider extends KeyProvider {
                 }
 
                 if (key != null) {
-                    ret = new KeyVersion(getBaseName(versionName), versionName, key.getEncoded());
+                    logger.info("###### setting original version name  ##########");
+                    ret = new KeyVersion(getBaseName(versionName), originalVersionName, key.getEncoded());
                 }
             }
         }
