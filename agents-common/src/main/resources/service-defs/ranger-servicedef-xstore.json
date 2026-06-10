@@ -243,29 +243,6 @@
             "accessTypeRestrictions": [
               "use_model"
             ]
-        },
-        {
-            "itemId": 9,
-            "name": "column",
-            "type": "string",
-            "level": 50,
-            "parent": "table",
-            "mandatory": true,
-            "isValidLeaf": true,
-            "lookupSupported": true,
-            "recursiveSupported": false,
-            "excludesSupported": true,
-            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
-            "matcherOptions": {
-                "wildCard": true,
-                "ignoreCase": true
-            },
-            "label": "Column",
-            "description": "Column in a Table",
-            "accessTypeRestrictions": [
-              "select_table",
-              "modify_table"
-            ]
         }
     ],
   "accessTypes": [
@@ -350,11 +327,22 @@
               "uiHint": "{ \"singleValue\":true }"
           },
           {
+              "itemId": 5,
               "name": "column",
-              "matcherOptions": {
-                  "wildCard": "false"
-              },
+              "type": "string",
+              "level": 50,
+              "parent": "table",
+              "mandatory": true,
               "lookupSupported": true,
+              "recursiveSupported": false,
+              "excludesSupported": false,
+              "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+              "matcherOptions": {
+                  "wildCard": "false",
+                  "ignoreCase": "true"
+              },
+              "label": "Column",
+              "description": "Column in a Table",
               "uiHint": "{ \"singleValue\":true }"
           }
       ],
