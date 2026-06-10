@@ -50,6 +50,7 @@ public class RangerServiceGravitino extends RangerBaseService {
     public static final String RESOURCE_CATALOG = "catalog";
     public static final String RESOURCE_SCHEMA = "schema";
     public static final String RESOURCE_TABLE = "table";
+    public static final String RESOURCE_COLUMN = "column";
     public static final String RESOURCE_TOPIC = "topic";
     public static final String RESOURCE_FILESET = "fileset";
     public static final String RESOURCE_MODEL = "model";

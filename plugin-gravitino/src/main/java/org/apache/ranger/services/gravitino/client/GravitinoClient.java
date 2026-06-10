@@ -69,7 +69,21 @@ public interface GravitinoClient {
      * @throws Exception if the operation fails
      */
     List<String> listTables(String metalake, String catalog, String schema, String prefix) throws Exception;
-    
+
+    /**
+     * List columns of a table matching the given prefix.
+     *
+     * @param metalake The metalake name
+     * @param catalog The catalog name
+     * @param schema The schema name
+     * @param table The table name
+     * @param prefix Optional prefix to filter columns
+     * @return List of column names
+     * @throws Exception if the operation fails
+     */
+    List<String> listColumns(String metalake, String catalog, String schema,
+            String table, String prefix) throws Exception;
+
     /**
      * List topics in a messaging catalog schema matching the given prefix.
      * 
