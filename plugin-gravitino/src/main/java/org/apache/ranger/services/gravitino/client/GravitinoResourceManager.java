@@ -43,6 +43,7 @@ public class GravitinoResourceManager {
     public static final String RESOURCE_CATALOG = "catalog";
     public static final String RESOURCE_SCHEMA = "schema";
     public static final String RESOURCE_TABLE = "table";
+    public static final String RESOURCE_COLUMN = "column";
     public static final String RESOURCE_TOPIC = "topic";
     public static final String RESOURCE_FILESET = "fileset";
     public static final String RESOURCE_MODEL = "model";
@@ -82,6 +83,7 @@ public class GravitinoResourceManager {
         String metalake = getFirstValue(resourceMap, RESOURCE_METALAKE);
         String catalog = getFirstValue(resourceMap, RESOURCE_CATALOG);
         String schema = getFirstValue(resourceMap, RESOURCE_SCHEMA);
+        String table = getFirstValue(resourceMap, RESOURCE_TABLE);
         String model = getFirstValue(resourceMap, RESOURCE_MODEL);
 
         final GravitinoClient client = GravitinoConnectionManager.getClient(serviceName, serviceType, configs);
@@ -118,7 +120,18 @@ public class GravitinoResourceManager {
                     task = () -> client.listTables(m, c, s, needle);
                 }
                 break;
-                
+
+            case RESOURCE_COLUMN:
+                if (metalake != null && catalog != null && schema != null && table != null &&
+                        !metalake.isEmpty() && !catalog.isEmpty() && !schema.isEmpty() && !table.isEmpty()) {
+                    final String m = metalake;
+                    final String c = catalog;
+                    final String s = schema;
+                    final String t = table;
+                    task = () -> client.listColumns(m, c, s, t, needle);
+                }
+                break;
+
             case RESOURCE_TOPIC:
                 if (metalake != null && catalog != null && schema != null &&
                         !metalake.isEmpty() && !catalog.isEmpty() && !schema.isEmpty()) {

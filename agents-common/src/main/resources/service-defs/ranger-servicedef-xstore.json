@@ -243,6 +243,30 @@
             "accessTypeRestrictions": [
               "use_model"
             ]
+        },
+        {
+            "itemId": 9,
+            "name": "column",
+            "type": "string",
+            "level": 50,
+            "parent": "table",
+            "mandatory": false,
+            "isValidLeaf": true,
+            "lookupSupported": true,
+            "recursiveSupported": false,
+            "excludesSupported": false,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": "false",
+                "ignoreCase": "true"
+            },
+            "label": "Column",
+            "description": "Column in a Table",
+            "uiHint": "{ \"singleValue\":true }",
+            "accessTypeRestrictions": [
+                "select_table",
+                "modify_table"
+            ]
         }
     ],
   "accessTypes": [
@@ -287,8 +311,168 @@
           "description": "Boolean expression"
       }
   ],
-  "dataMaskDef": {},
-  "rowFilterDef": {},
+  "dataMaskDef": {
+      "accessTypes": [
+          {
+              "name": "select_table"
+          }
+      ],
+      "resources": [
+          {
+              "name": "metalake",
+              "matcherOptions": {
+                  "wildCard": "false"
+              },
+              "lookupSupported": true,
+              "uiHint": "{ \"singleValue\":true }"
+          },
+          {
+              "name": "catalog",
+              "matcherOptions": {
+                  "wildCard": "false"
+              },
+              "lookupSupported": true,
+              "uiHint": "{ \"singleValue\":true }"
+          },
+          {
+              "name": "schema",
+              "matcherOptions": {
+                  "wildCard": "false"
+              },
+              "lookupSupported": true,
+              "uiHint": "{ \"singleValue\":true }"
+          },
+          {
+              "name": "table",
+              "matcherOptions": {
+                  "wildCard": "false"
+              },
+              "lookupSupported": true,
+              "uiHint": "{ \"singleValue\":true }"
+          },
+          {
+              "itemId": 5,
+              "name": "column",
+              "type": "string",
+              "level": 50,
+              "parent": "table",
+              "mandatory": true,
+              "lookupSupported": true,
+              "recursiveSupported": false,
+              "excludesSupported": false,
+              "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+              "matcherOptions": {
+                  "wildCard": "false",
+                  "ignoreCase": "true"
+              },
+              "label": "Column",
+              "description": "Column in a Table",
+              "uiHint": "{ \"singleValue\":true }"
+          }
+      ],
+      "maskTypes": [
+          {
+              "itemId": 1,
+              "name": "MASK",
+              "label": "Redact",
+              "description": "Replace lowercase with 'x', uppercase with 'X', digits with '0'",
+              "transformer": "mask({col})",
+              "dataMaskOptions": {
+              }
+          },
+          {
+              "itemId": 2,
+              "name": "MASK_SHOW_LAST_4",
+              "label": "Partial mask: show last 4",
+              "description": "Show last 4 characters; replace rest with 'x'",
+              "transformer": "mask_show_last_n({col}, 4, 'x', 'x', 'x', -1, '1')"
+          },
+          {
+              "itemId": 3,
+              "name": "MASK_SHOW_FIRST_4",
+              "label": "Partial mask: show first 4",
+              "description": "Show first 4 characters; replace rest with 'x'",
+              "transformer": "mask_show_first_n({col}, 4, 'x', 'x', 'x', -1, '1')"
+          },
+          {
+              "itemId": 4,
+              "name": "MASK_HASH",
+              "label": "Hash",
+              "description": "Hash the value",
+              "transformer": "mask_hash({col})"
+          },
+          {
+              "itemId": 5,
+              "name": "MASK_NULL",
+              "label": "Nullify",
+              "description": "Replace with NULL"
+          },
+          {
+              "itemId": 6,
+              "name": "MASK_NONE",
+              "label": "Unmasked (retain original value)",
+              "description": "No masking"
+          },
+          {
+              "itemId": 12,
+              "name": "MASK_DATE_SHOW_YEAR",
+              "label": "Date: show only year",
+              "description": "Date: show only year",
+              "transformer": "mask({col}, 'x', 'x', 'x', -1, '1', 1, 0, -1)"
+          },
+          {
+              "itemId": 13,
+              "name": "CUSTOM",
+              "label": "Custom",
+              "description": "Custom"
+          }
+      ]
+  },
+  "rowFilterDef": {
+      "accessTypes": [
+          {
+              "name": "select_table"
+          }
+      ],
+      "resources": [
+          {
+              "name": "metalake",
+              "matcherOptions": {
+                  "wildCard": "false"
+              },
+              "lookupSupported": true,
+              "mandatory": true,
+              "uiHint": "{ \"singleValue\":true }"
+          },
+          {
+              "name": "catalog",
+              "matcherOptions": {
+                  "wildCard": "false"
+              },
+              "lookupSupported": true,
+              "mandatory": true,
+              "uiHint": "{ \"singleValue\":true }"
+          },
+          {
+              "name": "schema",
+              "matcherOptions": {
+                  "wildCard": "false"
+              },
+              "lookupSupported": true,
+              "mandatory": true,
+              "uiHint": "{ \"singleValue\":true }"
+          },
+          {
+              "name": "table",
+              "matcherOptions": {
+                  "wildCard": "false"
+              },
+              "lookupSupported": true,
+              "mandatory": true,
+              "uiHint": "{ \"singleValue\":true }"
+          }
+      ]
+  },
   "markerAccessTypes": [
       { "itemId": 0, "name": "_CREATE", "label": "_CREATE" },
       { "itemId": 1, "name": "_READ",   "label": "_READ" },
@@ -337,7 +521,7 @@
         {
           "itemId": 6,
           "name": "xstore.auth.token.cache.skew.ms",
-          "type": "number",
+          "type": "int",
           "mandatory": false,
           "label": "Token Refresh Safety Window",
           "defaultValue": 30000
@@ -345,7 +529,7 @@
         {
           "itemId": 7,
           "name": "xstore.auth.token.connect.timeout.ms",
-          "type": "number",
+          "type": "int",
           "mandatory": false,
           "label": "Token Endpoint Connect Timeout",
           "defaultValue": 5000
@@ -353,7 +537,7 @@
         {
           "itemId": 8,
           "name": "xstore.auth.token.read.timeout.ms",
-          "type": "number",
+          "type": "int",
           "mandatory": false,
           "label": "Token Endpoint Read Timeout",
           "defaultValue": 5000
