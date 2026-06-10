@@ -158,7 +158,22 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
                 "/schemas/" + schema + "/tables");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
     }
-    
+
+    @Override
+    public List<String> listColumns(String metalake, String catalog, String schema,
+            String table, String prefix) throws Exception {
+        if (metalake == null || catalog == null || schema == null || table == null ||
+                metalake.isEmpty() || catalog.isEmpty() || schema.isEmpty() || table.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Properties p = getConfigHolder().getRangerSection();
+        String baseUrl = resolveBaseUrl(p);
+
+        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog +
+                "/schemas/" + schema + "/tables/" + table);
+        return executeAndParseColumns(url, prefix);
+    }
+
     @Override
     public List<String> listTopics(String metalake, String catalog, String schema, String prefix) throws Exception {
         if (metalake == null || catalog == null || schema == null ||
@@ -271,6 +286,47 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         return names;
     }
     
+    /**
+     * Parse column list from a load-table response of shape:
+     * { "table": { "name": "...", "columns": [ { "name": "...", ... }, ... ] } }
+     */
+    private List<String> executeAndParseColumns(URL url, String prefix) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        conn.setReadTimeout(READ_TIMEOUT_MS);
+        conn.setRequestProperty("Content-Type", "application/json");
+
+        auth.apply(conn);
+        logRequest(conn, url, "lookup");
+
+        int code = conn.getResponseCode();
+        if (code < 200 || code >= 300) {
+            LOG.warn("Request to {} failed with status {}", url, code);
+            logNonSuccessResponse(conn, url, code, "lookup");
+            return Collections.emptyList();
+        }
+
+        List<String> names = new ArrayList<>();
+        try (InputStream in = conn.getInputStream()) {
+            JsonNode root = MAPPER.readTree(in);
+            JsonNode tableNode = root.get("table");
+            JsonNode columnsNode = tableNode != null ? tableNode.get("columns") : null;
+
+            if (columnsNode != null && columnsNode.isArray()) {
+                for (JsonNode node : columnsNode) {
+                    String name = extractName(node);
+                    if (name != null && matchesPrefix(name, prefix)) {
+                        names.add(name);
+                    }
+                }
+            }
+        }
+
+        LOG.debug("Listed {} columns from {} (prefix: {})", names.size(), url, prefix);
+        return names;
+    }
+
     /**
      * Parse version list from response.
      */
