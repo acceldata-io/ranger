@@ -1,7 +1,11 @@
 ######################################################################
 # Ranger Base image...
 ######################################################################
-FROM 191579300362.dkr.ecr.us-east-1.amazonaws.com/acceldata/internal/custom/amazoncorretto:1.0.1-1776333911444 AS ranger-base
+# FROM 191579300362.dkr.ecr.us-east-1.amazonaws.com/acceldata/internal/custom/amazoncorretto:1.0.1-1776333911444 AS ranger-base
+
+ARG SRC_CONTAINER_IMG=0
+FROM $(SRC_CONTAINER_IMG)
+ARG SRC_CONTAINER_IMG
 
 # Install Python, utilities (Java 11 already provided by base image)
 RUN apt-get update -y && \
@@ -95,6 +99,18 @@ RUN set -eux; \
 RUN curl -s -f -L -o /usr/share/java/postgresql.jar https://sonatype.nexus.acceldata.tech/repository/maven-public/org/postgresql/postgresql/42.2.16.jre7/postgresql-42.2.16.jre7.jar && \
     curl -s -f -L -o /usr/share/java/mysql-connector.jar https://sonatype.nexus.acceldata.tech/repository/maven-public/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar && \
     curl -s -f -L -o ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/log4jdbc-1.2.jar https://sonatype.nexus.acceldata.tech/repository/maven-public/com/googlecode/log4jdbc/log4jdbc/1.2/log4jdbc-1.2.jar
+
+
+ARG OCI_AUTHORS="Acceldata Inc."
+ARG OCI_VENDOR="Acceldata Inc."
+ARG OCI_URL="https://www.acceldata.io/"
+ARG OCI_DOCS="https://docs.acceldata.io/"
+
+LABEL org.opencontainers.image.authors="${OCI_AUTHORS}" \
+      org.opencontainers.image.url="${OCI_URL}" \
+      org.opencontainers.image.documentation="${OCI_DOCS}" \
+      org.opencontainers.image.vendor="${OCI_VENDOR}" \
+      org.opencontainers.image.baseImage=${SRC_CONTAINER_IMAGE}
 
 USER ranger
 
