@@ -4,7 +4,7 @@
 # FROM 191579300362.dkr.ecr.us-east-1.amazonaws.com/acceldata/internal/custom/amazoncorretto:1.0.1-1776333911444 AS ranger-base
 
 ARG SRC_CONTAINER_IMG=0
-FROM $(SRC_CONTAINER_IMG)
+FROM ${SRC_CONTAINER_IMG}
 ARG SRC_CONTAINER_IMG
 
 # Install Python, utilities (Java 11 already provided by base image)
