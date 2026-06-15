@@ -274,6 +274,8 @@ public class EmbeddedServiceDefsUtil {
 
 	public long getS3ServiceDefId() { return getId(s3ServiceDef); }
 
+	public long getYuniKornServiceDefId() { return getId(yuniKornServiceDef); }
+
 	public long getTagServiceDefId() { return getId(tagServiceDef); }
 
 	public long getGdsServiceDefId() { return getId(gdsServiceDef); }
