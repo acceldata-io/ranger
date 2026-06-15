@@ -19,9 +19,9 @@
 			"lookupSupported": true,
 			"recursiveSupported": true,
 			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerPathResourceMatcher",
-			"matcherOptions": { "wildCard":true, "ignoreCase":false, "pathSeparatorChar":"." },
-			"validationRegEx":"",
-			"validationMessage": "",
+			"matcherOptions": { "wildCard":false, "ignoreCase":false, "pathSeparatorChar":"." },
+			"validationRegEx":"^[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)*$",
+			"validationMessage": "Queue path must be a dot-separated identifier (e.g. root.research.nlp). Wildcards (*) and other special characters are not allowed.",
 			"uiHint":"",
 			"label": "Queue",
 			"description": "YuniKorn queue path (e.g. root.research.nlp)"
