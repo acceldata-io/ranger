@@ -1,0 +1,101 @@
+{
+	"name": "yunikorn",
+	"displayName": "yunikorn",
+	"implClass": "org.apache.ranger.services.yunikorn.RangerServiceYuniKorn",
+	"label": "YuniKorn",
+	"description": "Apache YuniKorn queue ACLs",
+	"guid": "",
+	"options": {
+		"enableDenyAndExceptionsInPolicies": "false"
+	},
+	"resources":
+	[
+		{
+			"itemId": 1,
+			"name": "queue",
+			"type": "string",
+			"level": 10,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerPathResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false, "pathSeparatorChar":"." },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Queue",
+			"description": "YuniKorn queue path (e.g. root.research.nlp)"
+		}
+	],
+
+	"accessTypes":
+	[
+		{
+			"itemId": 1,
+			"name": "submit",
+			"label": "submit",
+			"category": "UPDATE"
+		},
+
+		{
+			"itemId": 2,
+			"name": "admin",
+			"label": "admin",
+			"category": "MANAGE",
+			"impliedGrants":
+			[
+				"submit"
+			]
+		}
+	],
+
+	"configs":
+	[
+		{
+			"itemId": 1,
+			"name": "yunikorn.url",
+			"type": "string",
+			"mandatory": true,
+			"defaultValue": "",
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"{\"TextFieldWithIcon\":true, \"info\": \"YuniKorn REST endpoint, e.g. http://yunikorn-service.yunikorn:9080\"}",
+			"label": "YuniKorn REST URL"
+		},
+
+		{
+			"itemId": 2,
+			"name": "yunikorn.partition",
+			"type": "string",
+			"mandatory": false,
+			"defaultValue": "default",
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Partition name"
+		},
+
+		{
+			"itemId": 3,
+			"name": "ranger.plugin.audit.filters",
+			"type": "string",
+			"subType": "",
+			"mandatory": false,
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Ranger Default Audit Filters",
+			"defaultValue": "[]"
+		}
+	],
+
+	"contextEnrichers":
+	[
+
+	],
+
+	"policyConditions":
+	[
+
+	]
+}
