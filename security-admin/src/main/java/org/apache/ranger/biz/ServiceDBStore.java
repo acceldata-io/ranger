@@ -193,6 +193,7 @@ import org.apache.ranger.service.RangerServiceService;
 import org.apache.ranger.service.RangerServiceWithAssignedIdService;
 import org.apache.ranger.service.XGroupService;
 import org.apache.ranger.service.XUserService;
+import org.apache.ranger.services.abfs.client.ABFSAclSyncService;
 import org.apache.ranger.services.s3.client.S3ClientConnectionMgr;
 import org.apache.ranger.services.s3.RangerS3Constants;
 import com.google.cloud.Identity;
@@ -7472,6 +7473,34 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	}
 
 	/**
+	 * Entry point called from {@link org.apache.ranger.rest.ServiceREST} on every
+	 * Ranger ABFS policy create, update, or delete. Translates Ranger policy items
+	 * into ADLS Gen2 path ACL entries for the Azure principals configured in the
+	 * service's identity mapping.
+	 */
+	public boolean syncABFSAclPolicy(RangerPolicy rangerPolicy, String action, RangerPolicy oldPolicy) throws Exception {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("==> ServiceDBStore.syncABFSAclPolicy() action={}", action);
+		}
+
+		String serviceName = rangerPolicy.getService();
+		try {
+			RangerService rangerService = getServiceByName(serviceName);
+			Map<String, String> configs = rangerService.getConfigs();
+
+			ABFSAclSyncService syncService = new ABFSAclSyncService();
+			syncService.syncPolicy(rangerPolicy, action, oldPolicy, configs);
+		} catch (Exception e) {
+			LOG.error("ABFS ACL sync failed for service {}: {}", serviceName, e.getMessage(), e);
+			throw restErrorUtil.createRESTException("ABFS ACL sync failed: " + e.getMessage());
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("<== ServiceDBStore.syncABFSAclPolicy()");
+		}
+		return true;
+	}
+
 	/** Mapping from a Ranger GCS access type to the corresponding predefined GCP IAM role. */
 	private static final Map<String, String> GCS_ACCESS_TO_ROLE_MAP;
 	static {

@@ -99,6 +99,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String TRINO_IMPL_CLASS_NAME  = "org.apache.ranger.services.trino.RangerServiceTrino";
 	public static final String OZONE_IMPL_CLASS_NAME  = "org.apache.ranger.services.ozone.RangerServiceOzone";
 	public static final String KUDU_IMPL_CLASS_NAME  = "org.apache.ranger.services.kudu.RangerServiceKudu";
+	public static final String ABFS_IMPL_CLASS_NAME  = "org.apache.ranger.services.abfs.RangerServiceABFS";
 	public static final String GCS_IMPL_CLASS_NAME   = "org.apache.ranger.services.gcs.RangerServiceGCS";
 
 	private static EmbeddedServiceDefsUtil instance = new EmbeddedServiceDefsUtil();
