@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agent.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  # Recreate (not RollingUpdate): only ever one agent active at a time so
+  # we never have two replicas racing on the same ConfigMap CAS.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # Roll the pod whenever the agent's config changes.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if include "agent.authConfigured" . }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "agent.serviceAccountName" . }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: agent
+          image: {{ include "agent.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if include "agent.authConfigured" . }}
+            - name: RANGER_PRINCIPAL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "agent.credentialSecretName" . }}
+                  key: {{ .Values.ranger.auth.existingSecretPrincipalKey | default "user" | quote }}
+            - name: RANGER_CREDENTIAL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "agent.credentialSecretName" . }}
+                  key: {{ .Values.ranger.auth.existingSecretCredentialKey | default "password" | quote }}
+            {{- end }}
+            {{- if .Values.ranger.tls.secret }}
+            - name: RANGER_SSL_TRUSTSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ranger.tls.secret }}
+                  key: {{ .Values.ranger.tls.truststorePasswordKey | default "truststore-password" | quote }}
+                  optional: true
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/ranger-yunikorn-agent
+              readOnly: true
+            - name: cache
+              # Matches values.yaml policyCacheDir; if you override that you
+              # must also override the volume's mountPath here. (Helm chart
+              # could template this, but the indirection isn't worth it for
+              # the rare case anyone changes the default.)
+              mountPath: /var/cache/ranger-yunikorn-agent
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.ranger.tls.secret }}
+            - name: ranger-tls
+              mountPath: /etc/ranger-tls
+              readOnly: true
+            {{- end }}
+            {{- if include "agent.kerberosEnabled" . }}
+            - name: keytab
+              mountPath: /etc/security/keytabs
+              readOnly: true
+            {{- if .Values.ranger.auth.kerberos.krb5ConfigMap }}
+            - name: krb5
+              mountPath: /etc/krb5
+              readOnly: true
+            {{- end }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: {{ .Values.probes.livenessPort }}
+            initialDelaySeconds: {{ .Values.probes.livenessInitialDelaySeconds }}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: {{ .Values.probes.readinessPort }}
+            initialDelaySeconds: {{ .Values.probes.readinessInitialDelaySeconds }}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "agent.fullname" . }}-config
+        - name: cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.ranger.tls.secret }}
+        - name: ranger-tls
+          secret:
+            secretName: {{ .Values.ranger.tls.secret }}
+            defaultMode: 0400
+        {{- end }}
+        {{- if include "agent.kerberosEnabled" . }}
+        - name: keytab
+          secret:
+            secretName: {{ required "ranger.auth.kerberos.keytabSecret is required when auth.mode=kerberos" .Values.ranger.auth.kerberos.keytabSecret }}
+            defaultMode: 0400
+        {{- if .Values.ranger.auth.kerberos.krb5ConfigMap }}
+        - name: krb5
+          configMap:
+            name: {{ .Values.ranger.auth.kerberos.krb5ConfigMap }}
+        {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

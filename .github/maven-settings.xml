@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CI-only Maven settings: routes all artifact resolution through the Acceldata
+  ODP Nexus, which is where the vendor ranger-intg build (2.5.0.x.x.x-x) lives.
+  Maven Central does NOT have it. Credentials come from GitHub Actions secrets
+  (NEXUS_USERNAME / NEXUS_PASSWORD); the <server> id MUST match the mirror id.
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+  <mirrors>
+    <mirror>
+      <id>acceldata-nexus</id>
+      <name>Acceldata ODP Nexus</name>
+      <mirrorOf>*</mirrorOf>
+      <url>https://repo1.acceldata.dev/repository/odp-staging-central/</url>
+    </mirror>
+    <mirror>
+<id>acceldata-repo</id>
+      <name>acceldata staging repo</name>
+      <mirrorOf>acceldata-staging-repo</mirrorOf>
+<url>https://repo1.acceldata.dev/repository/odp-central/</url>
+    </mirror>
+  </mirrors>
+
+
+  <servers>
+    <server>
+      <id>acceldata-nexus</id>
+      <username>${env.NEXUS_USERNAME}</username>
+      <password>${env.NEXUS_PASSWORD}</password>
+    </server>
+  </servers>
+</settings>
