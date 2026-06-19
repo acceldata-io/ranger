@@ -11,7 +11,6 @@
 package io.acceldata.yunikorn.ranger;
 
 import org.ietf.jgss.GSSContext;
-import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.GSSName;
@@ -93,13 +92,10 @@ public class SpnegoAuthenticator {
 
     /** SPNEGO mechanism OID, RFC 4178. */
     private static final Oid SPNEGO_OID;
-    /** Kerberos v5 mechanism OID, RFC 1964 — used internally by SPNEGO. */
-    private static final Oid KRB5_OID;
 
     static {
         try {
             SPNEGO_OID = new Oid("1.3.6.1.5.5.2");
-            KRB5_OID   = new Oid("1.2.840.113554.1.2.2");
         } catch (GSSException e) {
             throw new ExceptionInInitializerError(e);
         }
