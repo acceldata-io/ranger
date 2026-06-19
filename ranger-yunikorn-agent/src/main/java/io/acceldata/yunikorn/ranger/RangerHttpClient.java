@@ -13,7 +13,6 @@ package io.acceldata.yunikorn.ranger;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.ranger.admin.client.RangerAdminClient;
 import org.apache.ranger.plugin.model.RangerRole;
