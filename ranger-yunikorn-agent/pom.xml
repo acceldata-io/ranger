@@ -48,10 +48,19 @@
              @return javadoc, brace placement, etc.) and spotbugs gates don't fit
              it: checkstyle reports ~900 style-only violations, and the pinned
              spotbugs 4.7.3.5 crashes analyzing Java 11 bytecode. Skip those two
-             gates for this module only. Compile, unit tests, PMD (dead-code), and
-             the root-level RAT license check still apply. -->
+             gates for this module only. Compile, unit tests and PMD (dead-code)
+             still apply.
+
+             RAT (license headers) is also skipped at the module level only: the
+             per-module RAT run uses the module dir as its base, so the root POM's
+             "ranger-yunikorn-agent/**" excludes for non-source files (Dockerfile,
+             deploy/**, .github/**, README, Makefile) don't match the module-
+             relative paths. The ROOT RAT run still scans this whole module
+             (excludeSubProjects=false) — it validates the .java license headers
+             and applies those excludes — so license coverage is unchanged. -->
         <checkstyle.skip>true</checkstyle.skip>
         <spotbugs.skip>true</spotbugs.skip>
+        <rat.skip>true</rat.skip>
 
         <!-- Pinned versions for reproducibility. Ranger's parent POM does not
              manage these, so the agent stays in control of its own classpath. -->
