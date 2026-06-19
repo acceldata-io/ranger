@@ -1,0 +1,29 @@
+Thanks for installing {{ .Chart.Name }} ({{ .Chart.Version }}).
+
+The agent is now polling Ranger Admin every {{ .Values.sync.pollIntervalMs }}ms
+and writing ACL changes to ConfigMap {{ .Values.yunikorn.namespace }}/{{ .Values.yunikorn.configMap }}.
+
+To check on it:
+
+  kubectl -n {{ .Release.Namespace }} get pods -l "app.kubernetes.io/instance={{ .Release.Name }}"
+  kubectl -n {{ .Release.Namespace }} logs -l "app.kubernetes.io/instance={{ .Release.Name }}" --tail=100
+
+To verify it can reach Ranger:
+
+  kubectl -n {{ .Release.Namespace }} logs -l "app.kubernetes.io/instance={{ .Release.Name }}" \
+      | grep "policies received"
+
+To see metrics:
+
+  kubectl -n {{ .Release.Namespace }} port-forward \
+      $(kubectl -n {{ .Release.Namespace }} get pod -l "app.kubernetes.io/instance={{ .Release.Name }}" -o name | head -1) \
+      8080:8080
+  curl localhost:8080/metrics
+
+{{- if not (include "agent.authConfigured" .) }}
+
+WARNING: No Ranger credentials configured. The agent will send unauthenticated
+requests. If your Ranger Admin requires auth, set ranger.auth.principal and
+ranger.auth.credential (or ranger.auth.existingSecret) and reinstall.
+
+{{- end }}

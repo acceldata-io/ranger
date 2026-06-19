@@ -1,0 +1,171 @@
+# --------------------------------------------------------------------------
+# ranger-yunikorn-agent — Helm values
+#
+# Required to fill in:
+#   ranger.adminUrl, ranger.serviceName, image.repository
+#
+# Required if your Ranger Admin requires auth:
+#   ranger.auth.principal, ranger.auth.credential   (or use existingSecret)
+#
+# Everything else has sensible defaults that match a typical YuniKorn install.
+# --------------------------------------------------------------------------
+
+image:
+  repository: sehajsandhu/yunikorn-agent #acceldata/ranger-yunikorn-agent
+  tag: "v15"                         # defaults to .Chart.appVersion if empty
+  pullPolicy: IfNotPresent
+  pullSecrets: []                 # e.g. [- name: regcred]
+
+# --- Ranger Admin connection ----------------------------------------------
+ranger:
+  adminUrl: ""                    # e.g. https://ranger.odp.example.com:6182
+  serviceName: ""                 # name of the YUNIKORN service registered in Ranger
+  # Service-TYPE registered in Ranger (defaults to "yunikorn"). Override only
+  # when the service-def is registered under a different name in your install.
+  serviceType: "yunikorn"
+
+  auth:
+    # mode: "basic" or "kerberos". See default.properties for what each does.
+    mode: "basic"
+
+    # ---- Basic auth (mode: basic) -----------------------------------------
+    # Two ways to provide credentials:
+    #   1. Inline (this Helm install creates the Secret):
+    #        principal:  "svc-yunikorn-agent"
+    #        credential: "<password>"
+    #   2. Reference an existing Secret (recommended for production):
+    #        existingSecret: "ranger-yunikorn-agent-creds"
+    #        existingSecretPrincipalKey: "user"
+    #        existingSecretCredentialKey: "password"
+    principal: ""
+    credential: ""
+    existingSecret: ""
+    existingSecretPrincipalKey: "user"
+    existingSecretCredentialKey: "password"
+
+    # ---- Kerberos (mode: kerberos) ----------------------------------------
+    # Required when mode=kerberos.
+    #
+    # The keytab MUST be provided as a pre-existing K8s Secret. The chart
+    # does not create one because keytabs are binary blobs that don't fit
+    # cleanly into Helm values.
+    #
+    # Create the Secret out-of-band:
+    #   kubectl -n yunikorn create secret generic ranger-yunikorn-agent-keytab \
+    #       --from-file=agent.keytab=/path/to/agent.keytab
+    #
+    # Then reference it here:
+    #   kerberos.keytabSecret: ranger-yunikorn-agent-keytab
+    #   kerberos.keytabKey:    agent.keytab
+    #
+    # Likewise for krb5.conf — provide it as a ConfigMap, since it's small
+    # plain-text:
+    #   kubectl -n yunikorn create configmap ranger-yunikorn-agent-krb5 \
+    #       --from-file=krb5.conf=/etc/krb5.conf
+    kerberos:
+      principal: ""              # e.g. ranger-yunikorn-agent/agent-host@YOUR.REALM
+      keytabSecret: ""           # K8s Secret name containing the keytab file
+      keytabKey: "agent.keytab"  # key in that Secret
+      krb5ConfigMap: ""          # K8s ConfigMap name containing krb5.conf
+      krb5ConfigKey: "krb5.conf" # key in that ConfigMap
+
+  # ---- TLS (when ranger.adminUrl is https://) -----------------------------
+  # ODP Ranger Admin runs behind TLS, usually with a private-CA cert the JRE
+  # does not trust by default. Provide a truststore that trusts Ranger's cert.
+  #
+  # The truststore file + its password live in ONE K8s Secret. Create it
+  # out-of-band:
+  #   kubectl -n yunikorn create secret generic ranger-yunikorn-agent-tls \
+  #       --from-file=truststore.jks=/path/to/truststore.jks \
+  #       --from-literal=truststore-password=changeit
+  tls:
+    secret: ""                          # Secret holding the truststore file + password
+    truststoreKey: "truststore.jks"     # file key in the Secret
+    truststoreType: ""                  # JKS (agent default) | PKCS12
+    truststorePasswordKey: "truststore-password"
+    insecure: false                     # DEV ONLY: skip cert + hostname verification (like curl -k)
+
+# --- YuniKorn target -------------------------------------------------------
+yunikorn:
+  namespace: yunikorn
+  configMap: yunikorn-configs
+  configKey: queues.yaml
+  # Optional REST endpoint used for preflight validation. If unreachable,
+  # set preflight.enabled: false below.
+  restUrl: ""
+
+preflight:
+  enabled: true
+
+# --- Sync cadence ----------------------------------------------------------
+sync:
+  pollIntervalMs: 30000           # 30s
+  forceResyncMs: 86400000         # 24h
+
+# --- Doctrine for queues with no Ranger policy -----------------------------
+# LENIENT (default): leave existing ACLs alone on unmanaged queues.
+# STRICT: clear ACLs on unmanaged queues — Ranger becomes sole authority.
+doctrine: LENIENT
+
+# --- Local policy cache ----------------------------------------------------
+# Where Ranger's admin client writes its on-disk policy cache. Mounted as
+# an emptyDir; survives within a pod's lifetime, lost on restart (which
+# the Ranger client tolerates — it'll re-fetch).
+policyCacheDir: /var/cache/ranger-yunikorn-agent
+
+# --- Pod runtime -----------------------------------------------------------
+replicaCount: 1                   # single replica; multi-replica needs leader election (not in v1)
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
+
+# --- Probes ----------------------------------------------------------------
+probes:
+  livenessPort: 8080
+  readinessPort: 8080
+  livenessInitialDelaySeconds: 10
+  readinessInitialDelaySeconds: 5
+
+# --- Pod security ----------------------------------------------------------
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true    # we write only to /var/cache (mounted emptyDir) and /tmp
+  capabilities:
+    drop: [ALL]
+
+# --- Service account / RBAC ------------------------------------------------
+serviceAccount:
+  # Set to false ONLY if you're managing the SA + RBAC outside this chart.
+  create: true
+  name: ""                        # defaults to release name when empty
+  annotations: {}
+
+rbac:
+  create: true
+
+# --- Service (only useful if you scrape Prometheus from outside the pod) ---
+service:
+  enabled: false
+  port: 8080
+  type: ClusterIP
+
+# --- Pod metadata ----------------------------------------------------------
+podAnnotations: {}
+podLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

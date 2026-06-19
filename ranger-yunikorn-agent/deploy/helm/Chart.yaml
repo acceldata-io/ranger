@@ -1,0 +1,27 @@
+apiVersion: v2
+name: ranger-yunikorn-agent
+description: |
+  Sidecar that synchronises Apache Ranger policies into Apache YuniKorn
+  queue ACLs by patching the YuniKorn ConfigMap.
+
+type: application
+
+# Chart version — bump on every chart change.
+version: 0.1.0
+
+# Default app version, overridden by values.yaml > image.tag
+appVersion: "0.1.0"
+
+keywords:
+  - ranger
+  - yunikorn
+  - kubernetes
+  - rbac
+  - acl
+
+home: https://github.com/acceldata-io/ranger-yunikorn-agent
+sources:
+  - https://github.com/acceldata-io/ranger-yunikorn-agent
+
+maintainers:
+  - name: Acceldata Platform Team
