@@ -121,62 +121,6 @@
     },
     {
       "itemId": 2,
-      "name": "authType",
-      "type": "string",
-      "subType": "",
-      "mandatory": true,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Authentication Type",
-      "defaultValue": "service-principal"
-    },
-    {
-      "itemId":3,
-      "name": "tenantId",
-      "type": "string",
-      "subType": "",
-      "mandatory": false,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Azure Tenant ID"
-    },
-    {
-      "itemId": 4,
-      "name": "clientId",
-      "type": "string",
-      "subType": "",
-      "mandatory": false,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Client ID"
-    },
-    {
-      "itemId": 5,
-      "name": "clientSecret",
-      "type": "password",
-      "subType": "",
-      "mandatory": false,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Client Secret"
-    },
-    {
-      "itemId": 6,
-      "name": "managedIdentityClientId",
-      "type": "string",
-      "subType": "",
-      "mandatory": false,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Managed Identity Client ID"
-    },
-    {
-      "itemId": 7,
       "name": "storageAccount",
       "type": "string",
       "subType": "",
@@ -187,7 +131,7 @@
       "label": "Storage Account"
     },
     {
-      "itemId": 8,
+      "itemId": 3,
       "name": "defaultContainer",
       "type": "string",
       "subType": "",
@@ -198,30 +142,40 @@
       "label": "Default Container"
     },
     {
-      "itemId": 9,
-      "name": "endpoint",
-      "type": "string",
-      "subType": "",
-      "mandatory": false,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "ADLS DFS Endpoint"
-    },
-    {
-      "itemId": 10,
-      "name": "identityMappingMode",
+      "itemId": 4,
+      "name": "fs.azure.account.oauth2.client.id",
       "type": "string",
       "subType": "",
       "mandatory": true,
       "validationRegEx":"",
       "validationMessage": "",
       "uiHint":"",
-      "label": "Identity Mapping Mode",
-      "defaultValue": "static-map"
+      "label": "OAuth Client ID"
     },
     {
-      "itemId": 11,
+      "itemId": 5,
+      "name": "fs.azure.account.oauth2.client.secret",
+      "type": "password",
+      "subType": "",
+      "mandatory": true,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "OAuth Client Secret"
+    },
+    {
+      "itemId":6,
+      "name": "fs.azure.account.oauth2.client.endpoint",
+      "type": "string",
+      "subType": "",
+      "mandatory": true,
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "OAuth Client Endpoint"
+    },
+    {
+      "itemId": 7,
       "name": "userIdentityMap",
       "type": "string",
       "subType": "",
@@ -232,7 +186,7 @@
       "label": "User Identity Map"
     },
     {
-      "itemId": 12,
+      "itemId": 8,
       "name": "groupIdentityMap",
       "type": "string",
       "subType": "",
@@ -243,18 +197,7 @@
       "label": "Group Identity Map"
     },
     {
-      "itemId": 13,
-      "name": "servicePrincipalIdentityMap",
-      "type": "string",
-      "subType": "",
-      "mandatory": false,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Service Principal Identity Map"
-    },
-    {
-      "itemId": 14,
+      "itemId": 9,
       "name": "failOnUnresolvedIdentity",
       "type": "bool",
       "subType": "YesTrue:NoFalse",
@@ -263,42 +206,6 @@
       "validationMessage": "",
       "uiHint":"",
       "label": "Fail On Unresolved Identity",
-      "defaultValue": "true"
-    },
-    {
-      "itemId": 15,
-      "name": "preserveManualAcls",
-      "type": "bool",
-      "subType": "YesTrue:NoFalse",
-      "mandatory": true,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Preserve Manual ACLs",
-      "defaultValue": "true"
-    },
-    {
-      "itemId": 16,
-      "name": "recursiveAclSyncEnabled",
-      "type": "bool",
-      "subType": "YesTrue:NoFalse",
-      "mandatory": true,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Recursive ACL Sync",
-      "defaultValue": "true"
-    },
-    {
-      "itemId": 17,
-      "name": "defaultAclInheritanceEnabled",
-      "type": "bool",
-      "subType": "YesTrue:NoFalse",
-      "mandatory": true,
-      "validationRegEx":"",
-      "validationMessage": "",
-      "uiHint":"",
-      "label": "Default ACL Inheritance",
       "defaultValue": "true"
     }
   ],
