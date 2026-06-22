@@ -82,11 +82,11 @@ public class ABFSAclSyncService {
             boolean stalePathRecursive = stalePath && stalePolicyRecursive;
             boolean desiredPathRecursive = desiredPath && desiredPolicyRecursive;
             List<PathAccessControlEntry> staleAclEntries = stalePath && oldPolicy != null
-                    ? buildDesiredAclEntries(oldPolicy, pathRef, identityResolver, stalePolicyRecursive)
+                    ? buildDesiredAclEntries(oldPolicy, identityResolver, stalePolicyRecursive)
                     : new ArrayList<>();
             List<PathAccessControlEntry> desiredAclEntries = deleteAction || !desiredPath
                     ? new ArrayList<>()
-                    : buildDesiredAclEntries(policy, pathRef, identityResolver, desiredPolicyRecursive);
+                    : buildDesiredAclEntries(policy, identityResolver, desiredPolicyRecursive);
             applyAcl(fileSystemClient.getDirectoryClient(stripLeadingSlash(pathRef.getRelativePath())),
                     desiredAclEntries, staleAclEntries);
 
@@ -121,11 +121,11 @@ public class ABFSAclSyncService {
                     ? fileSystemClient.getDirectoryClient(pathName)
                     : fileSystemClient.getFileClient(pathName);
             List<PathAccessControlEntry> staleAclEntries = stalePolicyRecursive && oldPolicy != null
-                    ? buildDesiredAclEntries(oldPolicy, rootPath, identityResolver, Boolean.TRUE.equals(pathItem.isDirectory()))
+                    ? buildDesiredAclEntries(oldPolicy, identityResolver, Boolean.TRUE.equals(pathItem.isDirectory()))
                     : new ArrayList<>();
             List<PathAccessControlEntry> desiredAclEntries =
                     deleteAction || !desiredPolicyRecursive ? new ArrayList<>()
-                            : buildDesiredAclEntries(policy, rootPath, identityResolver, Boolean.TRUE.equals(pathItem.isDirectory()));
+                            : buildDesiredAclEntries(policy, identityResolver, Boolean.TRUE.equals(pathItem.isDirectory()));
             applyAcl(pathClient, desiredAclEntries, staleAclEntries);
         }
     }
@@ -167,7 +167,7 @@ public class ABFSAclSyncService {
         return new ArrayList<>(byKey.values());
     }
 
-    private List<PathAccessControlEntry> buildDesiredAclEntries(RangerPolicy policy, ABFSPathRef pathRef,
+    private List<PathAccessControlEntry> buildDesiredAclEntries(RangerPolicy policy,
                                                                ABFSIdentityResolver identityResolver,
                                                                boolean includeDefaultAcl) {
         List<PathAccessControlEntry> ret = new ArrayList<>();
