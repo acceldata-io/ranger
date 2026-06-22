@@ -497,7 +497,7 @@
         {
           "itemId": 6,
           "name": "xstore.auth.token.cache.skew.ms",
-          "type": "number",
+          "type": "int",
           "mandatory": false,
           "label": "Token Refresh Safety Window",
           "defaultValue": 30000
@@ -505,7 +505,7 @@
         {
           "itemId": 7,
           "name": "xstore.auth.token.connect.timeout.ms",
-          "type": "number",
+          "type": "int",
           "mandatory": false,
           "label": "Token Endpoint Connect Timeout",
           "defaultValue": 5000
@@ -513,7 +513,7 @@
         {
           "itemId": 8,
           "name": "xstore.auth.token.read.timeout.ms",
-          "type": "number",
+          "type": "int",
           "mandatory": false,
           "label": "Token Endpoint Read Timeout",
           "defaultValue": 5000
