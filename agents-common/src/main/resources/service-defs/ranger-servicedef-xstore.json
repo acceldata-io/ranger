@@ -243,6 +243,30 @@
             "accessTypeRestrictions": [
               "use_model"
             ]
+        },
+        {
+            "itemId": 9,
+            "name": "column",
+            "type": "string",
+            "level": 50,
+            "parent": "table",
+            "mandatory": false,
+            "isValidLeaf": true,
+            "lookupSupported": true,
+            "recursiveSupported": false,
+            "excludesSupported": false,
+            "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+            "matcherOptions": {
+                "wildCard": "false",
+                "ignoreCase": "true"
+            },
+            "label": "Column",
+            "description": "Column in a Table",
+            "uiHint": "{ \"singleValue\":true }",
+            "accessTypeRestrictions": [
+                "select_table",
+                "modify_table"
+            ]
         }
     ],
   "accessTypes": [
