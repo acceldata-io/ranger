@@ -20,6 +20,7 @@ package org.apache.ranger.patch;
 import org.apache.ranger.biz.ServiceDBStore;
 import org.apache.ranger.common.RangerValidatorFactory;
 import org.apache.ranger.plugin.model.RangerServiceDef;
+import org.apache.ranger.plugin.model.RangerServiceDef.RangerServiceConfigDef;
 import org.apache.ranger.plugin.model.validation.RangerServiceDefValidator;
 import org.apache.ranger.plugin.model.validation.RangerValidator.Action;
 import org.apache.ranger.plugin.store.EmbeddedServiceDefsUtil;
@@ -30,13 +31,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Backfills dataMaskDef and rowFilterDef on existing xstore service-def rows.
+ * Updates the xstore service-def in place on existing deployments:
  *
- * <p>New deployments get these via {@link EmbeddedServiceDefsUtil}'s
- * create-if-missing logic. Existing deployments need this patch because that
- * utility never overwrites an already-present service-def row, so the original
- * empty {@code dataMaskDef: {}} / {@code rowFilterDef: {}} persist forever
- * unless explicitly updated.
+ * <ul>
+ *   <li>Heals invalid config-def types (e.g. {@code "number"} &rarr; {@code "int"}) that
+ *       slipped past {@link org.apache.ranger.biz.ServiceDBStore#createServiceDef}'s
+ *       lenient create-time validation. Without this heal,
+ *       {@link RangerServiceDefValidator#validate} rejects any subsequent UPDATE.
+ *   <li>Backfills {@code dataMaskDef} and {@code rowFilterDef} from the embedded
+ *       service-def so the masking and row-filter forms appear in Ranger Admin.
+ * </ul>
+ *
+ * <p>New deployments get the correct definitions via {@link EmbeddedServiceDefsUtil}'s
+ * create-if-missing logic. Existing deployments need this patch because that utility
+ * never overwrites an already-present service-def row, so any pre-existing corruption
+ * or missing sub-defs persist forever unless explicitly updated.
  */
 @Component
 public class PatchForXstoreServiceDefUpdate_J10064 extends BaseLoader {
@@ -81,6 +90,7 @@ public class PatchForXstoreServiceDefUpdate_J10064 extends BaseLoader {
             updateXstoreServiceDef();
         } catch (Exception e) {
             LOG.error("Error while updating xstore service-def", e);
+            throw new RuntimeException(e);
         }
         LOG.info("<== PatchForXstoreServiceDefUpdate_J10064.execLoad()");
     }
@@ -107,6 +117,21 @@ public class PatchForXstoreServiceDefUpdate_J10064 extends BaseLoader {
 
         boolean changed = false;
 
+        // Heal historical bad config-def types so RangerServiceDefValidator passes on
+        // Action.UPDATE. Ranger's strict types are: bool, enum, int, string, password,
+        // path. Older xstore service-defs shipped with type="number" (a JSON-Schema'ism)
+        // for the *.ms timeout configs; remap them to "int". Without this, the validator
+        // call below rejects the update and the masking/row-filter backfill is lost.
+        if (dbDef.getConfigs() != null) {
+            for (RangerServiceConfigDef cfg : dbDef.getConfigs()) {
+                if ("number".equals(cfg.getType())) {
+                    LOG.info("Healing invalid config type 'number' -> 'int' for {}", cfg.getName());
+                    cfg.setType("int");
+                    changed = true;
+                }
+            }
+        }
+
         if (isEmpty(dbDef.getDataMaskDef())) {
             dbDef.setDataMaskDef(embeddedDef.getDataMaskDef());
             changed = true;
@@ -120,8 +145,7 @@ public class PatchForXstoreServiceDefUpdate_J10064 extends BaseLoader {
         }
 
         if (!changed) {
-            LOG.info(
-                    "xstore service-def already has dataMaskDef and rowFilterDef populated; nothing to do");
+            LOG.info("xstore service-def already current (configs healed, masking + row-filter populated); nothing to do");
             return;
         }
 
