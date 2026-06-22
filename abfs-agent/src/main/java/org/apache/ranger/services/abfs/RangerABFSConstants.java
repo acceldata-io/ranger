@@ -22,25 +22,14 @@ public class RangerABFSConstants {
     public static final String ABFS = "abfs";
 
     public static final String USER_NAME = "username";
-    public static final String AUTH_TYPE = "authType";
-    public static final String AUTH_TYPE_SERVICE_PRINCIPAL = "service-principal";
-    public static final String AUTH_TYPE_MANAGED_IDENTITY = "managed-identity";
-    public static final String TENANT_ID = "tenantId";
-    public static final String CLIENT_ID = "clientId";
-    public static final String CLIENT_SECRET = "clientSecret";
-    public static final String MANAGED_IDENTITY_CLIENT_ID = "managedIdentityClientId";
-    public static final String ENDPOINT = "endpoint";
     public static final String STORAGE_ACCOUNT = "storageAccount";
     public static final String DEFAULT_CONTAINER = "defaultContainer";
-    public static final String IDENTITY_MAPPING_MODE = "identityMappingMode";
-    public static final String IDENTITY_MAPPING_MODE_STATIC_MAP = "static-map";
+    public static final String FS_AZURE_ACCOUNT_OAUTH2_CLIENT_ID = "fs.azure.account.oauth2.client.id";
+    public static final String FS_AZURE_ACCOUNT_OAUTH2_CLIENT_SECRET = "fs.azure.account.oauth2.client.secret";
+    public static final String FS_AZURE_ACCOUNT_OAUTH2_CLIENT_ENDPOINT = "fs.azure.account.oauth2.client.endpoint";
     public static final String USER_IDENTITY_MAP = "userIdentityMap";
     public static final String GROUP_IDENTITY_MAP = "groupIdentityMap";
-    public static final String SERVICE_PRINCIPAL_IDENTITY_MAP = "servicePrincipalIdentityMap";
     public static final String FAIL_ON_UNRESOLVED_IDENTITY = "failOnUnresolvedIdentity";
-    public static final String PRESERVE_MANUAL_ACLS = "preserveManualAcls";
-    public static final String RECURSIVE_ACL_SYNC_ENABLED = "recursiveAclSyncEnabled";
-    public static final String DEFAULT_ACL_INHERITANCE_ENABLED = "defaultAclInheritanceEnabled";
 
     public static final String STORAGE_ACCOUNT_RESOURCE = "storageaccount";
     public static final String CONTAINER = "container";

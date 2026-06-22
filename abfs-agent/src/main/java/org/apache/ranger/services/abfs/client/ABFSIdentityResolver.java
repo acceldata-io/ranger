@@ -32,13 +32,11 @@ public class ABFSIdentityResolver {
 
     private final Map<String, String> userMap;
     private final Map<String, String> groupMap;
-    private final Map<String, String> servicePrincipalMap;
     private final boolean failOnUnresolvedIdentity;
 
     public ABFSIdentityResolver(Map<String, String> configs) {
         this.userMap = parseMapping(configs.get(RangerABFSConstants.USER_IDENTITY_MAP));
         this.groupMap = parseMapping(configs.get(RangerABFSConstants.GROUP_IDENTITY_MAP));
-        this.servicePrincipalMap = parseMapping(configs.get(RangerABFSConstants.SERVICE_PRINCIPAL_IDENTITY_MAP));
         this.failOnUnresolvedIdentity = Boolean.parseBoolean(
                 StringUtils.defaultIfBlank(configs.get(RangerABFSConstants.FAIL_ON_UNRESOLVED_IDENTITY), "true"));
     }
@@ -49,10 +47,6 @@ public class ABFSIdentityResolver {
 
     public ResolvedIdentity resolveGroup(String group) {
         return resolve(group, groupMap, ResolvedIdentityType.GROUP);
-    }
-
-    public ResolvedIdentity resolveServicePrincipal(String servicePrincipal) {
-        return resolve(servicePrincipal, servicePrincipalMap, ResolvedIdentityType.USER);
     }
 
     private ResolvedIdentity resolve(String name, Map<String, String> mapping, ResolvedIdentityType type) {

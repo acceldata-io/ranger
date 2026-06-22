@@ -20,7 +20,6 @@ package org.apache.ranger.services.abfs.client;
 
 import com.azure.core.credential.TokenCredential;
 import com.azure.identity.ClientSecretCredentialBuilder;
-import com.azure.identity.ManagedIdentityCredentialBuilder;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.azure.storage.file.datalake.DataLakeServiceClient;
 import com.azure.storage.file.datalake.DataLakeServiceClientBuilder;
@@ -31,6 +30,8 @@ import org.apache.ranger.services.abfs.RangerABFSConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -57,7 +58,7 @@ public class ABFSClientConnectionMgr extends BaseClient {
     }
 
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) {
-        LOG.debug("==> ABFSClientConnectionMgr.connectionTest ServiceName: {}, Configs: {}", serviceName, configs);
+        LOG.debug("==> ABFSClientConnectionMgr.connectionTest ServiceName: {}", serviceName);
 
         boolean connectivityStatus = false;
         Map<String, Object> responseData = new HashMap<>();
@@ -94,25 +95,15 @@ public class ABFSClientConnectionMgr extends BaseClient {
     }
 
     private static TokenCredential getTokenCredential(Map<String, String> configs) {
-        String authType = StringUtils.defaultIfBlank(configs.get(RangerABFSConstants.AUTH_TYPE),
-                RangerABFSConstants.AUTH_TYPE_SERVICE_PRINCIPAL);
+        String clientId = getAbfsConfig(configs, RangerABFSConstants.FS_AZURE_ACCOUNT_OAUTH2_CLIENT_ID);
+        String clientSecret = getAbfsConfig(configs, RangerABFSConstants.FS_AZURE_ACCOUNT_OAUTH2_CLIENT_SECRET);
+        String clientEndpoint = getAbfsConfig(configs, RangerABFSConstants.FS_AZURE_ACCOUNT_OAUTH2_CLIENT_ENDPOINT);
+        String tenantId = getTenantId(clientEndpoint);
 
-        if (RangerABFSConstants.AUTH_TYPE_MANAGED_IDENTITY.equalsIgnoreCase(authType)) {
-            ManagedIdentityCredentialBuilder builder = new ManagedIdentityCredentialBuilder();
-            String managedIdentityClientId = configs.get(RangerABFSConstants.MANAGED_IDENTITY_CLIENT_ID);
-            if (StringUtils.isNotBlank(managedIdentityClientId)) {
-                builder.clientId(managedIdentityClientId);
-            }
-            return builder.build();
-        }
-
-        String tenantId = configs.get(RangerABFSConstants.TENANT_ID);
-        String clientId = configs.get(RangerABFSConstants.CLIENT_ID);
-        String clientSecret = configs.get(RangerABFSConstants.CLIENT_SECRET);
-
-        validateRequiredConfig(tenantId, RangerABFSConstants.TENANT_ID, "ABFS service-principal credential");
-        validateRequiredConfig(clientId, RangerABFSConstants.CLIENT_ID, "ABFS service-principal credential");
-        validateRequiredConfig(clientSecret, RangerABFSConstants.CLIENT_SECRET, "ABFS service-principal credential");
+        validateRequiredConfig(clientId, RangerABFSConstants.FS_AZURE_ACCOUNT_OAUTH2_CLIENT_ID, "ABFS OAuth credential");
+        validateRequiredConfig(clientSecret, RangerABFSConstants.FS_AZURE_ACCOUNT_OAUTH2_CLIENT_SECRET, "ABFS OAuth credential");
+        validateRequiredConfig(clientEndpoint, RangerABFSConstants.FS_AZURE_ACCOUNT_OAUTH2_CLIENT_ENDPOINT, "ABFS OAuth credential");
+        validateRequiredConfig(tenantId, RangerABFSConstants.FS_AZURE_ACCOUNT_OAUTH2_CLIENT_ENDPOINT, "ABFS OAuth credential");
 
         return new ClientSecretCredentialBuilder()
                 .tenantId(tenantId)
@@ -122,15 +113,50 @@ public class ABFSClientConnectionMgr extends BaseClient {
     }
 
     private static String getEndpoint(Map<String, String> configs) {
-        String endpoint = configs.get(RangerABFSConstants.ENDPOINT);
-        if (StringUtils.isNotBlank(endpoint)) {
-            return endpoint;
-        }
-
         String storageAccount = configs.get(RangerABFSConstants.STORAGE_ACCOUNT);
         validateRequiredConfig(storageAccount, RangerABFSConstants.STORAGE_ACCOUNT, "ABFS endpoint");
 
         return "https://" + storageAccount + ".dfs.core.windows.net";
+    }
+
+    private static String getAbfsConfig(Map<String, String> configs, String configName) {
+        String ret = configs.get(configName);
+        if (StringUtils.isNotBlank(ret)) {
+            return ret;
+        }
+
+        String storageAccount = configs.get(RangerABFSConstants.STORAGE_ACCOUNT);
+        if (StringUtils.isBlank(storageAccount)) {
+            return ret;
+        }
+
+        String accountSpecificConfigName = configName + "." + storageAccount + ".dfs.core.windows.net";
+        return configs.get(accountSpecificConfigName);
+    }
+
+    private static String getTenantId(String clientEndpoint) {
+        if (StringUtils.isBlank(clientEndpoint)) {
+            return null;
+        }
+
+        try {
+            URI uri = new URI(clientEndpoint);
+            String path = uri.getPath();
+            if (StringUtils.isBlank(path)) {
+                return null;
+            }
+
+            String[] pathElements = path.split("/");
+            for (String pathElement : pathElements) {
+                if (StringUtils.isNotBlank(pathElement)) {
+                    return pathElement;
+                }
+            }
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid ABFS OAuth client endpoint: " + clientEndpoint, e);
+        }
+
+        return null;
     }
 
     private static void validateRequiredConfig(String value, String configName, String context) {

@@ -58,28 +58,41 @@ public class ABFSAclSyncService {
 
         ABFSIdentityResolver identityResolver = new ABFSIdentityResolver(configs);
 
+        Set<ABFSPathRef> desiredPaths = ACTION_DELETE.equalsIgnoreCase(action)
+                ? new HashSet<>()
+                : getPolicyPathRefs(policy, configs);
+        Set<ABFSPathRef> stalePaths = oldPolicy != null
+                ? getPolicyPathRefs(oldPolicy, configs)
+                : new HashSet<>();
         Set<ABFSPathRef> affectedPaths = new HashSet<>();
-        affectedPaths.addAll(getPolicyPathRefs(policy, configs));
-        if (oldPolicy != null) {
-            affectedPaths.addAll(getPolicyPathRefs(oldPolicy, configs));
-        }
+        affectedPaths.addAll(desiredPaths);
+        affectedPaths.addAll(stalePaths);
 
         boolean deleteAction = ACTION_DELETE.equalsIgnoreCase(action);
+        boolean stalePolicyRecursive = oldPolicy != null
+                && isResourceRecursive(oldPolicy, RangerABFSConstants.RELATIVE_PATH);
+        boolean desiredPolicyRecursive = !deleteAction
+                && isResourceRecursive(policy, RangerABFSConstants.RELATIVE_PATH);
 
         for (ABFSPathRef pathRef : affectedPaths) {
             DataLakeFileSystemClient fileSystemClient = ABFSClientConnectionMgr.getFileSystemClient(configs,
                     pathRef.getContainer());
-            List<PathAccessControlEntry> staleAclEntries = oldPolicy != null
-                    ? buildDesiredAclEntries(oldPolicy, pathRef, identityResolver, false)
+            boolean stalePath = stalePaths.contains(pathRef);
+            boolean desiredPath = desiredPaths.contains(pathRef);
+            boolean stalePathRecursive = stalePath && stalePolicyRecursive;
+            boolean desiredPathRecursive = desiredPath && desiredPolicyRecursive;
+            List<PathAccessControlEntry> staleAclEntries = stalePath && oldPolicy != null
+                    ? buildDesiredAclEntries(oldPolicy, pathRef, identityResolver, stalePolicyRecursive)
                     : new ArrayList<>();
-            List<PathAccessControlEntry> desiredAclEntries = deleteAction
+            List<PathAccessControlEntry> desiredAclEntries = deleteAction || !desiredPath
                     ? new ArrayList<>()
-                    : buildDesiredAclEntries(policy, pathRef, identityResolver, false);
+                    : buildDesiredAclEntries(policy, pathRef, identityResolver, desiredPolicyRecursive);
             applyAcl(fileSystemClient.getDirectoryClient(stripLeadingSlash(pathRef.getRelativePath())),
                     desiredAclEntries, staleAclEntries);
 
-            if (pathRef.isRecursive() && isRecursiveAclSyncEnabled(configs)) {
-                applyAclRecursively(fileSystemClient, pathRef, policy, oldPolicy, identityResolver, deleteAction);
+            if (stalePathRecursive || desiredPathRecursive) {
+                applyAclRecursively(fileSystemClient, pathRef, policy, oldPolicy, identityResolver,
+                        stalePathRecursive, desiredPathRecursive, deleteAction);
             }
         }
 
@@ -89,7 +102,9 @@ public class ABFSAclSyncService {
 
     private void applyAclRecursively(DataLakeFileSystemClient fileSystemClient, ABFSPathRef rootPath,
                                      RangerPolicy policy, RangerPolicy oldPolicy,
-                                     ABFSIdentityResolver identityResolver, boolean deleteAction) {
+                                     ABFSIdentityResolver identityResolver,
+                                     boolean stalePolicyRecursive, boolean desiredPolicyRecursive,
+                                     boolean deleteAction) {
         String normalizedRootPath = stripLeadingSlash(rootPath.getRelativePath());
         ListPathsOptions options = new ListPathsOptions()
                 .setPath(normalizedRootPath)
@@ -105,11 +120,11 @@ public class ABFSAclSyncService {
             DataLakePathClient pathClient = Boolean.TRUE.equals(pathItem.isDirectory())
                     ? fileSystemClient.getDirectoryClient(pathName)
                     : fileSystemClient.getFileClient(pathName);
-            List<PathAccessControlEntry> staleAclEntries = oldPolicy != null
+            List<PathAccessControlEntry> staleAclEntries = stalePolicyRecursive && oldPolicy != null
                     ? buildDesiredAclEntries(oldPolicy, rootPath, identityResolver, Boolean.TRUE.equals(pathItem.isDirectory()))
                     : new ArrayList<>();
             List<PathAccessControlEntry> desiredAclEntries =
-                    deleteAction ? new ArrayList<>()
+                    deleteAction || !desiredPolicyRecursive ? new ArrayList<>()
                             : buildDesiredAclEntries(policy, rootPath, identityResolver, Boolean.TRUE.equals(pathItem.isDirectory()));
             applyAcl(pathClient, desiredAclEntries, staleAclEntries);
         }
@@ -161,7 +176,6 @@ public class ABFSAclSyncService {
             return ret;
         }
 
-        boolean addDefaultAcl = includeDefaultAcl || pathRef.isRecursive();
         for (RangerPolicyItem item : policy.getPolicyItems()) {
             RolePermissions permissions = toRolePermissions(item.getAccesses());
             if (permissions == null) {
@@ -172,7 +186,7 @@ public class ABFSAclSyncService {
                 for (String user : item.getUsers()) {
                     ResolvedIdentity identity = identityResolver.resolveUser(user);
                     addAclEntry(ret, identity, permissions, false);
-                    if (addDefaultAcl) {
+                    if (includeDefaultAcl) {
                         addAclEntry(ret, identity, permissions, true);
                     }
                 }
@@ -182,7 +196,7 @@ public class ABFSAclSyncService {
                 for (String group : item.getGroups()) {
                     ResolvedIdentity identity = identityResolver.resolveGroup(group);
                     addAclEntry(ret, identity, permissions, false);
-                    if (addDefaultAcl) {
+                    if (includeDefaultAcl) {
                         addAclEntry(ret, identity, permissions, true);
                     }
                 }
@@ -254,7 +268,6 @@ public class ABFSAclSyncService {
 
         List<String> containers = getResourceValues(policy, RangerABFSConstants.CONTAINER);
         List<String> paths = getResourceValues(policy, RangerABFSConstants.RELATIVE_PATH);
-        boolean recursive = isResourceRecursive(policy, RangerABFSConstants.RELATIVE_PATH);
 
         if (containers.isEmpty()) {
             containers.add(configs.get(RangerABFSConstants.DEFAULT_CONTAINER));
@@ -272,7 +285,7 @@ public class ABFSAclSyncService {
             }
 
             for (String path : paths) {
-                ret.add(new ABFSPathRef(container, StringUtils.defaultIfBlank(path, "/"), recursive));
+                ret.add(new ABFSPathRef(container, StringUtils.defaultIfBlank(path, "/")));
             }
         }
 
@@ -293,11 +306,6 @@ public class ABFSAclSyncService {
         return resource != null && Boolean.TRUE.equals(resource.getIsRecursive());
     }
 
-    private boolean isRecursiveAclSyncEnabled(Map<String, String> configs) {
-        return Boolean.parseBoolean(StringUtils.defaultIfBlank(
-                configs.get(RangerABFSConstants.RECURSIVE_ACL_SYNC_ENABLED), "true"));
-    }
-
     private static String toAclKey(PathAccessControlEntry entry) {
         return entry.isInDefaultScope() + ":" + entry.getAccessControlType() + ":"
                 + StringUtils.defaultString(entry.getEntityId());
@@ -314,12 +322,10 @@ public class ABFSAclSyncService {
     private static class ABFSPathRef {
         private final String container;
         private final String relativePath;
-        private final boolean recursive;
 
-        ABFSPathRef(String container, String relativePath, boolean recursive) {
+        ABFSPathRef(String container, String relativePath) {
             this.container = container;
             this.relativePath = relativePath;
-            this.recursive = recursive;
         }
 
         public String getContainer() {
@@ -328,10 +334,6 @@ public class ABFSAclSyncService {
 
         public String getRelativePath() {
             return relativePath;
-        }
-
-        public boolean isRecursive() {
-            return recursive;
         }
 
         @Override
@@ -343,8 +345,7 @@ public class ABFSAclSyncService {
                 return false;
             }
             ABFSPathRef that = (ABFSPathRef) o;
-            return recursive == that.recursive
-                    && StringUtils.equals(container, that.container)
+            return StringUtils.equals(container, that.container)
                     && StringUtils.equals(relativePath, that.relativePath);
         }
 
@@ -352,7 +353,6 @@ public class ABFSAclSyncService {
         public int hashCode() {
             int result = container != null ? container.hashCode() : 0;
             result = 31 * result + (relativePath != null ? relativePath.hashCode() : 0);
-            result = 31 * result + (recursive ? 1 : 0);
             return result;
         }
     }
