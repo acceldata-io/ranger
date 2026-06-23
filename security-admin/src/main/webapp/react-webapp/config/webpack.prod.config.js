@@ -19,12 +19,13 @@
 
 const { merge } = require("webpack-merge");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-
+const TerserPlugin = require("terser-webpack-plugin");
 const commonConfig = require("./webpack.config.js");
 
 const devConfig = merge(commonConfig, {
   mode: "production",
-  // devtool: "nosources-source-map",
+  devtool: false, // Disable source maps to reduce memory
+
   module: {
     rules: [
       {
@@ -33,12 +34,48 @@ const devConfig = merge(commonConfig, {
       }
     ]
   },
+
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        parallel: false, // Disable parallel to avoid segfault
+        terserOptions: {
+          compress: {
+            drop_console: false,
+          },
+          mangle: true,
+        },
+      }),
+    ],
+    splitChunks: {
+      chunks: 'all',
+      maxSize: 244000, // Split large chunks
+      cacheGroups: {
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          priority: 10,
+        },
+      },
+    },
+  },
+
+  performance: {
+    hints: false, // Disable performance hints
+    maxEntrypointSize: 512000,
+    maxAssetSize: 512000,
+  },
+
   plugins: [
     new MiniCssExtractPlugin({
       filename: "styles/[name].[contenthash].css",
       chunkFilename: "styles/[id].[contenthash].css"
     })
-  ]
+  ],
+
+  // Limit parallelism
+  parallelism: 1,
 });
 
 module.exports = devConfig;

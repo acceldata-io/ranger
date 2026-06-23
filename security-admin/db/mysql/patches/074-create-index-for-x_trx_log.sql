@@ -13,7 +13,18 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-ALTER TABLE x_trx_log CONVERT TO CHARACTER SET latin1;
+drop procedure if exists alter_table_x_trx_log;
+
+delimiter ;;
+create procedure alter_table_x_trx_log() begin
+if exists (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_schema=DATABASE() AND table_name='x_trx_log') then
+	ALTER TABLE x_trx_log CONVERT TO CHARACTER SET latin1;
+end if;
+end;;
+
+delimiter ;
+call alter_table_x_trx_log();
+
 drop procedure if exists create_index_for_x_trx_log;
 
 delimiter ;;

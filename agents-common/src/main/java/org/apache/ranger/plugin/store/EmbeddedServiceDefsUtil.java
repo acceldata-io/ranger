@@ -46,371 +46,405 @@ import org.apache.ranger.plugin.util.ServiceDefUtil;
  * initialize embedded service-defs.
  */
 public class EmbeddedServiceDefsUtil {
-	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedServiceDefsUtil.class);
+  private static final Logger LOG = LoggerFactory.getLogger(EmbeddedServiceDefsUtil.class);
 
+  // following servicedef list should be reviewed/updated whenever a new embedded
+  // service-def is added
+  public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,xstore,s3";
+  private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
+  private Set<String> supportedServiceDefs;
+  public static final String EMBEDDED_SERVICEDEF_TAG_NAME = "tag";
+  public static final String EMBEDDED_SERVICEDEF_GDS_NAME = "gds";
+  public static final String EMBEDDED_SERVICEDEF_HDFS_NAME = "hdfs";
+  public static final String EMBEDDED_SERVICEDEF_HBASE_NAME = "hbase";
+  public static final String EMBEDDED_SERVICEDEF_HIVE_NAME = "hive";
+  public static final String EMBEDDED_SERVICEDEF_KMS_NAME = "kms";
+  public static final String EMBEDDED_SERVICEDEF_KNOX_NAME = "knox";
+  public static final String EMBEDDED_SERVICEDEF_STORM_NAME = "storm";
+  public static final String EMBEDDED_SERVICEDEF_YARN_NAME = "yarn";
+  public static final String EMBEDDED_SERVICEDEF_KAFKA_NAME = "kafka";
+  public static final String EMBEDDED_SERVICEDEF_SOLR_NAME = "solr";
+  public static final String EMBEDDED_SERVICEDEF_SCHEMA_REGISTRY_NAME = "schema-registry";
+  public static final String EMBEDDED_SERVICEDEF_NIFI_NAME = "nifi";
+  public static final String EMBEDDED_SERVICEDEF_NIFI_REGISTRY_NAME = "nifi-registry";
+  public static final String EMBEDDED_SERVICEDEF_ATLAS_NAME = "atlas";
+  public static final String EMBEDDED_SERVICEDEF_WASB_NAME = "wasb";
+  public static final String EMBEDDED_SERVICEDEF_SQOOP_NAME = "sqoop";
+  public static final String EMBEDDED_SERVICEDEF_KYLIN_NAME = "kylin";
+  public static final String EMBEDDED_SERVICEDEF_ABFS_NAME = "abfs";
+  public static final String EMBEDDED_SERVICEDEF_ELASTICSEARCH_NAME = "elasticsearch";
+  public static final String EMBEDDED_SERVICEDEF_PRESTO_NAME = "presto";
+  public static final String EMBEDDED_SERVICEDEF_TRINO_NAME = "trino";
+  public static final String EMBEDDED_SERVICEDEF_OZONE_NAME = "ozone";
+  public static final String EMBEDDED_SERVICEDEF_KUDU_NAME = "kudu";
+  public static final String EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME = "nestedstructure";
+  public static final String EMBEDDED_SERVICEDEF_XSTORE_NAME = "xstore";
+  public static final String EMBEDDED_SERVICEDEF_S3_NAME = "s3";
 
-	// following servicedef list should be reviewed/updated whenever a new embedded service-def is added
-	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,xstore";
-	private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
-	private Set<String> supportedServiceDefs;
-	public static final String EMBEDDED_SERVICEDEF_TAG_NAME  = "tag";
-	public static final String EMBEDDED_SERVICEDEF_GDS_NAME  = "gds";
-	public static final String EMBEDDED_SERVICEDEF_HDFS_NAME  = "hdfs";
-	public static final String EMBEDDED_SERVICEDEF_HBASE_NAME = "hbase";
-	public static final String EMBEDDED_SERVICEDEF_HIVE_NAME  = "hive";
-	public static final String EMBEDDED_SERVICEDEF_KMS_NAME   = "kms";
-	public static final String EMBEDDED_SERVICEDEF_KNOX_NAME  = "knox";
-	public static final String EMBEDDED_SERVICEDEF_STORM_NAME = "storm";
-	public static final String EMBEDDED_SERVICEDEF_YARN_NAME  = "yarn";
-	public static final String EMBEDDED_SERVICEDEF_KAFKA_NAME = "kafka";
-	public static final String EMBEDDED_SERVICEDEF_SOLR_NAME  = "solr";
-	public static final String EMBEDDED_SERVICEDEF_SCHEMA_REGISTRY_NAME  = "schema-registry";
-	public static final String EMBEDDED_SERVICEDEF_NIFI_NAME  = "nifi";
-	public static final String EMBEDDED_SERVICEDEF_NIFI_REGISTRY_NAME  = "nifi-registry";
-	public static final String EMBEDDED_SERVICEDEF_ATLAS_NAME  = "atlas";
-	public static final String EMBEDDED_SERVICEDEF_WASB_NAME  = "wasb";
-	public static final String EMBEDDED_SERVICEDEF_SQOOP_NAME = "sqoop";
-	public static final String EMBEDDED_SERVICEDEF_KYLIN_NAME  = "kylin";
-	public static final String EMBEDDED_SERVICEDEF_ABFS_NAME  = "abfs";
-	public static final String EMBEDDED_SERVICEDEF_ELASTICSEARCH_NAME = "elasticsearch";
-	public static final String EMBEDDED_SERVICEDEF_PRESTO_NAME  = "presto";
-	public static final String EMBEDDED_SERVICEDEF_TRINO_NAME  = "trino";
-	public static final String EMBEDDED_SERVICEDEF_OZONE_NAME  = "ozone";
-	public static final String EMBEDDED_SERVICEDEF_KUDU_NAME  = "kudu";
-	public static final String EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME  = "nestedstructure";
-	public static final String EMBEDDED_SERVICEDEF_XSTORE_NAME  = "xstore";
-	public static final String PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS = "ranger.service.store.create.embedded.service-defs";
+  public static final String PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS = "ranger.service.store.create.embedded.service-defs";
 
-	public static final String HDFS_IMPL_CLASS_NAME  = "org.apache.ranger.services.hdfs.RangerServiceHdfs";
-	public static final String HBASE_IMPL_CLASS_NAME = "org.apache.ranger.services.hbase.RangerServiceHBase";
-	public static final String HIVE_IMPL_CLASS_NAME  = "org.apache.ranger.services.hive.RangerServiceHive";
-	public static final String KMS_IMPL_CLASS_NAME   = "org.apache.ranger.services.kms.RangerServiceKMS";
-	public static final String KNOX_IMPL_CLASS_NAME  = "org.apache.ranger.services.knox.RangerServiceKnox";
-	public static final String STORM_IMPL_CLASS_NAME = "org.apache.ranger.services.storm.RangerServiceStorm";
-	public static final String YARN_IMPL_CLASS_NAME  = "org.apache.ranger.services.yarn.RangerServiceYarn";
-	public static final String KAFKA_IMPL_CLASS_NAME = "org.apache.ranger.services.kafka.RangerServiceKafka";
-	public static final String SOLR_IMPL_CLASS_NAME  = "org.apache.ranger.services.solr.RangerServiceSolr";
-	public static final String SCHEMA_REGISTRY_IMPL_CLASS_NAME  = "org.apache.ranger.services.schemaregistry.RangerServiceSchemaRegistry";
-	public static final String NIFI_IMPL_CLASS_NAME  = "org.apache.ranger.services.nifi.RangerServiceNiFi";
-	public static final String ATLAS_IMPL_CLASS_NAME  = "org.apache.ranger.services.atlas.RangerServiceAtlas";
-	public static final String PRESTO_IMPL_CLASS_NAME  = "org.apache.ranger.services.presto.RangerServicePresto";
-	public static final String TRINO_IMPL_CLASS_NAME  = "org.apache.ranger.services.trino.RangerServiceTrino";
-	public static final String OZONE_IMPL_CLASS_NAME  = "org.apache.ranger.services.ozone.RangerServiceOzone";
-	public static final String KUDU_IMPL_CLASS_NAME  = "org.apache.ranger.services.kudu.RangerServiceKudu";
+  public static final String HDFS_IMPL_CLASS_NAME = "org.apache.ranger.services.hdfs.RangerServiceHdfs";
+  public static final String HBASE_IMPL_CLASS_NAME = "org.apache.ranger.services.hbase.RangerServiceHBase";
+  public static final String HIVE_IMPL_CLASS_NAME = "org.apache.ranger.services.hive.RangerServiceHive";
+  public static final String KMS_IMPL_CLASS_NAME = "org.apache.ranger.services.kms.RangerServiceKMS";
+  public static final String KNOX_IMPL_CLASS_NAME = "org.apache.ranger.services.knox.RangerServiceKnox";
+  public static final String STORM_IMPL_CLASS_NAME = "org.apache.ranger.services.storm.RangerServiceStorm";
+  public static final String YARN_IMPL_CLASS_NAME = "org.apache.ranger.services.yarn.RangerServiceYarn";
+  public static final String KAFKA_IMPL_CLASS_NAME = "org.apache.ranger.services.kafka.RangerServiceKafka";
+  public static final String SOLR_IMPL_CLASS_NAME = "org.apache.ranger.services.solr.RangerServiceSolr";
+  public static final String SCHEMA_REGISTRY_IMPL_CLASS_NAME = "org.apache.ranger.services.schemaregistry.RangerServiceSchemaRegistry";
+  public static final String NIFI_IMPL_CLASS_NAME = "org.apache.ranger.services.nifi.RangerServiceNiFi";
+  public static final String ATLAS_IMPL_CLASS_NAME = "org.apache.ranger.services.atlas.RangerServiceAtlas";
+  public static final String PRESTO_IMPL_CLASS_NAME = "org.apache.ranger.services.presto.RangerServicePresto";
+  public static final String TRINO_IMPL_CLASS_NAME = "org.apache.ranger.services.trino.RangerServiceTrino";
+  public static final String OZONE_IMPL_CLASS_NAME = "org.apache.ranger.services.ozone.RangerServiceOzone";
+  public static final String KUDU_IMPL_CLASS_NAME = "org.apache.ranger.services.kudu.RangerServiceKudu";
 
-	private static EmbeddedServiceDefsUtil instance = new EmbeddedServiceDefsUtil();
+  private static EmbeddedServiceDefsUtil instance = new EmbeddedServiceDefsUtil();
 
-	private boolean          createEmbeddedServiceDefs = true;
-	private RangerServiceDef hdfsServiceDef;
-	private RangerServiceDef hBaseServiceDef;
-	private RangerServiceDef hiveServiceDef;
-	private RangerServiceDef kmsServiceDef;
-	private RangerServiceDef knoxServiceDef;
-	private RangerServiceDef stormServiceDef;
-	private RangerServiceDef yarnServiceDef;
-	private RangerServiceDef kafkaServiceDef;
-	private RangerServiceDef solrServiceDef;
-	private RangerServiceDef schemaRegistryServiceDef;
-	private RangerServiceDef nifiServiceDef;
-	private RangerServiceDef nifiRegistryServiceDef;
-	private RangerServiceDef atlasServiceDef;
-	private RangerServiceDef wasbServiceDef;
-	private RangerServiceDef sqoopServiceDef;
-	private RangerServiceDef kylinServiceDef;
-	private RangerServiceDef abfsServiceDef;
-	private RangerServiceDef elasticsearchServiceDef;
-	private RangerServiceDef prestoServiceDef;
-	private RangerServiceDef trinoServiceDef;
-	private RangerServiceDef ozoneServiceDef;
-	private RangerServiceDef kuduServiceDef;
-	private RangerServiceDef nestedStructureServiveDef;
-	private RangerServiceDef xstoreServiceDef;
+  private boolean createEmbeddedServiceDefs = true;
+  private RangerServiceDef hdfsServiceDef;
+  private RangerServiceDef hBaseServiceDef;
+  private RangerServiceDef hiveServiceDef;
+  private RangerServiceDef kmsServiceDef;
+  private RangerServiceDef knoxServiceDef;
+  private RangerServiceDef stormServiceDef;
+  private RangerServiceDef yarnServiceDef;
+  private RangerServiceDef kafkaServiceDef;
+  private RangerServiceDef solrServiceDef;
+  private RangerServiceDef schemaRegistryServiceDef;
+  private RangerServiceDef nifiServiceDef;
+  private RangerServiceDef nifiRegistryServiceDef;
+  private RangerServiceDef atlasServiceDef;
+  private RangerServiceDef wasbServiceDef;
+  private RangerServiceDef sqoopServiceDef;
+  private RangerServiceDef kylinServiceDef;
+  private RangerServiceDef abfsServiceDef;
+  private RangerServiceDef elasticsearchServiceDef;
+  private RangerServiceDef prestoServiceDef;
+  private RangerServiceDef trinoServiceDef;
+  private RangerServiceDef ozoneServiceDef;
+  private RangerServiceDef kuduServiceDef;
+  private RangerServiceDef nestedStructureServiveDef;
+  private RangerServiceDef xstoreServiceDef;
+  private RangerServiceDef s3ServiceDef;
 
-	private RangerServiceDef tagServiceDef;
-	private RangerServiceDef gdsServiceDef;
+  private RangerServiceDef tagServiceDef;
+  private RangerServiceDef gdsServiceDef;
 
-	private final RangerAdminConfig config;
+  private final RangerAdminConfig config;
 
-	/** Private constructor to restrict instantiation of this singleton utility class. */
-	private EmbeddedServiceDefsUtil() {
-		config      = RangerAdminConfig.getInstance();
-	}
+  /**
+   * Private constructor to restrict instantiation of this singleton utility
+   * class.
+   */
+  private EmbeddedServiceDefsUtil() {
+    config = RangerAdminConfig.getInstance();
+  }
 
-	public static EmbeddedServiceDefsUtil instance() {
-		return instance;
-	}
+  public static EmbeddedServiceDefsUtil instance() {
+    return instance;
+  }
 
-	public void init(ServiceStore store) {
-		LOG.info("==> EmbeddedServiceDefsUtil.init()");
+  public void init(ServiceStore store) {
+    LOG.info("==> EmbeddedServiceDefsUtil.init()");
 
-		try {
-			createEmbeddedServiceDefs = config.getBoolean(PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS, true);
+    try {
+      createEmbeddedServiceDefs = config.getBoolean(PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS, true);
 
-			supportedServiceDefs =getSupportedServiceDef();
-			/*
-			 * Maintaining the following service-def create-order is critical for the
-			 * the legacy service-defs (HDFS/HBase/Hive/Knox/Storm) to be assigned IDs
-			 * that were used in earlier version (0.4) */
-			hdfsServiceDef  = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HDFS_NAME);
-			hBaseServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HBASE_NAME);
-			hiveServiceDef  = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HIVE_NAME);
-			kmsServiceDef   = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KMS_NAME);
-			knoxServiceDef  = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KNOX_NAME);
-			stormServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_STORM_NAME);
-			yarnServiceDef  = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YARN_NAME);
-			kafkaServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KAFKA_NAME);
-			solrServiceDef  = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_SOLR_NAME);
-			schemaRegistryServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_SCHEMA_REGISTRY_NAME);
-			nifiServiceDef  = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NIFI_NAME);
-			nifiRegistryServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NIFI_REGISTRY_NAME);
-			atlasServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_ATLAS_NAME);
-			wasbServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_WASB_NAME);
-			sqoopServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_SQOOP_NAME);
-			kylinServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KYLIN_NAME);
-			abfsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_ABFS_NAME);
-			elasticsearchServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_ELASTICSEARCH_NAME);
-			trinoServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TRINO_NAME);
-			prestoServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_PRESTO_NAME);
-			ozoneServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_OZONE_NAME);
-			kuduServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KUDU_NAME);
-			nestedStructureServiveDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME);
-			xstoreServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_XSTORE_NAME);
-			tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
-			gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
+      supportedServiceDefs = getSupportedServiceDef();
+      /*
+       * Maintaining the following service-def create-order is critical for the
+       * the legacy service-defs (HDFS/HBase/Hive/Knox/Storm) to be assigned IDs
+       * that were used in earlier version (0.4)
+       */
+      hdfsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HDFS_NAME);
+      hBaseServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HBASE_NAME);
+      hiveServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_HIVE_NAME);
+      kmsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KMS_NAME);
+      knoxServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KNOX_NAME);
+      stormServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_STORM_NAME);
+      yarnServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YARN_NAME);
+      kafkaServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KAFKA_NAME);
+      solrServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_SOLR_NAME);
+      schemaRegistryServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_SCHEMA_REGISTRY_NAME);
+      nifiServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NIFI_NAME);
+      nifiRegistryServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NIFI_REGISTRY_NAME);
+      atlasServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_ATLAS_NAME);
+      wasbServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_WASB_NAME);
+      sqoopServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_SQOOP_NAME);
+      kylinServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KYLIN_NAME);
+      abfsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_ABFS_NAME);
+      elasticsearchServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_ELASTICSEARCH_NAME);
+      trinoServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TRINO_NAME);
+      prestoServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_PRESTO_NAME);
+      ozoneServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_OZONE_NAME);
+      kuduServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KUDU_NAME);
+      nestedStructureServiveDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME);
+      xstoreServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_XSTORE_NAME);
+      s3ServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_S3_NAME);
 
-			// Ensure that tag service def is updated with access types of all service defs
-			store.updateTagServiceDefForAccessTypes();
+      tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
+      gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
 
-			getOrCreateService(store, EMBEDDED_SERVICEDEF_GDS_NAME, GdsPolicyEngine.GDS_SERVICE_NAME);
-		} catch(Throwable excp) {
-			LOG.error("EmbeddedServiceDefsUtil.init(): failed", excp);
-		}
+      // Ensure that tag service def is updated with access types of all service defs
+      store.updateTagServiceDefForAccessTypes();
 
-		LOG.info("<== EmbeddedServiceDefsUtil.init()");
-	}
-
-	public long getHdfsServiceDefId() {
-		return getId(hdfsServiceDef);
-	}
-
-	public long getHBaseServiceDefId() {
-		return getId(hBaseServiceDef);
-	}
-
-	public long getHiveServiceDefId() {
-		return getId(hiveServiceDef);
-	}
-
-	public long getKmsServiceDefId() {
-		return getId(kmsServiceDef);
-	}
-
-	public long getKnoxServiceDefId() {
-		return getId(knoxServiceDef);
-	}
-
-	public long getStormServiceDefId() {
-		return getId(stormServiceDef);
-	}
-
-	public long getYarnServiceDefId() {
-		return getId(yarnServiceDef);
-	}
-	
-	public long getKafkaServiceDefId() {
-		return getId(kafkaServiceDef);
-	}
-
-	public long getSolrServiceDefId() {
-		return getId(solrServiceDef);
-	}
-
-	public long getSchemaRegistryServiceDefId() {
-		return getId(schemaRegistryServiceDef);
-	}
-
-	public long getNiFiServiceDefId() {
-		return getId(nifiServiceDef);
-	}
-
-	public long getNiFiRegistryServiceDefId() {
-		return getId(nifiRegistryServiceDef);
-	}
-
-	public long getAtlasServiceDefId() {
-        return getId(atlasServiceDef);
+      getOrCreateService(store, EMBEDDED_SERVICEDEF_GDS_NAME, GdsPolicyEngine.GDS_SERVICE_NAME);
+    } catch (Throwable excp) {
+      LOG.error("EmbeddedServiceDefsUtil.init(): failed", excp);
     }
 
-	public long getSqoopServiceDefId() {
-		return getId(sqoopServiceDef);
-	}
+    LOG.info("<== EmbeddedServiceDefsUtil.init()");
+  }
 
-	public long getKylinServiceDefId() {
-		return getId(kylinServiceDef);
-	}
+  public long getHdfsServiceDefId() {
+    return getId(hdfsServiceDef);
+  }
 
-	public long getElasticsearchServiceDefId() {
-		return getId(elasticsearchServiceDef);
-	}
+  public long getHBaseServiceDefId() {
+    return getId(hBaseServiceDef);
+  }
 
-	public long getWasbServiceDefId() { return getId(wasbServiceDef); }
+  public long getHiveServiceDefId() {
+    return getId(hiveServiceDef);
+  }
 
-	public long getAbfsServiceDefId() { return getId(abfsServiceDef); }
+  public long getKmsServiceDefId() {
+    return getId(kmsServiceDef);
+  }
 
-	public long getTrinoServiceDefId() { return getId(trinoServiceDef); }
+  public long getKnoxServiceDefId() {
+    return getId(knoxServiceDef);
+  }
 
-	public long getPrestoServiceDefId() { return getId(prestoServiceDef); }
+  public long getStormServiceDefId() {
+    return getId(stormServiceDef);
+  }
 
-	public long getOzoneServiceDefId() { return getId(ozoneServiceDef); }
+  public long getYarnServiceDefId() {
+    return getId(yarnServiceDef);
+  }
 
-	public long getKuduServiceDefId() { return getId(kuduServiceDef); }
+  public long getKafkaServiceDefId() {
+    return getId(kafkaServiceDef);
+  }
 
-	public long getNestedStructureServiceDefId() { return getId(nestedStructureServiveDef); }
+  public long getSolrServiceDefId() {
+    return getId(solrServiceDef);
+  }
 
-	public long getTagServiceDefId() { return getId(tagServiceDef); }
+  public long getSchemaRegistryServiceDefId() {
+    return getId(schemaRegistryServiceDef);
+  }
 
-	public long getGdsServiceDefId() { return getId(gdsServiceDef); }
+  public long getNiFiServiceDefId() {
+    return getId(nifiServiceDef);
+  }
 
-	public RangerServiceDef getEmbeddedServiceDef(String defType) throws Exception {
-		RangerServiceDef serviceDef=null;
-		if(StringUtils.isNotEmpty(defType)){
-			serviceDef=loadEmbeddedServiceDef(defType);
-		}
-		return serviceDef;
-	}
+  public long getNiFiRegistryServiceDefId() {
+    return getId(nifiRegistryServiceDef);
+  }
 
-	public static boolean isRecursiveEnabled(final RangerServiceDef rangerServiceDef, final String resourceDefName) {
-		boolean ret = false;
-		List<RangerServiceDef.RangerResourceDef>  resourceDefs = rangerServiceDef.getResources();
-		for(RangerServiceDef.RangerResourceDef resourceDef:resourceDefs) {
-			if (resourceDefName.equals(resourceDef.getName())) {
-				ret =  resourceDef.getRecursiveSupported();
-				break;
-			}
-		}
-		return ret;
-	}
+  public long getAtlasServiceDefId() {
+    return getId(atlasServiceDef);
+  }
 
-	private long getId(RangerServiceDef serviceDef) {
-		return serviceDef == null || serviceDef.getId() == null ? -1 : serviceDef.getId().longValue();
-	}
+  public long getSqoopServiceDefId() {
+    return getId(sqoopServiceDef);
+  }
 
-	private RangerServiceDef getOrCreateServiceDef(ServiceStore store, String serviceDefName) {
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("==> EmbeddedServiceDefsUtil.getOrCreateServiceDef(" + serviceDefName + ")");
-		}
+  public long getKylinServiceDefId() {
+    return getId(kylinServiceDef);
+  }
 
-		RangerServiceDef ret = null;
-		boolean createServiceDef = (CollectionUtils.isEmpty(supportedServiceDefs) || supportedServiceDefs.contains(serviceDefName));
-		try {
-			ret = store.getServiceDefByName(serviceDefName);
-			if(ret == null && createEmbeddedServiceDefs && createServiceDef) {
-				ret = ServiceDefUtil.normalize(loadEmbeddedServiceDef(serviceDefName));
+  public long getElasticsearchServiceDefId() {
+    return getId(elasticsearchServiceDef);
+  }
 
-				LOG.info("creating embedded service-def " + serviceDefName);
-				if (ret.getId() != null) {
-					store.setPopulateExistingBaseFields(true);
-					try {
-						ret = store.createServiceDef(ret);
-					} finally {
-						store.setPopulateExistingBaseFields(false);
-					}
-				} else {
-					ret = store.createServiceDef(ret);
-				}
-				LOG.info("created embedded service-def " + serviceDefName);
-			}
-		} catch(Exception excp) {
-			LOG.error("EmbeddedServiceDefsUtil.getOrCreateServiceDef(): failed to load/create serviceType " + serviceDefName, excp);
-		}
+  public long getWasbServiceDefId() {
+    return getId(wasbServiceDef);
+  }
 
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("<== EmbeddedServiceDefsUtil.getOrCreateServiceDef(" + serviceDefName + "): " + ret);
-		}
+  public long getAbfsServiceDefId() {
+    return getId(abfsServiceDef);
+  }
 
-		return ret;
-	}
+  public long getTrinoServiceDefId() {
+    return getId(trinoServiceDef);
+  }
 
-	private RangerServiceDef loadEmbeddedServiceDef(String serviceType) throws Exception {
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("==> EmbeddedServiceDefsUtil.loadEmbeddedServiceDef(" + serviceType + ")");
-		}
+  public long getPrestoServiceDefId() {
+    return getId(prestoServiceDef);
+  }
 
-		RangerServiceDef ret = null;
-	
-		String resource = "/service-defs/ranger-servicedef-" + serviceType + ".json";
+  public long getOzoneServiceDefId() {
+    return getId(ozoneServiceDef);
+  }
 
-		InputStream inStream = getClass().getResourceAsStream(resource);
+  public long getKuduServiceDefId() {
+    return getId(kuduServiceDef);
+  }
 
-		InputStreamReader reader = new InputStreamReader(inStream);
+  public long getNestedStructureServiceDefId() {
+    return getId(nestedStructureServiveDef);
+  }
 
-		ret = JsonUtils.jsonToObject(reader, RangerServiceDef.class);
+  public long getS3ServiceDefId() {
+    return getId(s3ServiceDef);
+  }
 
-		//Set DEFAULT displayName if missing
-		if (ret != null && StringUtils.isBlank(ret.getDisplayName())) {
-		    ret.setDisplayName(ret.getName());
-		}
+  public long getTagServiceDefId() {
+    return getId(tagServiceDef);
+  }
 
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("==> EmbeddedServiceDefsUtil.loadEmbeddedServiceDef(" + serviceType + ")");
-		}
+  public long getGdsServiceDefId() {
+    return getId(gdsServiceDef);
+  }
 
-		return ret;
-	}
+  public RangerServiceDef getEmbeddedServiceDef(String defType) throws Exception {
+    RangerServiceDef serviceDef = null;
+    if (StringUtils.isNotEmpty(defType)) {
+      serviceDef = loadEmbeddedServiceDef(defType);
+    }
+    return serviceDef;
+  }
 
-	private Set<String> getSupportedServiceDef(){
-		Set<String> supportedServiceDef =new HashSet<>();
-		try{
-			String ranger_supportedcomponents = config.get(PROPERTY_SUPPORTED_SERVICE_DEFS, DEFAULT_BOOTSTRAP_SERVICEDEF_LIST);
-			if(StringUtils.isBlank(ranger_supportedcomponents) || "all".equalsIgnoreCase(ranger_supportedcomponents)){
-				ranger_supportedcomponents=DEFAULT_BOOTSTRAP_SERVICEDEF_LIST;
-			}
-			String[] supportedComponents=ranger_supportedcomponents.split(",");
-			if(supportedComponents!=null && supportedComponents.length>0){
-				for(String element:supportedComponents){
-					if(!StringUtils.isBlank(element)){
-						element=element.toLowerCase();
-						supportedServiceDef.add(element);
-					}
-				}
-			}
-		}catch(Exception ex){
-			LOG.error("EmbeddedServiceDefsUtil.getSupportedServiceDef(): failed", ex);
-		}
-		return supportedServiceDef;
-	}
+  public static boolean isRecursiveEnabled(final RangerServiceDef rangerServiceDef, final String resourceDefName) {
+    boolean ret = false;
+    List<RangerServiceDef.RangerResourceDef> resourceDefs = rangerServiceDef.getResources();
+    for (RangerServiceDef.RangerResourceDef resourceDef : resourceDefs) {
+      if (resourceDefName.equals(resourceDef.getName())) {
+        ret = resourceDef.getRecursiveSupported();
+        break;
+      }
+    }
+    return ret;
+  }
 
-	private RangerService getOrCreateService(ServiceStore store, String serviceType, String serviceName) {
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("==> EmbeddedServiceDefsUtil.getOrCreateService(" + serviceType + ", " + serviceName + ")");
-		}
+  private long getId(RangerServiceDef serviceDef) {
+    return serviceDef == null || serviceDef.getId() == null ? -1 : serviceDef.getId().longValue();
+  }
 
-		RangerService ret = null;
+  private RangerServiceDef getOrCreateServiceDef(ServiceStore store, String serviceDefName) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> EmbeddedServiceDefsUtil.getOrCreateServiceDef(" + serviceDefName + ")");
+    }
 
-		try {
-			ret = store.getServiceByName(serviceName);
+    RangerServiceDef ret = null;
+    boolean createServiceDef = (CollectionUtils.isEmpty(supportedServiceDefs)
+        || supportedServiceDefs.contains(serviceDefName));
+    try {
+      ret = store.getServiceDefByName(serviceDefName);
+      if (ret == null && createEmbeddedServiceDefs && createServiceDef) {
+        ret = ServiceDefUtil.normalize(loadEmbeddedServiceDef(serviceDefName));
 
-			if(ret == null) {
-				LOG.info("Creating service " + serviceName + " of type " + serviceType);
+        LOG.info("creating embedded service-def " + serviceDefName);
+        if (ret.getId() != null) {
+          store.setPopulateExistingBaseFields(true);
+          try {
+            ret = store.createServiceDef(ret);
+          } finally {
+            store.setPopulateExistingBaseFields(false);
+          }
+        } else {
+          ret = store.createServiceDef(ret);
+        }
+        LOG.info("created embedded service-def " + serviceDefName);
+      }
+    } catch (Exception excp) {
+      LOG.error("EmbeddedServiceDefsUtil.getOrCreateServiceDef(): failed to load/create serviceType " + serviceDefName,
+          excp);
+    }
 
-				ret = new RangerService();
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== EmbeddedServiceDefsUtil.getOrCreateServiceDef(" + serviceDefName + "): " + ret);
+    }
 
-				ret.setName(serviceName);
-				ret.setDisplayName(serviceName);
-				ret.setType(serviceType);
+    return ret;
+  }
 
-				ret = store.createService(ret);
+  private RangerServiceDef loadEmbeddedServiceDef(String serviceType) throws Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> EmbeddedServiceDefsUtil.loadEmbeddedServiceDef(" + serviceType + ")");
+    }
 
-				LOG.info("Created service " + serviceName + ". ID=" + (ret != null ? ret.getId() : null));
-			}
-		} catch(Exception excp) {
-			LOG.error("EmbeddedServiceDefsUtil.getOrCreateService(): failed to load/create service " + serviceName, excp);
-		}
+    RangerServiceDef ret = null;
 
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("<== EmbeddedServiceDefsUtil.getOrCreateService(" + serviceType + ", " + serviceName + "): " + ret);
-		}
+    String resource = "/service-defs/ranger-servicedef-" + serviceType + ".json";
 
-		return ret;
-	}
+    InputStream inStream = getClass().getResourceAsStream(resource);
+
+    InputStreamReader reader = new InputStreamReader(inStream);
+
+    ret = JsonUtils.jsonToObject(reader, RangerServiceDef.class);
+
+    // Set DEFAULT displayName if missing
+    if (ret != null && StringUtils.isBlank(ret.getDisplayName())) {
+      ret.setDisplayName(ret.getName());
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> EmbeddedServiceDefsUtil.loadEmbeddedServiceDef(" + serviceType + ")");
+    }
+
+    return ret;
+  }
+
+  private Set<String> getSupportedServiceDef() {
+    Set<String> supportedServiceDef = new HashSet<>();
+    try {
+      String ranger_supportedcomponents = config.get(PROPERTY_SUPPORTED_SERVICE_DEFS,
+          DEFAULT_BOOTSTRAP_SERVICEDEF_LIST);
+      if (StringUtils.isBlank(ranger_supportedcomponents) || "all".equalsIgnoreCase(ranger_supportedcomponents)) {
+        ranger_supportedcomponents = DEFAULT_BOOTSTRAP_SERVICEDEF_LIST;
+      }
+      String[] supportedComponents = ranger_supportedcomponents.split(",");
+      if (supportedComponents != null && supportedComponents.length > 0) {
+        for (String element : supportedComponents) {
+          if (!StringUtils.isBlank(element)) {
+            element = element.toLowerCase();
+            supportedServiceDef.add(element);
+          }
+        }
+      }
+    } catch (Exception ex) {
+      LOG.error("EmbeddedServiceDefsUtil.getSupportedServiceDef(): failed", ex);
+    }
+    return supportedServiceDef;
+  }
+
+  private RangerService getOrCreateService(ServiceStore store, String serviceType, String serviceName) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> EmbeddedServiceDefsUtil.getOrCreateService(" + serviceType + ", " + serviceName + ")");
+    }
+
+    RangerService ret = null;
+
+    try {
+      ret = store.getServiceByName(serviceName);
+
+      if (ret == null) {
+        LOG.info("Creating service " + serviceName + " of type " + serviceType);
+
+        ret = new RangerService();
+
+        ret.setName(serviceName);
+        ret.setDisplayName(serviceName);
+        ret.setType(serviceType);
+
+        ret = store.createService(ret);
+
+        LOG.info("Created service " + serviceName + ". ID=" + (ret != null ? ret.getId() : null));
+      }
+    } catch (Exception excp) {
+      LOG.error("EmbeddedServiceDefsUtil.getOrCreateService(): failed to load/create service " + serviceName, excp);
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== EmbeddedServiceDefsUtil.getOrCreateService(" + serviceType + ", " + serviceName + "): " + ret);
+    }
+
+    return ret;
+  }
 }
