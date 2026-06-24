@@ -57,6 +57,13 @@ public class YuniKornClient extends BaseClient {
 
     private static final String EXPECTED_MIME_TYPE = "application/json";
 
+    // This lookup runs on a Ranger Admin thread (queue autocomplete / Test
+    // Connection). Without timeouts, a hung YuniKorn endpoint would block that
+    // thread indefinitely and could starve Ranger Admin. Keep them short since
+    // this only powers UI autocomplete.
+    private static final int CONNECT_TIMEOUT_MS = 5_000;
+    private static final int READ_TIMEOUT_MS    = 10_000;
+
     private static final String ERR_TAIL =
             " You can still save the repository and start creating policies, but you "
             + "would not be able to use autocomplete for queue names. "
@@ -120,6 +127,8 @@ public class YuniKornClient extends BaseClient {
                 + String.format(RangerYuniKornConstants.REST_PATH_QUEUES_FMT, partition);
 
         Client       client   = Client.create();
+        client.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        client.setReadTimeout(READ_TIMEOUT_MS);
         ClientResponse response = null;
 
         try {
