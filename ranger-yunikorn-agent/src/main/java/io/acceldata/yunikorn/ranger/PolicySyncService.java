@@ -243,17 +243,25 @@ public class PolicySyncService implements AutoCloseable {
             }
 
             // Detect Ranger service deletion+recreation.
+            // Read the previous id without committing the new one yet: we must
+            // queue the force-resync BEFORE recording that we've seen the new
+            // id. Otherwise an abort between the two writes would leave the id
+            // advanced but the resync unqueued, and the next cycle would treat
+            // the id as unchanged and silently serve stale policies forever.
             Long incomingServiceId = update.getServiceId();
             if (incomingServiceId != null) {
-                long previousServiceId = lastKnownServiceId.getAndSet(incomingServiceId);
+                long previousServiceId = lastKnownServiceId.get();
                 if (previousServiceId != INITIAL_SERVICE_ID
                         && previousServiceId != incomingServiceId) {
                     LOG.warn("cycleId={} — Ranger serviceId changed {} → {}, " +
                             "force-resyncing on next cycle",
                             cycleId, previousServiceId, incomingServiceId);
-                    lastKnownVersion.set(FORCE_RESYNC_VERSION);
+                    lastKnownVersion.set(FORCE_RESYNC_VERSION);   // (1) queue resync first
+                    lastKnownServiceId.set(incomingServiceId);    // (2) then commit the new id
                     return;     // re-fetch on next cycle so all paths use the new id
                 }
+                // Unchanged, or first observation: just record the id.
+                lastKnownServiceId.set(incomingServiceId);
             }
 
             Long incomingVersion = update.getPolicyVersion();
