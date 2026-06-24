@@ -36,8 +36,8 @@ import java.util.Base64;
  * still continues — the failure is logged but never fatal. A real sync
  * cycle will retry shortly.
  *
- * <p>Skipped when no credentials are configured (the agent's main path
- * also still works in that mode; we just don't add the diagnostic noise).
+ * <p>When no credentials are configured, the diagnostic still runs but sends no
+ * {@code Authorization} header (matching the agent's main request path).
  */
 public final class RangerEndpointDiagnostic {
 
