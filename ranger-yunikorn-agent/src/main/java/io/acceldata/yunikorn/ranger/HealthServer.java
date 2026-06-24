@@ -85,6 +85,7 @@ public class HealthServer implements AutoCloseable {
         // hit rarely and never block.
         httpServer.start();
         LOG.info("HealthServer listening on :{}", httpServer.getAddress().getPort());
+    }
 
     /** Idempotent. Stops the HTTP server with a 0s grace period. */
     public synchronized void stop() {
