@@ -353,11 +353,10 @@ public final class AgentConfig {
      *       no Kerberos. Default. Works against any Ranger that accepts
      *       basic auth on the {@code /service/plugins/secure/...} path.</li>
      *
-     *   <li>{@link #KERBEROS} — uses Hadoop UGI with a keytab login.
-     *       Routes through the official {@code RangerAdminRESTClient},
-     *       which gets us delta protocol, on-disk policy cache, and HA URL
-     *       support for free. Requires a working KDC and a keytab mounted
-     *       into the pod.</li>
+     *   <li>{@link #KERBEROS} — uses a keytab login and SPNEGO
+     *       ({@code Authorization: Negotiate}) to authenticate HTTP requests.
+     *       Implemented by the agent's {@code RangerHttpClient}; requires a
+     *       working KDC, a readable keytab, and the JAAS config generated at startup.</li>
      * </ul>
      */
     public enum AuthMode {
