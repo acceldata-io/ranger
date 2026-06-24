@@ -30,7 +30,6 @@ import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyItemAccess;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyResource;
 import org.apache.ranger.plugin.model.RangerService;
 import org.apache.ranger.plugin.model.RangerServiceDef;
-import org.apache.ranger.plugin.resourcematcher.RangerAbstractResourceMatcher;
 import org.apache.ranger.plugin.service.RangerBaseService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.apache.ranger.services.yunikorn.client.YuniKornResourceMgr;
@@ -152,7 +151,14 @@ public class RangerServiceYuniKorn extends RangerBaseService {
                     }
                 }
                 if (queueResourceDef != null) {
-                    queuePolicyResource.setValue(RangerAbstractResourceMatcher.WILDCARD_ASTERISK);
+                    // Every YuniKorn queue descends from "root". Seed the default
+                    // "all - queue" policy with the root of the tree, matched
+                    // recursively, so it covers root and all descendants. This
+                    // passes the strict queue validationRegEx (unlike "*") and
+                    // works with the service-def's wildCard:false matcher, since
+                    // recursion — not globbing — provides the match-all behaviour.
+                    queuePolicyResource.setValue(RangerYuniKornConstants.QUEUE_ROOT);
+                    queuePolicyResource.setIsRecursive(Boolean.TRUE);
                 } else {
                     LOG.warn("No resourceDef found in YuniKorn service-def for '{}'", queueResourceName);
                 }
