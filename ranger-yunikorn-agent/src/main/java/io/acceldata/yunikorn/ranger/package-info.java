@@ -16,7 +16,8 @@
  * patches the YuniKorn ConfigMap so the live scheduler enforces them.
  *
  * <p>Designed to run as a sidecar Deployment in the same Kubernetes cluster
- * as YuniKorn. Authenticates to Ranger Admin via a bearer token; uses the
+ * as YuniKorn. Authenticates to Ranger Admin via basic auth or Kerberos/SPNEGO
+ * (see {@link io.acceldata.yunikorn.ranger.AgentConfig.AuthMode}); uses the
  * pod's ServiceAccount for ConfigMap access.
  */
 package io.acceldata.yunikorn.ranger;
