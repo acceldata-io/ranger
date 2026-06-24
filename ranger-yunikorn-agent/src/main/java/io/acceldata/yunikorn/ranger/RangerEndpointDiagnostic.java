@@ -26,8 +26,7 @@ import java.util.Base64;
  * the operator can paste into a shell to reproduce.
  *
  * <p>This is a deliberate redundant call (the {@link PolicySyncService} will
- * make the same request a moment later via {@link
- * org.apache.ranger.admin.client.RangerAdminRESTClient}). Its only purpose
+ * make the same request a moment later via {@link RangerHttpClient}). Its only purpose
  * is to make a normally-opaque interaction visible: what URL? what status?
  * what's in the response body? Without this, "Unauthenticated access not
  * allowed" is all you ever see, with no way to distinguish "wrong URL" from
