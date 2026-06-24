@@ -66,7 +66,7 @@ See `deploy/helm/` for the Helm chart, or `deploy/manifests/` for raw YAML.
 
 Required:
 - A registered `yunikorn` service in your Ranger Admin
-- A bearer token from Ranger with policy-read permission on the service
+- Ranger credentials (basic auth via `RANGER_PRINCIPAL`/`RANGER_CREDENTIAL`, or Kerberos keytab when `ranger.auth.mode=kerberos`)
 - ServiceAccount in the YuniKorn namespace with
   `get`/`update`/`patch` on the `yunikorn-configs` ConfigMap
 
