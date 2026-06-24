@@ -59,9 +59,11 @@ import java.util.List;
  * <h2>What we don't implement</h2>
  * The {@link RangerAdminClient} interface is wide — roles, tags, grant/revoke,
  * user-store, GDS — but the agent only ever calls
- * {@link #getServicePoliciesIfUpdated(long, long)}. Every other method
- * throws {@link UnsupportedOperationException}. If we ever need them, we
- * add them then.
+ * {@link #getServicePoliciesIfUpdated(long, long)}. The remaining
+ * {@code *IfUpdated} pollers return {@code null} ("no update"), since the
+ * Ranger refresher framework may call them on its normal cycle and must not
+ * be made to fail. Every other method throws
+ * {@link UnsupportedOperationException}. If we ever need them, we add them then.
  *
  * <h2>Trade-offs vs. the official client</h2>
  * <ul>
@@ -256,8 +258,14 @@ public class RangerHttpClient implements RangerAdminClient {
     }
 
     // -----------------------------------------------------------------------
-    // Interface methods we don't use. Throwing rather than no-op so any
-    // accidental future caller gets an obvious error.
+    // RangerAdminClient methods this agent doesn't drive itself.
+    //
+    //   - The *IfUpdated() pollers return null, meaning "no update". The Ranger
+    //     refresher framework may still call these on its normal polling cycle,
+    //     so they must answer gracefully rather than throw.
+    //   - The role/grant/tag operations below throw, since nothing in this
+    //     agent should ever invoke them; a caller that does has made a mistake
+    //     and gets an obvious error.
     // -----------------------------------------------------------------------
 
     @Override public void init(String s, String s1, String s2, Configuration c) { /* nothing to do */ }
