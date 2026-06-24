@@ -150,6 +150,10 @@ public class PolicySyncService implements AutoCloseable {
         }
         LOG.info("PolicySyncService starting. pollInterval={}ms, forceResync={}ms",
                 config.pollIntervalMs(), config.forceResyncMs());
+        if (config.forceResyncMs() > 0 && config.forceResyncMs() < config.pollIntervalMs()) {
+            LOG.warn("forceResyncMs ({}) < pollIntervalMs ({}); clamping force-resync to every poll cycle",
+                    config.forceResyncMs(), config.pollIntervalMs());
+        }
 
         // First cycle: schedule for "now" (well, ~immediately).
         // Subsequent cycles: pollIntervalMs after the previous one ended.
@@ -305,9 +309,12 @@ public class PolicySyncService implements AutoCloseable {
     }
 
     private boolean shouldForceResync(long cycleId) {
-        if (config.forceResyncMs() <= 0 || config.pollIntervalMs() <= 0) return false;
-        long ratio = config.forceResyncMs() / config.pollIntervalMs();
-        return ratio > 0 && cycleId % ratio == 0;
+        long force = config.forceResyncMs();
+        long poll  = config.pollIntervalMs();
+        if (force <= 0 || poll <= 0) return false;   // feature disabled
+        if (force < poll) return true;               // can't resync slower than we poll → every cycle
+        long ratio = force / poll;
+        return cycleId % ratio == 0;
     }
 
     /**
