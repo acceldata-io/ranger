@@ -11,8 +11,8 @@
 # --------------------------------------------------------------------------
 
 image:
-  repository: sehajsandhu/yunikorn-agent #acceldata/ranger-yunikorn-agent
-  tag: "v15"                         # defaults to .Chart.appVersion if empty
+  repository: acceldata/ranger-yunikorn-agent
+  tag: ""                           # defaults to .Chart.appVersion if empty
   pullPolicy: IfNotPresent
   pullSecrets: []                 # e.g. [- name: regcred]
 
