@@ -49,8 +49,7 @@ public class EmbeddedServiceDefsUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedServiceDefsUtil.class);
 
 
-	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,yunikorn,polaris";
-
+	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,abfs,yunikorn,polaris";
 	private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
 	private Set<String> supportedServiceDefs;
 	public static final String EMBEDDED_SERVICEDEF_TAG_NAME  = "tag";
@@ -102,6 +101,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String OZONE_IMPL_CLASS_NAME  = "org.apache.ranger.services.ozone.RangerServiceOzone";
 	public static final String KUDU_IMPL_CLASS_NAME  = "org.apache.ranger.services.kudu.RangerServiceKudu";
 	public static final String GCS_IMPL_CLASS_NAME   = "org.apache.ranger.services.gcs.RangerServiceGCS";
+	public static final String ABFS_IMPL_CLASS_NAME  = "org.apache.ranger.services.abfs.RangerServiceABFS";
 
 	private static EmbeddedServiceDefsUtil instance = new EmbeddedServiceDefsUtil();
 
@@ -282,6 +282,8 @@ public class EmbeddedServiceDefsUtil {
 	public long getYuniKornServiceDefId() { return getId(yuniKornServiceDef); }
 
 	public long getPolarisServiceDefId() { return getId(polarisServiceDef); }
+
+	public long getABFSServiceDefId() { return getId(abfsServiceDef); }
 
 	public long getTagServiceDefId() { return getId(tagServiceDef); }
 

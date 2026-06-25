@@ -122,6 +122,7 @@ import org.apache.ranger.service.RangerServiceService;
 import org.apache.ranger.service.XUserService;
 import org.apache.ranger.services.s3.RangerS3Constants;
 import org.apache.ranger.services.gcs.RangerGCSConstants;
+import org.apache.ranger.services.abfs.RangerABFSConstants;
 import org.apache.ranger.view.RangerExportPolicyList;
 import org.apache.ranger.view.RangerPluginInfoList;
 import org.apache.ranger.view.RangerPolicyList;
@@ -1709,6 +1710,9 @@ public class ServiceREST {
 				if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerGCSConstants.GCS)) {
 					svcStore.createGCSBucketIAMPolicy(policy, RangerConstants.ACTION_CREATE, null);
 				}
+				if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerABFSConstants.ABFS)) {
+					svcStore.createABFSDirectoryAclPolicy(policy, RangerConstants.ACTION_CREATE, null);
+				}
 				return ret;
 
 			}
@@ -1724,6 +1728,9 @@ public class ServiceREST {
 				}
 				if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerGCSConstants.GCS)) {
 					svcStore.createGCSBucketIAMPolicy(policy, RangerConstants.ACTION_CREATE, null);
+				}
+				if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerABFSConstants.ABFS)) {
+					svcStore.createABFSDirectoryAclPolicy(policy, RangerConstants.ACTION_CREATE, null);
 				}
 			}
 		} catch(WebApplicationException excp) {
@@ -1869,7 +1876,8 @@ public class ServiceREST {
 			bizUtil.blockAuditorRoleUser();
 
 			RangerPolicy oldPolicy = (StringUtils.equalsIgnoreCase(RangerS3Constants.S3, policy.getServiceType())
-					|| StringUtils.equalsIgnoreCase(RangerGCSConstants.GCS, policy.getServiceType()))
+					|| StringUtils.equalsIgnoreCase(RangerGCSConstants.GCS, policy.getServiceType())
+					|| StringUtils.equalsIgnoreCase(RangerABFSConstants.ABFS, policy.getServiceType()))
 					? svcStore.getPolicy(policy.getId()) : null;
 			ret = svcStore.updatePolicy(policy);
 			if (StringUtils.isBlank(policy.getServiceType())) {
@@ -1881,6 +1889,9 @@ public class ServiceREST {
 			}
 			if (StringUtils.equalsIgnoreCase(RangerGCSConstants.GCS, policy.getServiceType())) {
 				svcStore.createGCSBucketIAMPolicy(policy, RangerConstants.ACTION_UPDATE, oldPolicy);
+			}
+			if (StringUtils.equalsIgnoreCase(RangerABFSConstants.ABFS, policy.getServiceType())) {
+				svcStore.createABFSDirectoryAclPolicy(policy, RangerConstants.ACTION_UPDATE, oldPolicy);
 			}
 		} catch(WebApplicationException excp) {
 			throw excp;
@@ -1931,6 +1942,10 @@ public class ServiceREST {
 			if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerGCSConstants.GCS)) {
 				// policy is read above (before deletion) so it still holds the original resources
 				svcStore.createGCSBucketIAMPolicy(policy, RangerConstants.ACTION_DELETE, policy);
+			}
+			if (StringUtils.equalsIgnoreCase(policy.getServiceType(), RangerABFSConstants.ABFS)) {
+				// policy is read above (before deletion) so it still holds the original resources
+				svcStore.createABFSDirectoryAclPolicy(policy, RangerConstants.ACTION_DELETE, policy);
 			}
 		} catch(WebApplicationException excp) {
 			throw excp;
