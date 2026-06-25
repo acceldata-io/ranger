@@ -232,6 +232,18 @@ public class ServiceKafkaClient {
 	}
 
 	private String getJAASConfig(Map<String,String> configs){
+		// Resolve _HOST in the principal to this node's FQDN so a single stored value
+		// (e.g. ambari-qa/_HOST@REALM) authenticates on whichever Ranger Admin node runs
+		// the test/lookup -- works for both standalone and HA Ranger.
+		String principal = configs.get(KEY_KAFKA_PRINCIPAL);
+		if (principal != null && principal.contains("_HOST")) {
+			try {
+				principal = principal.replace("_HOST",
+						java.net.InetAddress.getLocalHost().getCanonicalHostName().toLowerCase());
+			} catch (java.net.UnknownHostException e) {
+				LOG.warn("Could not resolve local host to replace _HOST in principal: " + principal, e);
+			}
+		}
 		String jaasConfig =  new StringBuilder()
 				.append(JAAS_KRB5_MODULE).append(" ")
 				.append(JAAS_USE_KEYTAB).append(" ")
@@ -239,7 +251,7 @@ public class ServiceKafkaClient {
 				.append(JAAS_STOKE_KEY).append(" ")
 				.append(JAAS_USER_TICKET_CACHE).append(" ")
 				.append(JAAS_SERVICE_NAME).append(" ")
-				.append(JAAS_PRINCIPAL).append(configs.get(KEY_KAFKA_PRINCIPAL)).append("\";")
+				.append(JAAS_PRINCIPAL).append(principal).append("\";")
 				.toString();
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("KafkaClient JAAS: " + jaasConfig);
