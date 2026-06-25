@@ -17,11 +17,12 @@
     <Loggers>
         <Logger name="io.acceldata.yunikorn.ranger" level="INFO"/>
 
-        <!-- DEBUG on the Ranger admin client surfaces the actual request URL,
-             query params, response body, and the credentials path it took.
-             Crank this back to INFO once the integration is verified. -->
-        <Logger name="org.apache.ranger.admin.client" level="DEBUG"/>
-        <Logger name="org.apache.ranger.plugin.util.PolicyRefresher" level="DEBUG"/>
+        <!-- Kept at INFO for release. DEBUG here surfaces the Ranger request URL,
+             query params, response body, and the credentials/SPNEGO path taken,
+             which can leak token hints into logs. Raise to DEBUG only for
+             short-lived local troubleshooting, never in a shipped build. -->
+        <Logger name="org.apache.ranger.admin.client" level="INFO"/>
+        <Logger name="org.apache.ranger.plugin.util.PolicyRefresher" level="INFO"/>
         <Logger name="org.apache.ranger"              level="INFO"/>
 
         <Logger name="io.fabric8"                   level="WARN"/>
