@@ -204,6 +204,7 @@ public class YuniKornClient extends BaseClient {
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) {
         Map<String, Object> responseData = new HashMap<>();
         boolean connectivityStatus = false;
+        Throwable failure = null;
 
         YuniKornClient client = YuniKornConnectionMgr.getYuniKornClient(serviceName, configs);
         try {
@@ -213,6 +214,7 @@ public class YuniKornClient extends BaseClient {
             }
             connectivityStatus = true;
         } catch (Throwable t) {
+            failure = t;
             LOG.error("YuniKorn connection test failed for service [{}]", serviceName, t);
         }
 
@@ -221,7 +223,11 @@ public class YuniKornClient extends BaseClient {
             BaseClient.generateResponseDataMap(true, successMsg, successMsg, null, null, responseData);
         } else {
             String failureMsg = "Unable to retrieve YuniKorn queues using the given parameters.";
-            BaseClient.generateResponseDataMap(false, failureMsg,
+            // Surface the real cause (walks the exception's cause chain) so the
+            // admin sees e.g. "Connection refused" rather than only generic text.
+            String message = BaseClient.getMessage(failure);
+            BaseClient.generateResponseDataMap(false,
+                    (message == null || message.isEmpty()) ? failureMsg : message,
                     failureMsg + ERR_TAIL, null, null, responseData);
         }
 
