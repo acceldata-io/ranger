@@ -90,6 +90,8 @@
         <aws-java-sdk2.version>2.17.102</aws-java-sdk2.version>
         <google-cloud-storage.version>2.36.1</google-cloud-storage.version>
         <google-auth-library.version>1.23.0</google-auth-library.version>
+        <azure-storage-file-datalake.version>12.18.0</azure-storage-file-datalake.version>
+        <azure-identity.version>1.11.4</azure-identity.version>
         <bouncycastle.version>1.70</bouncycastle.version>
         <HikariCP.version>4.0.3</HikariCP.version>
         <cglib.version>2.2.0-b23</cglib.version>
@@ -292,6 +294,7 @@
                 <module>plugin-ozone</module>
                 <module>s3-agent</module>
                 <module>gcs-agent</module>
+                <module>abfs-agent</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
                 <module>plugin-solr</module>

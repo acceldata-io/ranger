@@ -50,7 +50,7 @@ public class EmbeddedServiceDefsUtil {
 
 
 	// following servicedef list should be reviewed/updated whenever a new embedded service-def is added
-	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs";
+	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,abfs";
 	private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
 	private Set<String> supportedServiceDefs;
 	public static final String EMBEDDED_SERVICEDEF_TAG_NAME  = "tag";
@@ -100,6 +100,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String OZONE_IMPL_CLASS_NAME  = "org.apache.ranger.services.ozone.RangerServiceOzone";
 	public static final String KUDU_IMPL_CLASS_NAME  = "org.apache.ranger.services.kudu.RangerServiceKudu";
 	public static final String GCS_IMPL_CLASS_NAME   = "org.apache.ranger.services.gcs.RangerServiceGCS";
+	public static final String ABFS_IMPL_CLASS_NAME  = "org.apache.ranger.services.abfs.RangerServiceABFS";
 
 	private static EmbeddedServiceDefsUtil instance = new EmbeddedServiceDefsUtil();
 
@@ -276,6 +277,8 @@ public class EmbeddedServiceDefsUtil {
 	public long getS3ServiceDefId() { return getId(s3ServiceDef); }
 
 	public long getGCSServiceDefId() { return getId(gcsServiceDef); }
+
+	public long getABFSServiceDefId() { return getId(abfsServiceDef); }
 
 	public long getTagServiceDefId() { return getId(tagServiceDef); }
 

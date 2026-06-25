@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80px" height="80px" viewBox="0 0 80 80" version="1.1"
+     xmlns="http://www.w3.org/2000/svg">
+    <title>Azure Blob File System</title>
+    <defs>
+        <linearGradient id="abfsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#3CCBF4"/>
+            <stop offset="100%" stop-color="#2892DF"/>
+        </linearGradient>
+    </defs>
+    <g fill="none" fill-rule="evenodd">
+        <path fill="url(#abfsGrad)"
+              d="M30 12 L66 12 C68 12 70 14 70 16 L70 64 C70 66 68 68 66 68 L14 68 C12 68 10 66 10 64 L10 24 C10 22 12 20 14 20 L26 20 L30 12 Z"/>
+        <path fill="#FFFFFF" fill-opacity="0.92"
+              d="M24 36 L56 36 L56 42 L24 42 Z M24 46 L56 46 L56 52 L24 52 Z M24 56 L44 56 L44 60 L24 60 Z"/>
+    </g>
+</svg>

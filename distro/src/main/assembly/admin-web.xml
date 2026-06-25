@@ -599,6 +599,43 @@
         </includes>
       </binaries>
     </moduleSet>
+
+    <moduleSet>
+      <useAllReactorProjects>true</useAllReactorProjects>
+      <includes>
+        <include>org.apache.ranger:abfs-agent</include>
+      </includes>
+      <binaries>
+        <outputDirectory>ews/webapp/WEB-INF/classes/ranger-plugins/abfs</outputDirectory>
+        <includeDependencies>true</includeDependencies>
+        <unpack>false</unpack>
+        <directoryMode>755</directoryMode>
+        <fileMode>644</fileMode>
+        <includes>
+          <include>com.azure:azure-storage-file-datalake</include>
+          <include>com.azure:azure-storage-blob</include>
+          <include>com.azure:azure-storage-common</include>
+          <include>com.azure:azure-storage-internal-avro</include>
+          <include>com.azure:azure-identity</include>
+          <include>com.azure:azure-core</include>
+          <include>com.azure:azure-core-http-netty</include>
+          <include>com.azure:azure-json</include>
+          <include>com.azure:azure-xml</include>
+          <include>com.microsoft.azure:msal4j</include>
+          <include>com.microsoft.azure:msal4j-persistence-extension</include>
+          <include>com.nimbusds:oauth2-oidc-sdk</include>
+          <include>com.nimbusds:nimbus-jose-jwt</include>
+          <include>com.nimbusds:content-type</include>
+          <include>com.nimbusds:lang-tag</include>
+          <include>net.minidev:json-smart</include>
+          <include>net.minidev:accessors-smart</include>
+          <include>io.projectreactor:reactor-core</include>
+          <include>io.projectreactor.netty:reactor-netty-core</include>
+          <include>io.projectreactor.netty:reactor-netty-http</include>
+          <include>org.reactivestreams:reactive-streams</include>
+        </includes>
+      </binaries>
+    </moduleSet>
   </moduleSets>
 
   <fileSets>

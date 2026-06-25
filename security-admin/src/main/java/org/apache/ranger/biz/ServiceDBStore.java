@@ -202,6 +202,8 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import org.apache.ranger.services.gcs.client.GCSClientConnectionMgr;
 import org.apache.ranger.services.gcs.RangerGCSConstants;
+import org.apache.ranger.services.abfs.RangerABFSConstants;
+import org.apache.ranger.services.abfs.client.ABFSAclSyncService;
 import org.apache.ranger.util.RestUtil;
 import org.apache.ranger.view.RangerExportPolicyList;
 import org.apache.ranger.view.RangerExportRoleList;
@@ -250,6 +252,8 @@ import static org.apache.ranger.service.RangerBaseModelService.OPERATION_CREATE_
 @Component
 public class ServiceDBStore extends AbstractServiceStore {
 	private static final Logger LOG = LoggerFactory.getLogger(ServiceDBStore.class);
+
+	private final ABFSAclSyncService abfsAclSyncService = new ABFSAclSyncService();
 
 	private static final String POLICY_ALLOW_EXCLUDE = "Policy Allow:Exclude";
 
@@ -1911,6 +1915,29 @@ public class ServiceDBStore extends AbstractServiceStore {
 			} catch (Exception e) {
 				LOG.error("Error cleaning up GCS bucket IAM bindings for service: {}", service.getName(), e);
 				// Continue with service deletion even if GCS cleanup fails
+			}
+		}
+
+		// Handle ABFS directory ACL cleanup BEFORE deleting policies
+		if (CollectionUtils.isNotEmpty(policyIds) &&
+				service.getType() != null &&
+				service.getType().equalsIgnoreCase(RangerABFSConstants.ABFS)) {
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Cleaning up ABFS directory ACLs for service: {}", service.getName());
+			}
+
+			try {
+				Map<String, String> configs = service.getConfigs();
+				for (Long policyID : policyIds) {
+					RangerPolicy policy = getPolicy(policyID);
+					if (policy != null) {
+						abfsAclSyncService.syncPolicy(policy, RangerConstants.ACTION_DELETE, policy, configs);
+					}
+				}
+			} catch (Exception e) {
+				LOG.error("Error cleaning up ABFS directory ACLs for service: {}", service.getName(), e);
+				// Continue with service deletion even if ABFS cleanup fails
 			}
 		}
 
@@ -7760,5 +7787,40 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		}
 		// Plain name — assume it is a GCP service account in the project
 		return Identity.serviceAccount(rangerUser + "@" + projectId + ".iam.gserviceaccount.com");
+	}
+
+	// ==================== ABFS directory ACL sync ====================
+
+	/**
+	 * Entry point invoked from {@link org.apache.ranger.rest.ServiceREST} on every
+	 * Ranger ABFS policy create, update, or delete. Translates the policy into
+	 * ADLS Gen2 POSIX ACLs and applies them (recursively, with default-ACL
+	 * inheritance and manual-entry preservation) to the affected directories.
+	 *
+	 * @param rangerPolicy the policy being created / updated / deleted
+	 * @param action       one of {@code RangerConstants.ACTION_CREATE / UPDATE / DELETE}
+	 * @param oldPolicy    pre-change snapshot (null for CREATE); used to remove
+	 *                     stale Ranger-managed ACL entries precisely
+	 */
+	public boolean createABFSDirectoryAclPolicy(RangerPolicy rangerPolicy, String action, RangerPolicy oldPolicy) throws Exception {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("==> ServiceDBStore.createABFSDirectoryAclPolicy() action={}", action);
+		}
+
+		String serviceName = rangerPolicy.getService();
+		try {
+			RangerService rangerService = getServiceByName(serviceName);
+			Map<String, String> configs = rangerService.getConfigs();
+
+			abfsAclSyncService.syncPolicy(rangerPolicy, action, oldPolicy, configs);
+		} catch (Exception e) {
+			LOG.error("ABFS ACL sync failed for service {}: {}", serviceName, e.getMessage(), e);
+			throw restErrorUtil.createRESTException("ABFS ACL sync failed: " + e.getMessage());
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("<== ServiceDBStore.createABFSDirectoryAclPolicy()");
+		}
+		return true;
 	}
 }
