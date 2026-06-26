@@ -618,7 +618,7 @@
           <include>com.azure:azure-storage-internal-avro</include>
           <include>com.azure:azure-identity</include>
           <include>com.azure:azure-core</include>
-          <include>com.azure:azure-core-http-netty</include>
+          <include>com.azure:azure-core-http-jdk-httpclient</include>
           <include>com.azure:azure-json</include>
           <include>com.azure:azure-xml</include>
           <include>com.microsoft.azure:msal4j</include>
@@ -630,8 +630,6 @@
           <include>net.minidev:json-smart</include>
           <include>net.minidev:accessors-smart</include>
           <include>io.projectreactor:reactor-core</include>
-          <include>io.projectreactor.netty:reactor-netty-core</include>
-          <include>io.projectreactor.netty:reactor-netty-http</include>
           <include>org.reactivestreams:reactive-streams</include>
         </includes>
       </binaries>

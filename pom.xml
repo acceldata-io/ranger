@@ -92,6 +92,7 @@
         <google-auth-library.version>1.23.0</google-auth-library.version>
         <azure-storage-file-datalake.version>12.18.0</azure-storage-file-datalake.version>
         <azure-identity.version>1.11.4</azure-identity.version>
+        <azure-core-http-jdk-httpclient.version>1.0.0-beta.10</azure-core-http-jdk-httpclient.version>
         <bouncycastle.version>1.70</bouncycastle.version>
         <HikariCP.version>4.0.3</HikariCP.version>
         <cglib.version>2.2.0-b23</cglib.version>
