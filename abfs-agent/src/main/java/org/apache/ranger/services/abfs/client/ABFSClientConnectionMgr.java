@@ -19,6 +19,8 @@
 package org.apache.ranger.services.abfs.client;
 
 import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.HttpClient;
+import com.azure.core.http.jdk.httpclient.JdkHttpClientProvider;
 import com.azure.identity.ClientSecretCredentialBuilder;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.azure.storage.file.datalake.DataLakeServiceClient;
@@ -47,6 +49,11 @@ public class ABFSClientConnectionMgr extends BaseClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(ABFSClientConnectionMgr.class);
 
+    // Use the JDK's built-in HTTP client transport instead of the Azure SDK's
+    // default reactor-netty transport, whose bundled netty conflicts with the
+    // netty version pinned by the Ranger runtime. Created once and shared.
+    private static final HttpClient HTTP_CLIENT = new JdkHttpClientProvider().createInstance();
+
     public ABFSClientConnectionMgr(String svcName, Map<String, String> connectionProperties) {
         super(svcName, connectionProperties);
     }
@@ -63,6 +70,7 @@ public class ABFSClientConnectionMgr extends BaseClient {
 
         return new DataLakeServiceClientBuilder()
                 .endpoint(endpoint)
+                .httpClient(HTTP_CLIENT)
                 .credential(credential)
                 .buildClient();
     }

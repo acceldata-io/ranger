@@ -43,12 +43,41 @@
             <groupId>com.azure</groupId>
             <artifactId>azure-storage-file-datalake</artifactId>
             <version>${azure-storage-file-datalake.version}</version>
+            <!-- Drop the default reactor-netty transport: its bundled netty
+                 (4.1.100) clashes with the netty version pinned by Ranger,
+                 breaking reactor.netty HttpClientSecure init. We use the JDK
+                 HttpClient transport instead. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
             <version>${azure-identity.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-http-jdk-httpclient</artifactId>
+            <version>${azure-core-http-jdk-httpclient.version}</version>
+            <exclusions>
+                <!-- Keep azure-core at the version brought by the storage SDK. -->
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
