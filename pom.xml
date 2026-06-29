@@ -177,7 +177,7 @@
         <org.bouncycastle.bcpkix-jdk18on>1.79</org.bouncycastle.bcpkix-jdk18on>
         <org.bouncycastle.bcprov-jdk18on>1.79</org.bouncycastle.bcprov-jdk18on>
         <owasp-java-html-sanitizer.version>20211018.2</owasp-java-html-sanitizer.version>
-        <ozone.version>2.1.0</ozone.version>
+        <ozone.version>2.1.0.3.4.3.0-1</ozone.version>
         <paranamer.version>2.3</paranamer.version>
         <poi.version>5.2.2</poi.version>
         <!-- presto plugin deps -->
