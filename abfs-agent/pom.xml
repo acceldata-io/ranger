@@ -39,6 +39,15 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Pin azure-core to the version the JDK HTTP transport is built
+             against; a direct dependency overrides the storage SDK's
+             transitive (older) azure-core. -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core</artifactId>
+            <version>${azure-core.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-storage-file-datalake</artifactId>
@@ -71,13 +80,6 @@
             <groupId>com.azure</groupId>
             <artifactId>azure-core-http-jdk-httpclient</artifactId>
             <version>${azure-core-http-jdk-httpclient.version}</version>
-            <exclusions>
-                <!-- Keep azure-core at the version brought by the storage SDK. -->
-                <exclusion>
-                    <groupId>com.azure</groupId>
-                    <artifactId>azure-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>

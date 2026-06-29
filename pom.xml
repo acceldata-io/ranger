@@ -93,6 +93,9 @@
         <azure-storage-file-datalake.version>12.18.0</azure-storage-file-datalake.version>
         <azure-identity.version>1.11.4</azure-identity.version>
         <azure-core-http-jdk-httpclient.version>1.0.0-beta.10</azure-core-http-jdk-httpclient.version>
+        <!-- jdk-httpclient beta.10 is built against azure-core 1.46.0 (uses
+             HttpHeadersAccessHelper, absent in the 1.45.0 the storage SDK pulls). -->
+        <azure-core.version>1.46.0</azure-core.version>
         <bouncycastle.version>1.70</bouncycastle.version>
         <HikariCP.version>4.0.3</HikariCP.version>
         <cglib.version>2.2.0-b23</cglib.version>
