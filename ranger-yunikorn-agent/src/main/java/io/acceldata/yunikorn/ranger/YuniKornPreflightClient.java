@@ -137,16 +137,6 @@ public class YuniKornPreflightClient implements PreflightValidator {
         HttpURLConnection conn;
         try {
             conn = (HttpURLConnection) URI.create(validateConfUrl).toURL().openConnection();
-            conn.setRequestMethod("POST");
-            conn.setConnectTimeout(connectTimeoutMs);
-            conn.setReadTimeout(readTimeoutMs);
-            conn.setDoOutput(true);
-            // YuniKorn reads the body as raw bytes; content-type is advisory.
-            conn.setRequestProperty("Content-Type", "application/x-yaml; charset=utf-8");
-            conn.setRequestProperty("Accept", "application/json");
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(body);
-            }
         } catch (IOException e) {
             throw new PreflightException(
                     "Could not reach YuniKorn validate-conf at " + validateConfUrl +
@@ -154,39 +144,63 @@ public class YuniKornPreflightClient implements PreflightValidator {
                     "If YuniKorn has no reachable REST endpoint, set preflight.enabled=false.", e);
         }
 
-        int status;
+        // Release the connection on every exit path. On non-keep-alive
+        // responses the underlying socket would otherwise leak until GC.
         try {
-            status = conn.getResponseCode();
-        } catch (IOException e) {
-            throw new PreflightException(
-                    "No response from YuniKorn validate-conf at " + validateConfUrl, e);
-        }
+            try {
+                conn.setRequestMethod("POST");
+                conn.setConnectTimeout(connectTimeoutMs);
+                conn.setReadTimeout(readTimeoutMs);
+                conn.setDoOutput(true);
+                // YuniKorn reads the body as raw bytes; content-type is advisory.
+                conn.setRequestProperty("Content-Type", "application/x-yaml; charset=utf-8");
+                conn.setRequestProperty("Accept", "application/json");
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(body);
+                }
+            } catch (IOException e) {
+                throw new PreflightException(
+                        "Could not reach YuniKorn validate-conf at " + validateConfUrl +
+                        " — refusing to write an unvalidated config. " +
+                        "If YuniKorn has no reachable REST endpoint, set preflight.enabled=false.", e);
+            }
 
-        if (status != 200) {
-            throw new PreflightException(
-                    "YuniKorn validate-conf returned HTTP " + status + " from " + validateConfUrl +
-                    " — body: " + truncate(readBody(conn, status), 500));
-        }
+            int status;
+            try {
+                status = conn.getResponseCode();
+            } catch (IOException e) {
+                throw new PreflightException(
+                        "No response from YuniKorn validate-conf at " + validateConfUrl, e);
+            }
 
-        ValidateConfResponse result;
-        try (InputStream in = conn.getInputStream()) {
-            result = mapper.readValue(in, ValidateConfResponse.class);
-        } catch (IOException e) {
-            throw new PreflightException(
-                    "Failed to parse YuniKorn validate-conf response from " + validateConfUrl, e);
-        }
+            if (status != 200) {
+                throw new PreflightException(
+                        "YuniKorn validate-conf returned HTTP " + status + " from " + validateConfUrl +
+                        " — body: " + truncate(readBody(conn, status), 500));
+            }
 
-        if (result == null) {
-            throw new PreflightException(
-                    "YuniKorn validate-conf returned an empty response from " + validateConfUrl);
+            ValidateConfResponse result;
+            try (InputStream in = conn.getInputStream()) {
+                result = mapper.readValue(in, ValidateConfResponse.class);
+            } catch (IOException e) {
+                throw new PreflightException(
+                        "Failed to parse YuniKorn validate-conf response from " + validateConfUrl, e);
+            }
+
+            if (result == null) {
+                throw new PreflightException(
+                        "YuniKorn validate-conf returned an empty response from " + validateConfUrl);
+            }
+            if (!result.allowed) {
+                throw new PreflightException(
+                        "YuniKorn rejected the spliced queues.yaml: " +
+                        (result.reason == null || result.reason.isBlank()
+                                ? "(no reason provided)" : result.reason));
+            }
+            LOG.info("Preflight OK — YuniKorn accepted the candidate config.");
+        } finally {
+            conn.disconnect();
         }
-        if (!result.allowed) {
-            throw new PreflightException(
-                    "YuniKorn rejected the spliced queues.yaml: " +
-                    (result.reason == null || result.reason.isBlank()
-                            ? "(no reason provided)" : result.reason));
-        }
-        LOG.info("Preflight OK — YuniKorn accepted the candidate config.");
     }
 
     private static String readBody(HttpURLConnection conn, int status) {

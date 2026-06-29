@@ -144,54 +144,60 @@ public class RangerHttpClient implements RangerAdminClient {
 
         URI uri = URI.create(url);
         HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
-        // Apply TLS material before the handshake (no-op on plain HTTP).
-        RangerTls.applyIfPresent(conn, tls);
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
-        conn.setReadTimeout(DEFAULT_READ_TIMEOUT_MS);
-        conn.setRequestProperty("Accept", "application/json");
-
-        if (basicAuthHeader != null) {
-            conn.setRequestProperty("Authorization", basicAuthHeader);
-        } else if (spnegoAuthenticator != null) {
-            // Build a fresh SPNEGO token for this request. Service tickets
-            // are short-lived but the GSS layer caches them inside the
-            // Subject, so subsequent calls reuse the cached ticket until
-            // it expires.
-            String header;
-            try {
-                header = spnegoAuthenticator.buildAuthorizationHeader(uri);
-            } catch (Exception e) {
-                throw new IOException("Failed to build SPNEGO Authorization header for " + url, e);
-            }
-            conn.setRequestProperty("Authorization", header);
-        }
-        // Else: no auth (development / network-protected Ranger)
-
-        int status;
+        // Release the connection on every exit path. On non-keep-alive
+        // responses the underlying socket would otherwise leak until GC.
         try {
-            status = conn.getResponseCode();
-        } catch (IOException e) {
-            throw new IOException("Failed to connect to Ranger Admin at " + url, e);
-        }
+            // Apply TLS material before the handshake (no-op on plain HTTP).
+            RangerTls.applyIfPresent(conn, tls);
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(DEFAULT_READ_TIMEOUT_MS);
+            conn.setRequestProperty("Accept", "application/json");
 
-        // 304 Not Modified — Ranger uses 304 to mean "no policy version
-        // change since lastKnownVersion." Returning null tells PolicySync
-        // to skip this cycle, exactly like the official client does.
-        if (status == 304) {
-            LOG.debug("Ranger returned 304 Not Modified — no policy changes since version {}",
-                    lastKnownVersion);
-            return null;
-        }
+            if (basicAuthHeader != null) {
+                conn.setRequestProperty("Authorization", basicAuthHeader);
+            } else if (spnegoAuthenticator != null) {
+                // Build a fresh SPNEGO token for this request. Service tickets
+                // are short-lived but the GSS layer caches them inside the
+                // Subject, so subsequent calls reuse the cached ticket until
+                // it expires.
+                String header;
+                try {
+                    header = spnegoAuthenticator.buildAuthorizationHeader(uri);
+                } catch (Exception e) {
+                    throw new IOException("Failed to build SPNEGO Authorization header for " + url, e);
+                }
+                conn.setRequestProperty("Authorization", header);
+            }
+            // Else: no auth (development / network-protected Ranger)
 
-        if (status != 200) {
-            String body = readBody(conn, status);
-            throw new IOException("Ranger Admin returned " + status + " from " + url +
-                    " — body: " + truncate(body, 500));
-        }
+            int status;
+            try {
+                status = conn.getResponseCode();
+            } catch (IOException e) {
+                throw new IOException("Failed to connect to Ranger Admin at " + url, e);
+            }
 
-        try (InputStream in = conn.getInputStream()) {
-            return mapper.readValue(in, ServicePolicies.class);
+            // 304 Not Modified — Ranger uses 304 to mean "no policy version
+            // change since lastKnownVersion." Returning null tells PolicySync
+            // to skip this cycle, exactly like the official client does.
+            if (status == 304) {
+                LOG.debug("Ranger returned 304 Not Modified — no policy changes since version {}",
+                        lastKnownVersion);
+                return null;
+            }
+
+            if (status != 200) {
+                String body = readBody(conn, status);
+                throw new IOException("Ranger Admin returned " + status + " from " + url +
+                        " — body: " + truncate(body, 500));
+            }
+
+            try (InputStream in = conn.getInputStream()) {
+                return mapper.readValue(in, ServicePolicies.class);
+            }
+        } finally {
+            conn.disconnect();
         }
     }
 
