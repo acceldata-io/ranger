@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2026 Acceldata Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+-->
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] %logger{36} - %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="io.acceldata.yunikorn.ranger" level="INFO"/>
+
+        <!-- Kept at INFO for release. DEBUG here surfaces the Ranger request URL,
+             query params, response body, and the credentials/SPNEGO path taken,
+             which can leak token hints into logs. Raise to DEBUG only for
+             short-lived local troubleshooting, never in a shipped build. -->
+        <Logger name="org.apache.ranger.admin.client" level="INFO"/>
+        <Logger name="org.apache.ranger.plugin.util.PolicyRefresher" level="INFO"/>
+        <Logger name="org.apache.ranger"              level="INFO"/>
+
+        <Logger name="io.fabric8"                   level="WARN"/>
+        <Logger name="okhttp3"                      level="WARN"/>
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>
