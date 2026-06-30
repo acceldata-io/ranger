@@ -1,0 +1,27 @@
+# Maven
+target/
+*.iml
+.idea/
+.mvn/
+
+# Local environment
+.env
+.envrc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.classpath
+.project
+.settings/
+
+# Logs
+*.log
+logs/
+
+# Helm
+deploy/helm/charts/
+deploy/helm/Chart.lock

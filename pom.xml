@@ -296,6 +296,8 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-yunikorn</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>plugin-ozone</module>
                 <module>s3-agent</module>
                 <module>security-admin</module>
@@ -601,6 +603,8 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-yunikorn</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
@@ -679,6 +683,8 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-yunikorn</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
@@ -1244,6 +1250,13 @@
                         <exclude>**/docs/src/site/resources/override-banner.js</exclude>
                         <exclude>**/docs/src/site/resources/smooth-scroll.js</exclude>
                         <exclude>**/importRole/*.json</exclude>
+                        <!-- ranger-yunikorn-agent: container/deploy tooling, not source artifacts -->
+                        <exclude>**/ranger-yunikorn-agent/Dockerfile</exclude>
+                        <exclude>**/ranger-yunikorn-agent/Makefile</exclude>
+                        <exclude>**/ranger-yunikorn-agent/README.md</exclude>
+                        <exclude>**/ranger-yunikorn-agent/.gitignore</exclude>
+                        <exclude>**/ranger-yunikorn-agent/.github/**</exclude>
+                        <exclude>**/ranger-yunikorn-agent/deploy/**</exclude>
                     </excludes>
                 </configuration>
             </plugin>
