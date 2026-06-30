@@ -736,6 +736,13 @@
                         <exclude>**/importRole/*.json</exclude>
                         <exclude>mkdocs/docs/assets/**</exclude>
                         <exclude>mkdocs/requirements.txt</exclude>
+                        <!-- ranger-yunikorn-agent: container/deploy tooling, not source artifacts -->
+                        <exclude>**/ranger-yunikorn-agent/Dockerfile</exclude>
+                        <exclude>**/ranger-yunikorn-agent/Makefile</exclude>
+                        <exclude>**/ranger-yunikorn-agent/README.md</exclude>
+                        <exclude>**/ranger-yunikorn-agent/.gitignore</exclude>
+                        <exclude>**/ranger-yunikorn-agent/.github/**</exclude>
+                        <exclude>**/ranger-yunikorn-agent/deploy/**</exclude>
                     </excludes>
                 </configuration>
                 <executions>
@@ -994,6 +1001,8 @@
                 <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
+                <module>plugin-yunikorn</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
@@ -1124,6 +1133,8 @@
                 <module>common-utils</module>
                 <module>credentialbuilder</module>
                 <module>plugin-yarn</module>
+                <module>plugin-yunikorn</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
@@ -1330,6 +1341,8 @@
                 <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
+                <module>plugin-yunikorn</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
@@ -1411,6 +1424,8 @@
                 <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
+                <module>plugin-yunikorn</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
