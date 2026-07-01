@@ -213,7 +213,7 @@
 			"itemId":3,
 			"name":"zookeeper.connect",
 			"type":"string",
-			"mandatory":true,
+			"mandatory":false,
 			"defaultValue":"localhost:2181",
 			"label":"Zookeeper Connect String"
 		},
