@@ -247,9 +247,18 @@ public class ABFSAclSyncService {
     }
 
     /**
-     * Maps a set of Ranger access types to POSIX r/w/x permissions. Execute is
-     * always added when read or write is granted, since ADLS requires execute on
-     * directories to traverse into them.
+     * Maps a set of Ranger access types to POSIX r/w/x permissions. ADLS Gen2
+     * treats read (r) and execute/traverse (x) as independent bits, so each
+     * access type is mapped to exactly the bits it implies, keeping the four
+     * access types orthogonal:
+     * <ul>
+     *   <li>read   -&gt; r--  (read a file's bytes)</li>
+     *   <li>list   -&gt; r-x  (enumerate + traverse a directory)</li>
+     *   <li>write  -&gt; -w-  (write/append; create children on a directory)</li>
+     *   <li>delete -&gt; -wx  (delete/rename children; needs traverse)</li>
+     * </ul>
+     * Execute is no longer force-added for plain read: to traverse into a
+     * directory the principal must be granted list/traverse (or delete) on it.
      */
     private RolePermissions toRolePermissions(List<RangerPolicyItemAccess> accesses) {
         boolean read = false;
@@ -286,10 +295,6 @@ public class ABFSAclSyncService {
 
         if (!read && !write && !execute) {
             return null;
-        }
-        // Traversal requirement: directories need execute whenever read/write is granted.
-        if (read || write) {
-            execute = true;
         }
 
         RolePermissions perms = new RolePermissions();
