@@ -55,14 +55,16 @@ import java.util.LinkedHashSet;
  * <pre>
  *   access   directory        file
  *   ------   ---------        ----
- *   read     --x (traverse)   r--   (read a file's bytes; traverse the dir chain)
- *   list     r-x              ---   (enumerate + traverse a directory)
- *   write    -wx              -w-   (create children in a dir / write a file)
+ *   read     r-x              r--   (read + navigate/list the tree; read file bytes)
+ *   list     r-x              ---   (enumerate + traverse a directory; no file read)
+ *   write    -wx              rw-   (create children in a dir / write+append a file)
  *   delete   rwx              ---   (delete/rename children; tree delete needs rwx)
  * </pre>
  * A directory always receives execute (x) when any access is granted, because a
  * directory must be traversable to be usable. Execute is never set on files (it
- * is meaningless there per ADLS).
+ * is meaningless there per ADLS). The read/list distinction shows only on files:
+ * {@code read} allows reading file contents ({@code r--}) while {@code list}
+ * grants directory listing without file read.
  *
  * <h3>Ancestor traverse</h3>
  * For a policy on {@code /a/b/c}, each principal is also granted traverse-only
@@ -375,14 +377,20 @@ public class ABFSAclSyncService {
 
     /**
      * Directory permissions. A directory needs execute whenever any access is
-     * granted (it must be traversable to be usable); read is granted for listing
-     * (list) or recursive tree delete (delete); write for write or delete.
+     * granted (it must be traversable to be usable). Read is granted so the
+     * directory is listable when the principal can read its contents (read),
+     * enumerate it (list), or recursively delete it (delete). Write is granted
+     * for write or delete.
+     *
+     * <p>Example: {@code read} on {@code /finance} recursively yields {@code r-x}
+     * on {@code /finance} and every sub-directory, and {@code r--} on files, so a
+     * user can navigate and read the whole tree.</p>
      */
     private static RolePermissions directoryPermissions(AccessFlags f) {
         if (!f.any()) {
             return null;
         }
-        boolean r = f.list || f.delete;
+        boolean r = f.read || f.list || f.delete;
         boolean w = f.write || f.delete;
         boolean x = true;
         return perms(r, w, x);
@@ -390,12 +398,13 @@ public class ABFSAclSyncService {
 
     /**
      * File permissions. Execute is meaningless on files, so it is never set.
-     * A file is readable for read, writable for write; list/delete grant nothing
+     * A file is readable for read; write grants read+write ({@code rw-}) since
+     * appending/updating a file requires read as well. list/delete grant nothing
      * on the file itself (deletion is controlled by the parent directory).
      */
     private static RolePermissions filePermissions(AccessFlags f) {
-        boolean r = f.read;
         boolean w = f.write;
+        boolean r = f.read || f.write;
         if (!r && !w) {
             return null;
         }
