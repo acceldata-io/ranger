@@ -22,9 +22,10 @@ import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.azure.storage.file.datalake.DataLakePathClient;
 import com.azure.storage.file.datalake.models.AccessControlType;
+import com.azure.storage.file.datalake.models.ListPathsOptions;
 import com.azure.storage.file.datalake.models.PathAccessControl;
 import com.azure.storage.file.datalake.models.PathAccessControlEntry;
-import com.azure.storage.file.datalake.models.PathRemoveAccessControlEntry;
+import com.azure.storage.file.datalake.models.PathItem;
 import com.azure.storage.file.datalake.models.RolePermissions;
 import org.apache.commons.lang.StringUtils;
 import org.apache.ranger.plugin.model.RangerPolicy;
@@ -48,19 +49,33 @@ import java.util.LinkedHashSet;
  * Translates Ranger ABFS policies into Azure Data Lake Storage Gen2 (ADLS Gen2)
  * POSIX-style ACLs and pushes them to the storage account.
  *
- * <h3>Access-type to POSIX mapping</h3>
+ * <h3>Access-type to POSIX mapping (file- vs directory-aware)</h3>
+ * ADLS Gen2 assigns different meaning to r/w/x on files vs directories, so each
+ * node receives bits appropriate to its type:
  * <pre>
- *   read   -&gt; r-- (execute added on directories for traversal)
- *   list   -&gt; r-x
- *   write  -&gt; -w- (execute added on directories for traversal)
- *   delete -&gt; -wx (parent directory needs w + x)
+ *   access   directory        file
+ *   ------   ---------        ----
+ *   read     --x (traverse)   r--   (read a file's bytes; traverse the dir chain)
+ *   list     r-x              ---   (enumerate + traverse a directory)
+ *   write    -wx              -w-   (create children in a dir / write a file)
+ *   delete   rwx              ---   (delete/rename children; tree delete needs rwx)
  * </pre>
+ * A directory always receives execute (x) when any access is granted, because a
+ * directory must be traversable to be usable. Execute is never set on files (it
+ * is meaningless there per ADLS).
+ *
+ * <h3>Ancestor traverse</h3>
+ * For a policy on {@code /a/b/c}, each principal is also granted traverse-only
+ * ({@code --x}) access on every ancestor directory ({@code /}, {@code /a},
+ * {@code /a/b}) so ACL-only principals can reach the target. Ancestor entries
+ * are add-only: existing (possibly stronger) entries are never downgraded and
+ * are never removed, including on policy delete.
  *
  * <h3>Recursion &amp; inheritance</h3>
  * <ul>
  *   <li>Access ACLs are applied to the policy target and, when the policy
- *       resource is recursive, to all existing children.</li>
- *   <li>Default ACLs are applied to directories so future children inherit them.</li>
+ *       resource is recursive, to every existing child (per-node file/dir bits).</li>
+ *   <li>Default ACLs are applied to directories only, so future children inherit them.</li>
  *   <li>Only Ranger-managed named entries are added/updated/removed; entries
  *       configured outside Ranger are preserved.</li>
  * </ul>
@@ -94,6 +109,9 @@ public class ABFSAclSyncService {
         final RangerPolicy desiredPolicy  = isDelete ? null : policy;
         final RangerPolicy previousPolicy = isDelete ? policy : oldPolicy;
 
+        final List<DesiredGrant> desiredGrants  = buildDesiredGrants(desiredPolicy, resolver);
+        final List<DesiredGrant> previousGrants = buildDesiredGrants(previousPolicy, resolver);
+
         Set<ABFSPathRef> pathRefs = getPolicyPathRefs(policy, configs);
 
         for (ABFSPathRef pathRef : pathRefs) {
@@ -101,13 +119,14 @@ public class ABFSAclSyncService {
                 DataLakeFileSystemClient fsClient =
                         ABFSClientConnectionMgr.getFileSystemClient(configs, pathRef.getContainer());
 
-                // 1) access ACLs (apply to target + existing children when recursive)
-                applyAclRecursively(fsClient, pathRef, desiredPolicy, previousPolicy, resolver, false);
-
-                // 2) default ACLs on directories so future children inherit
-                if (defaultAclInheritance) {
-                    applyAclRecursively(fsClient, pathRef, desiredPolicy, previousPolicy, resolver, true);
+                // 1) Grant traverse-only (--x) on ancestors so the target is reachable.
+                //    Add-only; skipped entirely on delete so siblings are never broken.
+                if (!isDelete && !desiredGrants.isEmpty()) {
+                    applyAncestorTraverse(fsClient, pathRef, desiredGrants);
                 }
+
+                // 2) Apply access (+ default) ACLs to the target and, if recursive, its children.
+                applyTarget(fsClient, pathRef, desiredGrants, previousGrants, defaultAclInheritance);
             } catch (Exception e) {
                 LOG.error("ABFSAclSyncService.syncPolicy failed for container={}, path={}: {}",
                         pathRef.getContainer(), pathRef.getRelativePath(), e.getMessage(), e);
@@ -119,58 +138,317 @@ public class ABFSAclSyncService {
         LOG.debug("<== ABFSAclSyncService.syncPolicy action={}, policyId={}", action, policy.getId());
     }
 
-    private void applyAclRecursively(DataLakeFileSystemClient fsClient, ABFSPathRef pathRef,
-                                     RangerPolicy desiredPolicy, RangerPolicy previousPolicy,
-                                     ABFSIdentityResolver resolver, boolean isDefaultScope) {
+    // ------------------------------------------------------------------
+    // Target + children application
+    // ------------------------------------------------------------------
+
+    private void applyTarget(DataLakeFileSystemClient fsClient, ABFSPathRef pathRef,
+                             List<DesiredGrant> desiredGrants, List<DesiredGrant> previousGrants,
+                             boolean defaultAclInheritance) {
+        if (desiredGrants.isEmpty() && previousGrants.isEmpty()) {
+            return;
+        }
+
+        String path = stripLeadingSlash(pathRef.getRelativePath());
+
+        // The policy target (relativepath) is always treated as a directory.
+        applyNode(fsClient, path, true, desiredGrants, previousGrants, defaultAclInheritance);
+
+        if (!pathRef.isRecursive()) {
+            return;
+        }
+
+        // Walk each existing child and apply file- vs directory-specific POSIX bits.
+        int count = 0;
+        for (PathItem item : listChildren(fsClient, path)) {
+            applyNode(fsClient, item.getName(), item.isDirectory(),
+                    desiredGrants, previousGrants, defaultAclInheritance);
+            count++;
+        }
+        LOG.info("ABFS per-node ACL applied to {} children under '{}'", count, path);
+    }
+
+    /**
+     * Applies the Ranger-managed access (and, for directories, default) ACL
+     * entries to a single node, preserving entries Ranger does not manage.
+     */
+    private void applyNode(DataLakeFileSystemClient fsClient, String path, boolean isDirectory,
+                           List<DesiredGrant> desiredGrants, List<DesiredGrant> previousGrants,
+                           boolean defaultAclInheritance) {
         List<PathAccessControlEntry> desired  =
-                buildDesiredAclEntries(desiredPolicy, resolver, isDefaultScope);
+                entriesForNode(desiredGrants, isDirectory, defaultAclInheritance);
         List<PathAccessControlEntry> previous =
-                buildDesiredAclEntries(previousPolicy, resolver, isDefaultScope);
+                entriesForNode(previousGrants, isDirectory, defaultAclInheritance);
 
         if (desired.isEmpty() && previous.isEmpty()) {
             return;
         }
 
+        try {
+            DataLakePathClient client = isDirectory ? dirClientFor(fsClient, path) : fsClient.getFileClient(path);
+            PathAccessControl current = client.getAccessControl();
+            List<PathAccessControlEntry> merged =
+                    mergeAclEntries(current.getAccessControlList(), desired, previous);
+            client.setAccessControlList(merged, current.getGroup(), current.getOwner());
+            LOG.debug("ABFS setAccessControlList on '{}' (dir={}): {} total entries ({} Ranger-managed)",
+                    path, isDirectory, merged.size(), desired.size());
+        } catch (Exception e) {
+            LOG.warn("ABFS failed to apply ACL on '{}' (dir={}): {}", path, isDirectory, e.getMessage());
+        }
+    }
+
+    private Iterable<PathItem> listChildren(DataLakeFileSystemClient fsClient, String path) {
+        ListPathsOptions options = new ListPathsOptions()
+                .setRecursive(true)
+                .setMaxResults(RangerABFSConstants.ABFS_LIST_MAX_RESULTS);
+        if (StringUtils.isNotEmpty(path)) {
+            options.setPath(path);
+        }
+        return fsClient.listPaths(options, null);
+    }
+
+    // ------------------------------------------------------------------
+    // Ancestor traverse
+    // ------------------------------------------------------------------
+
+    private void applyAncestorTraverse(DataLakeFileSystemClient fsClient, ABFSPathRef pathRef,
+                                       List<DesiredGrant> desiredGrants) {
         String path = stripLeadingSlash(pathRef.getRelativePath());
-        DataLakeDirectoryClient dirClient = fsClient.getDirectoryClient(path);
-
-        boolean recursive = pathRef.isRecursive();
-
-        if (recursive) {
-            // Recursive merge: remove stale Ranger entries, then add/update desired ones.
-            // Manual entries on each item are preserved because we never replace the full ACL.
-            List<PathRemoveAccessControlEntry> removeEntries = toRemoveEntries(previous, desired);
-            if (!removeEntries.isEmpty()) {
-                LOG.info("ABFS removeAccessControlRecursive on '{}' (defaultScope={}): {} entries",
-                        path, isDefaultScope, removeEntries.size());
-                dirClient.removeAccessControlRecursive(removeEntries);
+        if (StringUtils.isEmpty(path)) {
+            // Target is the container root; it has no ancestors.
+            return;
+        }
+        List<PathAccessControlEntry> traverse = traverseEntries(desiredGrants);
+        if (traverse.isEmpty()) {
+            return;
+        }
+        for (String ancestor : ancestorPaths(path)) {
+            try {
+                DataLakeDirectoryClient client = dirClientFor(fsClient, ancestor);
+                PathAccessControl current = client.getAccessControl();
+                List<PathAccessControlEntry> merged =
+                        mergeTraverseEntries(current.getAccessControlList(), traverse);
+                if (merged == null) {
+                    continue; // nothing new to add; leave the ancestor untouched
+                }
+                client.setAccessControlList(merged, current.getGroup(), current.getOwner());
+                LOG.debug("ABFS ancestor traverse (--x) applied on '{}'", ancestor.isEmpty() ? "/" : ancestor);
+            } catch (Exception e) {
+                LOG.warn("ABFS failed to grant ancestor traverse on '{}': {}",
+                        ancestor.isEmpty() ? "/" : ancestor, e.getMessage());
             }
-            if (!desired.isEmpty()) {
-                LOG.info("ABFS updateAccessControlRecursive on '{}' (defaultScope={}): {} entries",
-                        path, isDefaultScope, desired.size());
-                dirClient.updateAccessControlRecursive(desired);
-            }
-        } else {
-            applyAcl(dirClient, desired, previous);
         }
     }
 
     /**
-     * Single-path apply: reads the current ACL, removes entries Ranger previously
-     * managed, layers in the desired entries, and writes the merged ACL back.
-     * Manually configured entries are preserved.
+     * Add-only merge for ancestor traverse: keeps every existing entry as-is and
+     * only adds a {@code --x} entry for a principal that has no access entry yet.
+     * Returns {@code null} when there is nothing to add (so the caller can skip
+     * the write entirely).
      */
-    private void applyAcl(DataLakePathClient pathClient, List<PathAccessControlEntry> desired,
-                          List<PathAccessControlEntry> previous) {
-        PathAccessControl current = pathClient.getAccessControl();
-        List<PathAccessControlEntry> existing = current.getAccessControlList();
-
-        List<PathAccessControlEntry> merged = mergeAclEntries(existing, desired, previous);
-
-        pathClient.setAccessControlList(merged, current.getGroup(), current.getOwner());
-        LOG.info("ABFS setAccessControlList applied: {} total entries ({} Ranger-managed)",
-                merged.size(), desired.size());
+    private List<PathAccessControlEntry> mergeTraverseEntries(List<PathAccessControlEntry> existing,
+                                                              List<PathAccessControlEntry> traverse) {
+        Set<String> existingKeys = new LinkedHashSet<>();
+        List<PathAccessControlEntry> merged = new ArrayList<>();
+        if (existing != null) {
+            for (PathAccessControlEntry e : existing) {
+                existingKeys.add(toAclKey(e));
+                merged.add(e);
+            }
+        }
+        boolean added = false;
+        for (PathAccessControlEntry e : traverse) {
+            if (!existingKeys.contains(toAclKey(e))) {
+                merged.add(e);
+                added = true;
+            }
+        }
+        return added ? merged : null;
     }
+
+    private List<PathAccessControlEntry> traverseEntries(List<DesiredGrant> grants) {
+        Map<String, PathAccessControlEntry> byKey = new LinkedHashMap<>();
+        RolePermissions traverseOnly = perms(false, false, true);
+        for (DesiredGrant grant : grants) {
+            PathAccessControlEntry entry = aclEntry(grant.identity, traverseOnly, false);
+            byKey.put(toAclKey(entry), entry);
+        }
+        return new ArrayList<>(byKey.values());
+    }
+
+    private static List<String> ancestorPaths(String path) {
+        List<String> ancestors = new ArrayList<>();
+        ancestors.add(""); // container root
+        String[] parts = path.split("/");
+        StringBuilder cumulative = new StringBuilder();
+        // Every part except the last (the target itself) is an ancestor directory.
+        for (int i = 0; i < parts.length - 1; i++) {
+            if (StringUtils.isBlank(parts[i])) {
+                continue;
+            }
+            if (cumulative.length() > 0) {
+                cumulative.append('/');
+            }
+            cumulative.append(parts[i]);
+            ancestors.add(cumulative.toString());
+        }
+        return ancestors;
+    }
+
+    // ------------------------------------------------------------------
+    // Desired grants (identity + access flags)
+    // ------------------------------------------------------------------
+
+    private List<DesiredGrant> buildDesiredGrants(RangerPolicy policy, ABFSIdentityResolver resolver) {
+        Map<String, DesiredGrant> byKey = new LinkedHashMap<>();
+        if (policy == null || policy.getPolicyItems() == null) {
+            return new ArrayList<>();
+        }
+        for (RangerPolicyItem item : policy.getPolicyItems()) {
+            if (item == null || item.getAccesses() == null || item.getAccesses().isEmpty()) {
+                continue;
+            }
+            AccessFlags flags = toAccessFlags(item.getAccesses());
+            if (!flags.any()) {
+                continue;
+            }
+            if (item.getUsers() != null) {
+                for (String user : item.getUsers()) {
+                    mergeGrant(byKey, resolver.resolveUser(user), flags);
+                }
+            }
+            if (item.getGroups() != null) {
+                for (String group : item.getGroups()) {
+                    mergeGrant(byKey, resolver.resolveGroup(group), flags);
+                }
+            }
+        }
+        return new ArrayList<>(byKey.values());
+    }
+
+    private void mergeGrant(Map<String, DesiredGrant> byKey, ResolvedIdentity identity, AccessFlags flags) {
+        if (identity == null) {
+            return;
+        }
+        String key = identity.getType() + ":" + identity.getObjectId();
+        DesiredGrant existing = byKey.get(key);
+        if (existing == null) {
+            byKey.put(key, new DesiredGrant(identity, flags.copy()));
+        } else {
+            existing.flags.mergeFrom(flags);
+        }
+    }
+
+    private static AccessFlags toAccessFlags(List<RangerPolicyItemAccess> accesses) {
+        AccessFlags flags = new AccessFlags();
+        for (RangerPolicyItemAccess access : accesses) {
+            if (access == null || Boolean.FALSE.equals(access.getIsAllowed())) {
+                continue;
+            }
+            String type = access.getType();
+            if (type == null) {
+                continue;
+            }
+            switch (type) {
+                case RangerABFSConstants.ACCESS_TYPE_READ:
+                    flags.read = true;
+                    break;
+                case RangerABFSConstants.ACCESS_TYPE_LIST:
+                    flags.list = true;
+                    break;
+                case RangerABFSConstants.ACCESS_TYPE_WRITE:
+                    flags.write = true;
+                    break;
+                case RangerABFSConstants.ACCESS_TYPE_DELETE:
+                    flags.delete = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+        return flags;
+    }
+
+    // ------------------------------------------------------------------
+    // POSIX bit mapping (file- vs directory-aware)
+    // ------------------------------------------------------------------
+
+    /**
+     * Directory permissions. A directory needs execute whenever any access is
+     * granted (it must be traversable to be usable); read is granted for listing
+     * (list) or recursive tree delete (delete); write for write or delete.
+     */
+    private static RolePermissions directoryPermissions(AccessFlags f) {
+        if (!f.any()) {
+            return null;
+        }
+        boolean r = f.list || f.delete;
+        boolean w = f.write || f.delete;
+        boolean x = true;
+        return perms(r, w, x);
+    }
+
+    /**
+     * File permissions. Execute is meaningless on files, so it is never set.
+     * A file is readable for read, writable for write; list/delete grant nothing
+     * on the file itself (deletion is controlled by the parent directory).
+     */
+    private static RolePermissions filePermissions(AccessFlags f) {
+        boolean r = f.read;
+        boolean w = f.write;
+        if (!r && !w) {
+            return null;
+        }
+        return perms(r, w, false);
+    }
+
+    private static RolePermissions perms(boolean r, boolean w, boolean x) {
+        RolePermissions p = new RolePermissions();
+        p.setReadPermission(r);
+        p.setWritePermission(w);
+        p.setExecutePermission(x);
+        return p;
+    }
+
+    /**
+     * Builds the Ranger-managed named ACL entries for a node of the given type.
+     * Default-scope entries are only produced for directories.
+     */
+    private List<PathAccessControlEntry> entriesForNode(List<DesiredGrant> grants, boolean isDirectory,
+                                                        boolean defaultAclInheritance) {
+        Map<String, PathAccessControlEntry> byKey = new LinkedHashMap<>();
+        for (DesiredGrant grant : grants) {
+            RolePermissions accessPerms = isDirectory
+                    ? directoryPermissions(grant.flags)
+                    : filePermissions(grant.flags);
+            if (accessPerms != null) {
+                PathAccessControlEntry entry = aclEntry(grant.identity, accessPerms, false);
+                byKey.put(toAclKey(entry), entry);
+            }
+            if (isDirectory && defaultAclInheritance) {
+                RolePermissions defaultPerms = directoryPermissions(grant.flags);
+                if (defaultPerms != null) {
+                    PathAccessControlEntry entry = aclEntry(grant.identity, defaultPerms, true);
+                    byKey.put(toAclKey(entry), entry);
+                }
+            }
+        }
+        return new ArrayList<>(byKey.values());
+    }
+
+    private PathAccessControlEntry aclEntry(ResolvedIdentity identity, RolePermissions perms, boolean isDefaultScope) {
+        PathAccessControlEntry entry = new PathAccessControlEntry();
+        entry.setDefaultScope(isDefaultScope);
+        entry.setAccessControlType(identity.getType() == ABFSIdentityResolver.ResolvedIdentityType.USER
+                ? AccessControlType.USER : AccessControlType.GROUP);
+        entry.setEntityId(identity.getObjectId());
+        entry.setPermissions(perms);
+        return entry;
+    }
+
+    // ------------------------------------------------------------------
+    // ACL merge helpers
+    // ------------------------------------------------------------------
 
     private List<PathAccessControlEntry> mergeAclEntries(List<PathAccessControlEntry> existing,
                                                          List<PathAccessControlEntry> desired,
@@ -196,140 +474,13 @@ public class ABFSAclSyncService {
         return new ArrayList<>(byKey.values());
     }
 
-    /**
-     * Builds the named USER/GROUP ACL entries implied by a policy's allow items.
-     * Base owner/group/other entries are never produced here.
-     */
-    private List<PathAccessControlEntry> buildDesiredAclEntries(RangerPolicy policy,
-                                                                ABFSIdentityResolver resolver, boolean isDefaultScope) {
-        Map<String, PathAccessControlEntry> byKey = new LinkedHashMap<>();
-        if (policy == null || policy.getPolicyItems() == null) {
-            return new ArrayList<>();
-        }
+    // ------------------------------------------------------------------
+    // Path / resource helpers
+    // ------------------------------------------------------------------
 
-        for (RangerPolicyItem item : policy.getPolicyItems()) {
-            if (item == null || item.getAccesses() == null || item.getAccesses().isEmpty()) {
-                continue;
-            }
-            RolePermissions perms = toRolePermissions(item.getAccesses());
-            if (perms == null) {
-                continue;
-            }
-
-            if (item.getUsers() != null) {
-                for (String user : item.getUsers()) {
-                    ResolvedIdentity id = resolver.resolveUser(user);
-                    addAclEntry(byKey, id, perms, isDefaultScope);
-                }
-            }
-            if (item.getGroups() != null) {
-                for (String group : item.getGroups()) {
-                    ResolvedIdentity id = resolver.resolveGroup(group);
-                    addAclEntry(byKey, id, perms, isDefaultScope);
-                }
-            }
-        }
-        return new ArrayList<>(byKey.values());
-    }
-
-    private void addAclEntry(Map<String, PathAccessControlEntry> byKey, ResolvedIdentity identity,
-                             RolePermissions perms, boolean isDefaultScope) {
-        if (identity == null) {
-            return;
-        }
-        PathAccessControlEntry entry = new PathAccessControlEntry();
-        entry.setDefaultScope(isDefaultScope);
-        entry.setAccessControlType(identity.getType() == ABFSIdentityResolver.ResolvedIdentityType.USER
-                ? AccessControlType.USER : AccessControlType.GROUP);
-        entry.setEntityId(identity.getObjectId());
-        entry.setPermissions(perms);
-        byKey.put(toAclKey(entry), entry);
-    }
-
-    /**
-     * Maps a set of Ranger access types to POSIX r/w/x permissions. ADLS Gen2
-     * treats read (r) and execute/traverse (x) as independent bits, so each
-     * access type is mapped to exactly the bits it implies, keeping the four
-     * access types orthogonal:
-     * <ul>
-     *   <li>read   -&gt; r--  (read a file's bytes)</li>
-     *   <li>list   -&gt; r-x  (enumerate + traverse a directory)</li>
-     *   <li>write  -&gt; -w-  (write/append; create children on a directory)</li>
-     *   <li>delete -&gt; -wx  (delete/rename children; needs traverse)</li>
-     * </ul>
-     * Execute is no longer force-added for plain read: to traverse into a
-     * directory the principal must be granted list/traverse (or delete) on it.
-     */
-    private RolePermissions toRolePermissions(List<RangerPolicyItemAccess> accesses) {
-        boolean read = false;
-        boolean write = false;
-        boolean execute = false;
-
-        for (RangerPolicyItemAccess access : accesses) {
-            if (access == null || Boolean.FALSE.equals(access.getIsAllowed())) {
-                continue;
-            }
-            String type = access.getType();
-            if (type == null) {
-                continue;
-            }
-            switch (type) {
-                case RangerABFSConstants.ACCESS_TYPE_READ:
-                    read = true;
-                    break;
-                case RangerABFSConstants.ACCESS_TYPE_LIST:
-                    read = true;
-                    execute = true;
-                    break;
-                case RangerABFSConstants.ACCESS_TYPE_WRITE:
-                    write = true;
-                    break;
-                case RangerABFSConstants.ACCESS_TYPE_DELETE:
-                    write = true;
-                    execute = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        if (!read && !write && !execute) {
-            return null;
-        }
-
-        RolePermissions perms = new RolePermissions();
-        perms.setReadPermission(read);
-        perms.setWritePermission(write);
-        perms.setExecutePermission(execute);
-        return perms;
-    }
-
-    private List<PathRemoveAccessControlEntry> toRemoveEntries(List<PathAccessControlEntry> previous,
-                                                              List<PathAccessControlEntry> desired) {
-        Set<String> desiredKeys = new LinkedHashSet<>();
-        if (desired != null) {
-            for (PathAccessControlEntry e : desired) {
-                desiredKeys.add(toAclKey(e));
-            }
-        }
-        List<PathRemoveAccessControlEntry> removeEntries = new ArrayList<>();
-        if (previous == null) {
-            return removeEntries;
-        }
-        Set<String> seen = new LinkedHashSet<>();
-        for (PathAccessControlEntry e : previous) {
-            String key = toAclKey(e);
-            // Skip entries that the new desired set will overwrite anyway, and de-dup.
-            if (desiredKeys.contains(key) || !seen.add(key)) {
-                continue;
-            }
-            PathRemoveAccessControlEntry remove = new PathRemoveAccessControlEntry();
-            remove.setDefaultScope(e.isInDefaultScope());
-            remove.setAccessControlType(e.getAccessControlType());
-            remove.setEntityId(e.getEntityId());
-            removeEntries.add(remove);
-        }
-        return removeEntries;
+    private static DataLakeDirectoryClient dirClientFor(DataLakeFileSystemClient fsClient, String path) {
+        // An empty path denotes the container root; the SDK addresses it via "/".
+        return fsClient.getDirectoryClient(StringUtils.isEmpty(path) ? "/" : path);
     }
 
     private Set<ABFSPathRef> getPolicyPathRefs(RangerPolicy policy, Map<String, String> configs) {
@@ -416,6 +567,49 @@ public class ABFSAclSyncService {
             normalized = normalized.substring(0, normalized.length() - 2);
         }
         return normalized;
+    }
+
+    // ------------------------------------------------------------------
+    // Small value types
+    // ------------------------------------------------------------------
+
+    /** Mutable set of granted Ranger access types for a single principal. */
+    private static final class AccessFlags {
+        private boolean read;
+        private boolean list;
+        private boolean write;
+        private boolean delete;
+
+        private boolean any() {
+            return read || list || write || delete;
+        }
+
+        private AccessFlags copy() {
+            AccessFlags c = new AccessFlags();
+            c.read = read;
+            c.list = list;
+            c.write = write;
+            c.delete = delete;
+            return c;
+        }
+
+        private void mergeFrom(AccessFlags other) {
+            read   |= other.read;
+            list   |= other.list;
+            write  |= other.write;
+            delete |= other.delete;
+        }
+    }
+
+    /** A resolved principal together with the access it should be granted. */
+    private static final class DesiredGrant {
+        private final ResolvedIdentity identity;
+        private final AccessFlags flags;
+
+        private DesiredGrant(ResolvedIdentity identity, AccessFlags flags) {
+            this.identity = identity;
+            this.flags    = flags;
+        }
     }
 
     /** Immutable (container, relativePath, recursive) tuple identifying an ACL target. */
