@@ -121,6 +121,15 @@ public class UserGroupSyncConfig {
     private static final String  LGSYNC_LDAP_STARTTLS_ENABLED                                       = "ranger.usersync.ldap.starttls";
     private static final String  UGSYNC_SLEEP_LDAP_FORCE_TIME_IN_MILLIS_BETWEEN_CYCLE_PARAM_ENABLED = "ranger.usersync.ldap.force.sleeptimeinmillisbetweensynccycle.enabled";
     private static final String  DEFAULT_AUTHENTICATION_MECHANISM                                   = "simple";
+
+    private static final String LGSYNC_LDAP_KERBEROS_PRINCIPAL = "ranger.usersync.ldap.kerberos.principal";
+    private static final String LGSYNC_LDAP_KERBEROS_KEYTAB    = "ranger.usersync.ldap.kerberos.keytab";
+    private static final String LGSYNC_LDAP_SASL_QOP           = "ranger.usersync.ldap.sasl.qop";
+    private static final String DEFAULT_LDAP_SASL_QOP          = "auth-conf";
+    private static final String LGSYNC_LDAP_KERBEROS_JAAS_CONFIG = "ranger.usersync.ldap.kerberos.jaas.config";
+    private static final String LGSYNC_LDAP_KERBEROS_JAAS_ENTRY  = "ranger.usersync.ldap.kerberos.jaas.entry";
+    private static final String DEFAULT_LDAP_KERBEROS_JAAS_ENTRY = "ranger-usersync-ldap";
+
     private static final String  DEFAULT_USER_OBJECT_CLASS                                          = "person";
     private static final String  DEFAULT_USER_NAME_ATTRIBUTE                                        = "cn";
     private static final String  DEFAULT_USER_GROUP_NAME_ATTRIBUTE                                  = "memberof,ismemberof";
@@ -543,6 +552,37 @@ public class UserGroupSyncConfig {
         }
 
         return val;
+    }
+
+    public String getLdapKerberosPrincipal() {
+        String val = prop.getProperty(LGSYNC_LDAP_KERBEROS_PRINCIPAL);
+        return val == null ? "" : val.trim();
+    }
+
+    public String getLdapKerberosKeytab() {
+        String val = prop.getProperty(LGSYNC_LDAP_KERBEROS_KEYTAB);
+        return val == null ? "" : val.trim();
+    }
+
+    public String getLdapSaslQop() {
+        String val = prop.getProperty(LGSYNC_LDAP_SASL_QOP);
+        if (val == null || val.trim().isEmpty()) {
+            return DEFAULT_LDAP_SASL_QOP;
+        }
+        return val.trim();
+    }
+
+    public String getLdapKerberosJaasConfigPath() {
+        String val = prop.getProperty(LGSYNC_LDAP_KERBEROS_JAAS_CONFIG);
+        return val == null ? "" : val.trim();
+    }
+
+    public String getLdapKerberosJaasEntryName() {
+        String val = prop.getProperty(LGSYNC_LDAP_KERBEROS_JAAS_ENTRY);
+        if (val == null || val.trim().isEmpty()) {
+            return DEFAULT_LDAP_KERBEROS_JAAS_ENTRY;
+        }
+        return val.trim();
     }
 
     public String getUserSearchBase() throws Throwable {
