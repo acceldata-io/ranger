@@ -51,6 +51,10 @@ import javax.naming.ldap.PagedResultsResponseControl;
 import javax.naming.ldap.Rdn;
 import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
+import javax.security.auth.Subject;
+import javax.security.auth.kerberos.KerberosTicket;
+
+import java.security.PrivilegedExceptionAction;
 
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
@@ -67,8 +71,18 @@ import com.google.common.collect.Table;
 import org.apache.ranger.usergroupsync.UserGroupSource;
 
 public class LdapUserGroupBuilder implements UserGroupSource {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(LdapUserGroupBuilder.class);
+
+	static {
+		// JDK 17 has a parser bug against some AD KDCs (notably Samba) when a KRB-ERROR
+		// is returned during referral resolution. Same-realm binds don't trigger referrals,
+		// but disable them defensively so any misconfiguration surfaces as a clear error
+		// rather than "Empty nameStrings not allowed".
+		if (System.getProperty("sun.security.krb5.disableReferrals") == null) {
+			System.setProperty("sun.security.krb5.disableReferrals", "true");
+		}
+	}
 
 	private UserGroupSyncConfig config = UserGroupSyncConfig.getInstance();
 
@@ -88,6 +102,12 @@ public class LdapUserGroupBuilder implements UserGroupSource {
   private String ldapAuthenticationMechanism;
   private String ldapReferral;
   private String searchBase;
+  private String ldapKerberosPrincipal;
+  private String ldapKerberosKeytab;
+  private String ldapKerberosJaasConfigPath;
+  private String ldapKerberosJaasEntryName;
+  private String ldapSaslQop;
+  private Subject ldapSubject;
 
   private String[] userSearchBase;
 	private String userNameAttribute;
@@ -160,6 +180,7 @@ public class LdapUserGroupBuilder implements UserGroupSource {
 	}
 
 	private void createLdapContext() throws Throwable {
+		ensureLdapSubjectFresh();
 		Properties env = new Properties();
 		env.put(Context.INITIAL_CONTEXT_FACTORY,
 				"com.sun.jndi.ldap.LdapCtxFactory");
@@ -193,7 +214,39 @@ public class LdapUserGroupBuilder implements UserGroupSource {
 				env.put("java.naming.ldap.attributes.binary", otherGroupAttribute);
 			}
 		}
-		ldapContext = new InitialLdapContext(env, null);
+		// For GSSAPI we set auth env BEFORE opening the context so the SASL bind
+		// runs during new InitialLdapContext() — that is what we wrap in Subject.doAs
+		// to force JGSS to use the LDAP-specific (AD) creds instead of any ambient Subject
+		// (e.g. the MIT one set by PolicyMgrUserGroupBuilder's REST login).
+		boolean useGssapi = "GSSAPI".equalsIgnoreCase(ldapAuthenticationMechanism);
+		if (useGssapi) {
+			env.put(Context.SECURITY_PRINCIPAL, ldapBindDn);
+			env.put(Context.SECURITY_CREDENTIALS, ldapBindPassword);
+			env.put(Context.SECURITY_AUTHENTICATION, ldapAuthenticationMechanism);
+			env.put(Context.REFERRAL, ldapReferral);
+			// SASL Quality-of-Protection — configurable via ranger.usersync.ldap.sasl.qop.
+			// Default "auth-conf" gives full confidentiality (matches ldapsearch -Y GSSAPI
+			// and is required by Samba AD, accepted by Windows AD). Operators can override
+			// to "auth-int" (integrity only) or "auth" (bind auth only — sensible with
+			// ldaps:// since TLS already provides privacy).
+			// Note: javax.security.sasl.strength is intentionally not set — it applies to
+			// SASL mechanisms with cipher negotiation (DIGEST-MD5 etc.). For SASL/GSSAPI
+			// the wrap/unwrap cipher comes from the Kerberos session key, which is fixed
+			// by the enctypes in krb5.conf (AES256-CTS-HMAC-SHA1-96 in our runbook).
+			env.put("javax.security.sasl.qop", ldapSaslQop);
+		}
+
+		ldapContext = runAsLdapSubject(new PrivilegedExceptionAction<LdapContext>() {
+			@Override
+			public LdapContext run() throws Exception {
+				try {
+					return new InitialLdapContext(env, null);
+				} catch (javax.naming.NamingException ne) {
+					throw ne;
+				}
+			}
+		});
+
 		if (!ldapUrl.startsWith("ldaps")) {
 			if (config.isStartTlsEnabled()) {
 				tls = (StartTlsResponse) ldapContext.extendedOperation(new StartTlsRequest());
@@ -206,10 +259,134 @@ public class LdapUserGroupBuilder implements UserGroupSource {
 			}
 		}
 
-		ldapContext.addToEnvironment(Context.SECURITY_PRINCIPAL, ldapBindDn);
-		ldapContext.addToEnvironment(Context.SECURITY_CREDENTIALS, ldapBindPassword);
-		ldapContext.addToEnvironment(Context.SECURITY_AUTHENTICATION, ldapAuthenticationMechanism);
-		ldapContext.addToEnvironment(Context.REFERRAL, ldapReferral);
+		if (!useGssapi) {
+			ldapContext.addToEnvironment(Context.SECURITY_PRINCIPAL, ldapBindDn);
+			ldapContext.addToEnvironment(Context.SECURITY_CREDENTIALS, ldapBindPassword);
+			ldapContext.addToEnvironment(Context.SECURITY_AUTHENTICATION, ldapAuthenticationMechanism);
+			ldapContext.addToEnvironment(Context.REFERRAL, ldapReferral);
+		}
+	}
+
+	private <T> T runAsLdapSubject(PrivilegedExceptionAction<T> action) throws Throwable {
+		if (ldapSubject != null) {
+			try {
+				return Subject.doAs(ldapSubject, action);
+			} catch (java.security.PrivilegedActionException pae) {
+				throw pae.getException();
+			}
+		}
+		return action.run();
+	}
+
+	// Refresh threshold: re-login when the TGT has less than this long remaining.
+	// Sync cycles are typically 1h; refreshing at 30m ensures we never bind with
+	// an about-to-expire TGT and never see mid-cycle failures.
+	private static final long TGT_REFRESH_THRESHOLD_MS = 30L * 60L * 1000L;
+
+	private boolean isLdapKerberosConfigured() {
+		return "GSSAPI".equalsIgnoreCase(ldapAuthenticationMechanism)
+				&& ldapKerberosPrincipal != null && !ldapKerberosPrincipal.isEmpty()
+				&& ldapKerberosKeytab    != null && !ldapKerberosKeytab.isEmpty();
+	}
+
+	// Called before each LDAP context creation. If the TGT is missing or close to expiry,
+	// re-login. Any failure here is logged but not rethrown — we hand the (possibly stale)
+	// Subject to the LDAP bind and let it fail naturally with a clearer downstream error.
+	private synchronized void ensureLdapSubjectFresh() {
+		if (!isLdapKerberosConfigured()) {
+			return;
+		}
+		if (ldapSubject != null && !isTgtExpiringSoon(ldapSubject, TGT_REFRESH_THRESHOLD_MS)) {
+			return;
+		}
+		try {
+			Subject refreshed = loginKerberos();
+			ldapSubject = refreshed;
+			LOG.info("Refreshed LDAP Kerberos Subject for principal "
+				+ ldapKerberosPrincipal + " (TGT valid until " + describeTgtExpiry(refreshed) + ")");
+		} catch (Throwable t) {
+			LOG.error("Failed to refresh LDAP Kerberos Subject for principal " + ldapKerberosPrincipal
+				+ " — next LDAP bind may fail", t);
+		}
+	}
+
+	private static boolean isTgtExpiringSoon(Subject subject, long thresholdMs) {
+		long now = System.currentTimeMillis();
+		for (KerberosTicket ticket : subject.getPrivateCredentials(KerberosTicket.class)) {
+			if (ticket.getServer() != null && ticket.getServer().getName().startsWith("krbtgt/")) {
+				long expiry = ticket.getEndTime().getTime();
+				return (expiry - now) < thresholdMs;
+			}
+		}
+		return true; // no TGT in Subject — force a refresh
+	}
+
+	private static String describeTgtExpiry(Subject subject) {
+		for (KerberosTicket ticket : subject.getPrivateCredentials(KerberosTicket.class)) {
+			if (ticket.getServer() != null && ticket.getServer().getName().startsWith("krbtgt/")) {
+				return ticket.getEndTime().toString();
+			}
+		}
+		return "unknown";
+	}
+
+	// Pure-Java Kerberos login for the LDAP GSSAPI bind. Two modes:
+	//   (a) If ranger.usersync.ldap.kerberos.jaas.config points at a JAAS file, use it —
+	//       the operator controls all JAAS options (keyTab / principal / storeKey / etc.).
+	//       Entry name is ranger.usersync.ldap.kerberos.jaas.entry (default: ranger-usersync-ldap).
+	//   (b) Otherwise, build an in-memory JAAS config from the ranger.usersync.ldap.kerberos.*
+	//       properties. Sensible defaults for AD / Samba AD interop.
+	// The follow-on TGS_REQ for ldap/<host>@REALM happens during the SASL bind (wrapped
+	// in Subject.doAs). krb5.conf must set udp_preference_limit=1 for Samba interop.
+	private Subject loginKerberos() throws Exception {
+		Subject subject = new Subject();
+		javax.security.auth.login.Configuration cfg;
+
+		if (ldapKerberosJaasConfigPath != null && !ldapKerberosJaasConfigPath.isEmpty()) {
+			// External JAAS file — operator owns all options; we just load it and let
+			// LoginContext pick the named entry.
+			cfg = javax.security.auth.login.Configuration.getInstance(
+				"JavaLoginConfig",
+				new java.security.URIParameter(new java.io.File(ldapKerberosJaasConfigPath).toURI()));
+			LOG.info("LdapUserGroupBuilder using external JAAS config " + ldapKerberosJaasConfigPath
+				+ " (entry '" + ldapKerberosJaasEntryName + "')");
+		} else {
+			cfg = defaultInMemoryJaasConfig(ldapKerberosPrincipal, ldapKerberosKeytab);
+		}
+
+		javax.security.auth.login.LoginContext lc =
+			new javax.security.auth.login.LoginContext(ldapKerberosJaasEntryName, subject, null, cfg);
+		lc.login();
+		return lc.getSubject();
+	}
+
+	// Default in-memory JAAS configuration used when no external file is provided.
+	// These options are the sensible defaults for a keytab-based initiator against AD /
+	// Samba AD. Override by pointing ranger.usersync.ldap.kerberos.jaas.config at a
+	// file with a matching entry name.
+	private static javax.security.auth.login.Configuration defaultInMemoryJaasConfig(
+			String principal, String keytab) {
+		final java.util.Map<String, String> options = new java.util.HashMap<>();
+		options.put("useKeyTab", "true");
+		options.put("keyTab", keytab);
+		options.put("principal", principal);
+		options.put("storeKey", "false");
+		options.put("doNotPrompt", "true");
+		options.put("isInitiator", "true");
+		options.put("refreshKrb5Config", "true");
+		options.put("useTicketCache", "false");
+
+		return new javax.security.auth.login.Configuration() {
+			@Override
+			public javax.security.auth.login.AppConfigurationEntry[] getAppConfigurationEntry(String name) {
+				return new javax.security.auth.login.AppConfigurationEntry[] {
+					new javax.security.auth.login.AppConfigurationEntry(
+						"com.sun.security.auth.module.Krb5LoginModule",
+						javax.security.auth.login.AppConfigurationEntry.LoginModuleControlFlag.REQUIRED,
+						options)
+				};
+			}
+		};
 	}
 
 	private void setConfig() throws Throwable {
@@ -226,6 +403,24 @@ public class LdapUserGroupBuilder implements UserGroupSource {
 		ldapAuthenticationMechanism = config.getLdapAuthenticationMechanism();
 		ldapReferral = config.getContextReferral();
 		searchBase = config.getSearchBase();
+
+		ldapKerberosPrincipal      = config.getLdapKerberosPrincipal();
+		ldapKerberosKeytab         = config.getLdapKerberosKeytab();
+		ldapKerberosJaasConfigPath = config.getLdapKerberosJaasConfigPath();
+		ldapKerberosJaasEntryName  = config.getLdapKerberosJaasEntryName();
+		ldapSaslQop                = config.getLdapSaslQop();
+		if (isLdapKerberosConfigured()) {
+			// Attempt to acquire once now so startup fails loudly on misconfig.
+			// If it fails here, ensureLdapSubjectFresh() will retry on each sync cycle.
+			try {
+				ldapSubject = loginKerberos();
+				LOG.info("LdapUserGroupBuilder acquired initial LDAP Subject for principal "
+					+ ldapKerberosPrincipal + " (TGT valid until " + describeTgtExpiry(ldapSubject) + ")");
+			} catch (Throwable t) {
+				LOG.error("LdapUserGroupBuilder failed to acquire initial LDAP Subject for principal "
+					+ ldapKerberosPrincipal + " — will retry on next sync cycle", t);
+			}
+		}
 
 		userSearchBase = config.getUserSearchBase().split(";");
 		userSearchScope = config.getUserSearchScope();
