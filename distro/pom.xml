@@ -171,18 +171,6 @@
         </dependency>
         <dependency>
             <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-elasticsearch-plugin</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-elasticsearch-plugin-shim</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-examples-distro</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
@@ -279,18 +267,6 @@
         </dependency>
         <dependency>
             <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-kylin-plugin</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-kylin-plugin-shim</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-metrics</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
@@ -357,18 +333,6 @@
         </dependency>
         <dependency>
             <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-presto-plugin</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-presto-plugin-shim</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-schema-registry-plugin</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
@@ -382,30 +346,6 @@
         <dependency>
             <groupId>org.apache.ranger</groupId>
             <artifactId>ranger-solr-plugin-shim</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-sqoop-plugin</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-sqoop-plugin-shim</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-storm-plugin</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.ranger</groupId>
-            <artifactId>ranger-storm-plugin-shim</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -528,7 +468,6 @@
                                         <descriptor>src/main/assembly/hive-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/hbase-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/knox-agent.xml</descriptor>
-                                        <descriptor>src/main/assembly/storm-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
@@ -543,13 +482,7 @@
                                         <descriptor>src/main/assembly/ranger-tools.xml</descriptor>
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
-                                        <descriptor>src/main/assembly/audit-ingestor.xml</descriptor>
-                                        <descriptor>src/main/assembly/audit-dispatcher.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-presto.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
                                         <descriptor>src/main/assembly/sample-client.xml</descriptor>
                                     </descriptors>
@@ -701,36 +634,6 @@
                                     <skipAssembly>false</skipAssembly>
                                     <descriptors>
                                         <descriptor>src/main/assembly/knox-agent.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <profile>
-            <id>ranger-storm-plugin</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>${assembly.plugin.version}</version>
-                        <configuration>
-                            <finalName>ranger-${project.version}</finalName>
-                            <outputDirectory>../target</outputDirectory>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <phase>package</phase>
-                                <configuration>
-                                    <skipAssembly>false</skipAssembly>
-                                    <descriptors>
-                                        <descriptor>src/main/assembly/storm-agent.xml</descriptor>
                                     </descriptors>
                                 </configuration>
                             </execution>
@@ -914,93 +817,6 @@
             </build>
         </profile>
         <profile>
-            <id>ranger-sqoop-plugin</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>${assembly.plugin.version}</version>
-                        <configuration>
-                            <finalName>ranger-${project.version}</finalName>
-                            <outputDirectory>../target</outputDirectory>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <phase>package</phase>
-                                <configuration>
-                                    <skipAssembly>false</skipAssembly>
-                                    <descriptors>
-                                        <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>ranger-kylin-plugin</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>${assembly.plugin.version}</version>
-                        <configuration>
-                            <finalName>ranger-${project.version}</finalName>
-                            <outputDirectory>../target</outputDirectory>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <phase>package</phase>
-                                <configuration>
-                                    <skipAssembly>false</skipAssembly>
-                                    <descriptors>
-                                        <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>ranger-elasticsearch-plugin</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>${assembly.plugin.version}</version>
-                        <configuration>
-                            <finalName>ranger-${project.version}</finalName>
-                            <outputDirectory>../target</outputDirectory>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <phase>package</phase>
-                                <configuration>
-                                    <skipAssembly>false</skipAssembly>
-                                    <descriptors>
-                                        <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
             <id>ranger-trino-plugin</id>
             <build>
                 <plugins>
@@ -1021,35 +837,6 @@
                                     <skipAssembly>false</skipAssembly>
                                     <descriptors>
                                         <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>ranger-presto-plugin</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>${assembly.plugin.version}</version>
-                        <configuration>
-                            <finalName>ranger-${project.version}</finalName>
-                            <outputDirectory>../target</outputDirectory>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <phase>package</phase>
-                                <configuration>
-                                    <skipAssembly>false</skipAssembly>
-                                    <descriptors>
-                                        <descriptor>src/main/assembly/plugin-presto.xml</descriptor>
                                     </descriptors>
                                 </configuration>
                             </execution>
@@ -1116,7 +903,6 @@
                                         <descriptor>src/main/assembly/hive-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/hbase-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/knox-agent.xml</descriptor>
-                                        <descriptor>src/main/assembly/storm-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
@@ -1131,15 +917,7 @@
                                         <descriptor>src/main/assembly/ranger-tools.xml</descriptor>
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-kylin.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-elasticsearch.xml</descriptor>
-                                        <descriptor>src/main/assembly/audit-ingestor.xml</descriptor>
-                                        <descriptor>src/main/assembly/audit-dispatcher.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-presto.xml</descriptor>
-                                        <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
-                                        <descriptor>src/main/assembly/sample-client.xml</descriptor>
                                     </descriptors>
                                 </configuration>
                             </execution>

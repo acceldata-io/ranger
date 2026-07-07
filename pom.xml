@@ -934,25 +934,20 @@
                 <module>knox-agent</module>
                 <module>pdp</module>
                 <module>plugin-atlas</module>
-                <module>plugin-elasticsearch</module>
                 <module>plugin-kafka</module>
                 <module>plugin-kms</module>
                 <module>plugin-kudu</module>
-                <module>plugin-kylin</module>
                 <module>plugin-nestedstructure</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
                 <module>plugin-ozone</module>
-                <module>plugin-presto</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
-                <module>plugin-sqoop</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
-                <module>ranger-elasticsearch-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-hbase-plugin-shim</module>
                 <module>ranger-hdfs-plugin-shim</module>
@@ -960,19 +955,14 @@
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-knox-plugin-shim</module>
-                <module>ranger-kylin-plugin-shim</module>
                 <module>ranger-metrics</module>
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
-                <module>ranger-presto-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-sqoop-plugin-shim</module>
-                <module>ranger-storm-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
                 <module>security-admin</module>
-                <module>storm-agent</module>
                 <module>tagsync</module>
                 <module>ugsync</module>
                 <module>ugsync-util</module>
@@ -1060,7 +1050,7 @@
                 <module>ranger-util</module>
             </modules>
         </profile>
-        <profile>
+        <!-- <profile>
             <id>ranger-storm-plugin</id>
             <modules>
                 <module>agents-audit</module>
@@ -1070,11 +1060,9 @@
                 <module>common-utils</module>
                 <module>credentialbuilder</module>
                 <module>ranger-plugin-classloader</module>
-                <module>ranger-storm-plugin-shim</module>
                 <module>ranger-util</module>
-                <module>storm-agent</module>
             </modules>
-        </profile>
+	</profile> -->
         <profile>
             <id>ranger-yarn-plugin</id>
             <modules>
@@ -1174,9 +1162,7 @@
                 <module>agents-installer</module>
                 <module>common-utils</module>
                 <module>credentialbuilder</module>
-                <module>plugin-sqoop</module>
                 <module>ranger-plugin-classloader</module>
-                <module>ranger-sqoop-plugin-shim</module>
                 <module>ranger-util</module>
             </modules>
         </profile>
@@ -1189,8 +1175,6 @@
                 <module>agents-installer</module>
                 <module>common-utils</module>
                 <module>credentialbuilder</module>
-                <module>plugin-kylin</module>
-                <module>ranger-kylin-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
             </modules>
@@ -1204,8 +1188,6 @@
                 <module>agents-installer</module>
                 <module>common-utils</module>
                 <module>credentialbuilder</module>
-                <module>plugin-elasticsearch</module>
-                <module>ranger-elasticsearch-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
             </modules>
@@ -1219,9 +1201,7 @@
                 <module>agents-installer</module>
                 <module>common-utils</module>
                 <module>credentialbuilder</module>
-                <module>plugin-presto</module>
                 <module>ranger-plugin-classloader</module>
-                <module>ranger-presto-plugin-shim</module>
                 <module>ranger-util</module>
             </modules>
         </profile>
@@ -1285,25 +1265,20 @@
                 <module>knox-agent</module>
                 <module>pdp</module>
                 <module>plugin-atlas</module>
-                <module>plugin-elasticsearch</module>
                 <module>plugin-kafka</module>
                 <module>plugin-kms</module>
                 <module>plugin-kudu</module>
-                <module>plugin-kylin</module>
                 <module>plugin-nestedstructure</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
                 <module>plugin-ozone</module>
-                <module>plugin-presto</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
-                <module>plugin-sqoop</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
-                <module>ranger-elasticsearch-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-hbase-plugin-shim</module>
                 <module>ranger-hdfs-plugin-shim</module>
@@ -1311,19 +1286,14 @@
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-knox-plugin-shim</module>
-                <module>ranger-kylin-plugin-shim</module>
                 <module>ranger-metrics</module>
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
-                <module>ranger-presto-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-sqoop-plugin-shim</module>
-                <module>ranger-storm-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
                 <module>security-admin</module>
-                <module>storm-agent</module>
                 <module>tagsync</module>
                 <module>ugsync</module>
                 <module>ugsync-util</module>
@@ -1375,23 +1345,18 @@
                 <module>knox-agent</module>
                 <module>pdp</module>
                 <module>plugin-atlas</module>
-                <module>plugin-elasticsearch</module>
                 <module>plugin-kafka</module>
                 <module>plugin-kms</module>
-                <module>plugin-kylin</module>
                 <module>plugin-nifi</module>
                 <module>plugin-nifi-registry</module>
                 <module>plugin-ozone</module>
-                <module>plugin-presto</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
-                <module>plugin-sqoop</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
-                <module>ranger-elasticsearch-plugin-shim</module>
                 <module>ranger-examples</module>
                 <module>ranger-hbase-plugin-shim</module>
                 <module>ranger-hdfs-plugin-shim</module>
@@ -1399,19 +1364,14 @@
                 <module>ranger-kafka-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
                 <module>ranger-knox-plugin-shim</module>
-                <module>ranger-kylin-plugin-shim</module>
                 <module>ranger-metrics</module>
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
-                <module>ranger-presto-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-sqoop-plugin-shim</module>
-                <module>ranger-storm-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
                 <module>security-admin</module>
-                <module>storm-agent</module>
                 <module>tagsync</module>
                 <module>ugsync</module>
                 <module>ugsync-util</module>

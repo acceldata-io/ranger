@@ -225,6 +225,10 @@
             <scope>test</scope>
             <exclusions>
                 <exclusion>
+                    <groupId>com.cloudera.api.swagger</groupId>
+                    <artifactId>cloudera-manager-api-swagger</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
