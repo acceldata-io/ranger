@@ -88,9 +88,24 @@ public class XXRMSServiceResourceDao extends BaseDao<XXRMSServiceResource> {
 
 	@SuppressWarnings("unchecked")
 	private void loadByIdsBatch(List<Long> ids, Map<Long, XXRMSServiceResource> sink) {
+		// eclipselink.read-only: don't register fetched entities in the UnitOfWork.
+		// Without this, EclipseLink runs UnitOfWorkImpl.calculateChanges() on every
+		// query — an O(N²) walk of the persistence context that dominates wall-clock
+		// on cold full-download builds at scale (empirically: batch 3160 iterates
+		// ~1.58M attached entities per query for a 790K-mapping repository).
+		//
+		// Safe here because assembleMappings only reads the entities' getters; it
+		// never mutates or persists them, and the enclosing transaction is
+		// @Transactional(readOnly=true).
+		//
+		// jpa.query.flush-mode COMMIT is a defensive belt-and-suspenders: even if
+		// something else in the same transaction dirtied the context, we do not want
+		// to trigger a pre-query flush for a read-only batch lookup.
 		List<XXRMSServiceResource> rows = getEntityManager()
 				.createNamedQuery("XXRMSServiceResource.findByIds", tClass)
 				.setParameter("ids", ids)
+				.setHint("eclipselink.read-only", "true")
+				.setFlushMode(javax.persistence.FlushModeType.COMMIT)
 				.getResultList();
 		for (XXRMSServiceResource row : rows) {
 			sink.put(row.getId(), row);
