@@ -479,6 +479,18 @@ public class RangerBizUtil {
 	}
 
 	/**
+	 * True when the operator has opted into unauthenticated download access
+	 * (typically {@code ranger.admin.allow.unauthenticated.download.access=true}).
+	 * Used by download endpoints that need to conditionally skip strong
+	 * client-side auth checks (e.g. mutual-TLS cert validation) when the
+	 * operator has already declared the plugin trust boundary elsewhere
+	 * (SPNEGO/Kerberos + per-service allow-list).
+	 */
+	public boolean isUnauthenticatedDownloadAccessAllowed() {
+		return allowUnauthenticatedDownloadAccessInSecureEnvironment;
+	}
+
+	/**
 	 * returns true if user is having required permission on given Hbase
 	 * resource
 	 *
