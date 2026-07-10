@@ -132,9 +132,9 @@
         <hive.storage-api.version>2.7.2</hive.storage-api.version>
         <orc.version>1.5.8</orc.version>
         <aircompressor.version>2.0.3</aircompressor.version>
-        <hbase-shaded-protobuf>4.1.11</hbase-shaded-protobuf>
-        <hbase-shaded-netty>4.1.11</hbase-shaded-netty>
-        <hbase-shaded-miscellaneous>4.1.11</hbase-shaded-miscellaneous>
+        <hbase-shaded-protobuf>4.1.13</hbase-shaded-protobuf>
+        <hbase-shaded-netty>4.1.13</hbase-shaded-netty>
+        <hbase-shaded-miscellaneous>4.1.13</hbase-shaded-miscellaneous>
         <libthrift.version>0.16.0</libthrift.version>
         <htrace-core.version>4.1.0-incubating</htrace-core.version>
         <httpcomponents.httpclient.version>4.5.13</httpcomponents.httpclient.version>
@@ -183,7 +183,7 @@
         <mockito.version>3.0.0</mockito.version>
         <mockito.all.version>1.10.19</mockito.all.version>
         <mysql-connector-java.version>5.1.49</mysql-connector-java.version>
-        <netty-all.version>4.1.132.Final</netty-all.version>
+        <netty-all.version>4.1.133.Final</netty-all.version>
         <noggit.version>0.8</noggit.version>
         <orc.core.version>1.6.7</orc.core.version>
         <owasp-java-html-sanitizer.version>20211018.2</owasp-java-html-sanitizer.version>
@@ -211,7 +211,7 @@
         <sqoop.version>1.4.8.3.2.3.7-2</sqoop.version>
         <storm.version>1.2.4</storm.version>
         <sun-jersey-bundle.version>1.19</sun-jersey-bundle.version>
-        <tomcat.embed.version>9.0.115</tomcat.embed.version>
+        <tomcat.embed.version>9.0.118</tomcat.embed.version>
         <testng.version>7.5.1</testng.version>
         <velocity.version>2.4.1</velocity.version>
         <zookeeper.version>3.5.10.3.2.3.7-2</zookeeper.version>
