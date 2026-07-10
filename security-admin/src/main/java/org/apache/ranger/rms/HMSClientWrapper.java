@@ -396,6 +396,119 @@ public class HMSClientWrapper implements AutoCloseable {
             return null;
         }
 
+        return toTableInfo(table);
+    }
+
+    /**
+     * Batch-fetch a set of tables from a single database in one Thrift round-trip.
+     *
+     * At scale (hundreds of thousands to millions of tables) the per-table
+     * {@code get_table} call is the wall-clock bottleneck of the initial full
+     * sync: 1 RPC + 1 HMS DB query per table. HMS exposes a bulk endpoint that
+     * returns many tables in one shot; using it collapses N Thrift round-trips
+     * to {@code ceil(N / batchSize)}, typically a 100-200x reduction.
+     *
+     * <p>Strategy (mirrors {@link #fetchTable}'s try-newer-fall-back-to-older
+     * drift tolerance):
+     * <ol>
+     *   <li>Try {@code get_table_objects_by_name_req(GetTablesRequest)} (Hive 3.0+)
+     *       with {@code ClientCapabilities([INSERT_ONLY_TABLES])} so Hive 4 ACID
+     *       v2 tables are returned. Unwrap {@code GetTablesResult.getTables()}.</li>
+     *   <li>Fall back to legacy {@code get_table_objects_by_name(String, List<String>)}
+     *       (available on all supported HMS versions but without capability
+     *       negotiation — server-side filters out insert-only ACID tables on
+     *       Hive 4).</li>
+     *   <li>Last-resort fall back to per-table {@link #fetchTable} — slow, but
+     *       correct on any HMS that doesn't expose either bulk API.</li>
+     * </ol>
+     *
+     * <p>Tables that don't exist (or that Hive filters out) are simply absent
+     * from the returned list; the caller is expected to tolerate a shorter
+     * response than the requested name list.
+     */
+    public List<TableInfo> getTables(String dbName, List<String> tableNames) throws Exception {
+        ensureConnected();
+
+        if (tableNames == null || tableNames.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Object> tables = fetchTables(dbName, tableNames);
+        List<TableInfo> results = new ArrayList<>(tables.size());
+        for (Object table : tables) {
+            if (table != null) {
+                try {
+                    results.add(toTableInfo(table));
+                } catch (Exception e) {
+                    LOG.warn("Failed to convert Thrift Table object for db={}: {}", dbName, e.getMessage());
+                }
+            }
+        }
+        return results;
+    }
+
+    /**
+     * Fetch tables via the newest available bulk Thrift signature.
+     * See {@link #getTables(String, List)} javadoc for the fallback strategy.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Object> fetchTables(String dbName, List<String> tableNames) throws Exception {
+        // Strategy 1: get_table_objects_by_name_req(GetTablesRequest) with capabilities.
+        try {
+            Class<?> reqClass  = Class.forName("org.apache.hadoop.hive.metastore.api.GetTablesRequest");
+            Class<?> capsClass = Class.forName("org.apache.hadoop.hive.metastore.api.ClientCapabilities");
+            Class<?> capClass  = Class.forName("org.apache.hadoop.hive.metastore.api.ClientCapability");
+
+            Object insertOnlyCap = capClass.getMethod("valueOf", String.class).invoke(null, "INSERT_ONLY_TABLES");
+            java.util.List<Object> capList = new java.util.ArrayList<>();
+            capList.add(insertOnlyCap);
+            Object caps = capsClass.getConstructor(java.util.List.class).newInstance(capList);
+
+            Object req = reqClass.getConstructor(String.class).newInstance(dbName);
+            reqClass.getMethod("setTblNames", java.util.List.class).invoke(req, tableNames);
+            reqClass.getMethod("setCapabilities", capsClass).invoke(req, caps);
+
+            Method getTablesReq = thriftClient.getClass().getMethod("get_table_objects_by_name_req", reqClass);
+            Object resp = getTablesReq.invoke(thriftClient, req);
+            if (resp == null) {
+                return new ArrayList<>();
+            }
+            Object tables = resp.getClass().getMethod("getTables").invoke(resp);
+            return tables != null ? new ArrayList<>((List<Object>) tables) : new ArrayList<>();
+        } catch (ClassNotFoundException | NoSuchMethodException newerNotAvailable) {
+            LOG.debug("get_table_objects_by_name_req not available; trying legacy bulk API: {}",
+                     newerNotAvailable.toString());
+        }
+
+        // Strategy 2: legacy get_table_objects_by_name(String, List<String>).
+        try {
+            Method legacyBulk = thriftClient.getClass().getMethod(
+                    "get_table_objects_by_name", String.class, java.util.List.class);
+            Object result = legacyBulk.invoke(thriftClient, dbName, tableNames);
+            if (result instanceof List) {
+                return new ArrayList<>((List<Object>) result);
+            }
+        } catch (NoSuchMethodException legacyNotAvailable) {
+            LOG.debug("get_table_objects_by_name not available; falling back to per-table fetch: {}",
+                     legacyNotAvailable.toString());
+        }
+
+        // Strategy 3: worst-case per-table fetch. Correct but slow.
+        List<Object> results = new ArrayList<>(tableNames.size());
+        for (String name : tableNames) {
+            try {
+                Object t = fetchTable(dbName, name);
+                if (t != null) {
+                    results.add(t);
+                }
+            } catch (Exception e) {
+                LOG.warn("Failed to fetch table {}.{} in per-table fallback: {}", dbName, name, e.getMessage());
+            }
+        }
+        return results;
+    }
+
+    private TableInfo toTableInfo(Object table) throws Exception {
         TableInfo info = new TableInfo();
         info.dbName    = (String) table.getClass().getMethod("getDbName").invoke(table);
         info.tableName = (String) table.getClass().getMethod("getTableName").invoke(table);
@@ -405,7 +518,6 @@ public class HMSClientWrapper implements AutoCloseable {
         if (sd != null) {
             info.location = (String) sd.getClass().getMethod("getLocation").invoke(sd);
         }
-
         return info;
     }
 
