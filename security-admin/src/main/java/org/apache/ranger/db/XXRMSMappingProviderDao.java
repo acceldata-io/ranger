@@ -81,7 +81,48 @@ public class XXRMSMappingProviderDao extends BaseDao<XXRMSMappingProvider> {
         }
     }
 
+    /**
+     * Snapshot the deletion-tracking watermark on first delta poll after upgrade.
+     * <p>
+     * Writes only the {@code deletion_tracking_from_version} column and only if
+     * no real value was ever persisted (NULL or 0). This avoids the lost-update
+     * hazard with the RMS poller's concurrent {@code last_known_version} write
+     * which would otherwise occur if we re-saved the whole entity from a stale
+     * read on the read path.
+     *
+     * @return number of rows updated (0 if already initialized).
+     */
+    public int initDeletionTrackingFromVersion(String providerName, long initVersion) {
+        if (providerName == null) {
+            return 0;
+        }
+        return getEntityManager()
+                .createNamedQuery("XXRMSMappingProvider.initDeletionTrackingFromVersion")
+                .setParameter("name", providerName)
+                .setParameter("initVersion", initVersion)
+                .executeUpdate();
+    }
 
-
+    /**
+     * Advance the deletion-tracking watermark forward (monotonic).
+     * <p>
+     * The query uses a {@code WHERE deletion_tracking_from_version < :minVersion}
+     * guard, so concurrent advances and lazy-inits are safe: only updates that
+     * truly move the watermark forward are applied. As above, this writes only
+     * the watermark column to avoid clobbering {@code last_known_version}.
+     *
+     * @return number of rows updated (0 if the watermark is already at or
+     *         beyond {@code minVersion}).
+     */
+    public int advanceDeletionTrackingFromVersion(String providerName, long minVersion) {
+        if (providerName == null) {
+            return 0;
+        }
+        return getEntityManager()
+                .createNamedQuery("XXRMSMappingProvider.advanceDeletionTrackingFromVersion")
+                .setParameter("name", providerName)
+                .setParameter("minVersion", minVersion)
+                .executeUpdate();
+    }
 }
 
