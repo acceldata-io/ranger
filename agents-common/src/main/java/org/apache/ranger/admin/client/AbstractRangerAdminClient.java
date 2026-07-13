@@ -31,6 +31,7 @@ import org.apache.ranger.plugin.util.RangerRoles;
 import org.apache.ranger.plugin.util.RangerUserStore;
 import org.apache.ranger.plugin.util.ServiceGdsInfo;
 import org.apache.ranger.plugin.util.ServicePolicies;
+import org.apache.ranger.plugin.util.ServiceRMSMappings;
 import org.apache.ranger.plugin.util.ServiceTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,6 +138,11 @@ public abstract class AbstractRangerAdminClient implements RangerAdminClient {
 
     public boolean isKerberosEnabled() {
         return isKerberosEnabled(MiscUtil.getUGILoginUser());
+    }
+
+    @Override
+    public ServiceRMSMappings getRMSMappings(String serviceName, Long lastKnownVersion) throws Exception {
+        return null;
     }
 
     public boolean isKerberosEnabled(UserGroupInformation user) {

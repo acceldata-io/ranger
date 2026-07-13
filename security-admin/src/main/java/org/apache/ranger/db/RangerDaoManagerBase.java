@@ -366,6 +366,8 @@ public abstract class RangerDaoManagerBase {
         return new XXRMSResourceMappingDao(this);
     }
 
+    public XXRMSDeletionLogDao getXXRMSDeletionLog() { return new XXRMSDeletionLogDao(this); }
+
     public XXGdsDatasetDao getXXGdsDataset() {
         return new XXGdsDatasetDao(this);
     }
