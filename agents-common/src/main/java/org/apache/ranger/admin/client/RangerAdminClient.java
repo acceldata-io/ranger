@@ -27,6 +27,7 @@ import org.apache.ranger.plugin.util.GrantRevokeRoleRequest;
 import org.apache.ranger.plugin.util.RangerRoles;
 import org.apache.ranger.plugin.util.ServiceGdsInfo;
 import org.apache.ranger.plugin.util.ServicePolicies;
+import org.apache.ranger.plugin.util.ServiceRMSMappings;
 import org.apache.ranger.plugin.util.ServiceTags;
 import org.apache.ranger.plugin.util.RangerUserStore;
 
@@ -66,4 +67,13 @@ public interface RangerAdminClient {
 	RangerUserStore getUserStoreIfUpdated(long lastKnownUserStoreVersion, long lastActivationTimeInMillis) throws Exception;
 
 	ServiceGdsInfo getGdsInfoIfUpdated(long lastKnownVersion, long lastActivationTimeInMillis) throws Exception;
+
+	/**
+	 * Get RMS (Resource Mapping Server) mappings for Hive-to-Storage policy sync.
+	 * @param serviceName The storage service name (HDFS, Ozone, S3)
+	 * @param lastKnownVersion The last known mapping version (for incremental updates)
+	 * @return ServiceRMSMappings containing resource mappings, or null if no updates
+	 * @throws Exception on error
+	 */
+	ServiceRMSMappings getRMSMappings(String serviceName, Long lastKnownVersion) throws Exception;
 }
