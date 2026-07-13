@@ -5414,6 +5414,22 @@ public class ServiceDBStore extends AbstractServiceStore {
 		daoMgr.getXXRMSResourceMapping();
 	}
 
+	/**
+	 * Get service definition name by service type ID (used by RMS).
+	 */
+	public String getServiceDefByIdForRMS(Long serviceDefId) {
+		if (serviceDefId == null) {
+			return null;
+		}
+		try {
+			RangerServiceDef serviceDef = getServiceDef(serviceDefId);
+			return serviceDef != null ? serviceDef.getName() : null;
+		} catch (Exception e) {
+			LOG.error("Failed to get service def by id: " + serviceDefId, e);
+			return null;
+		}
+	}
+
 	public void resetPolicyUpdateLog(int retentionInDays, Integer policyChangeType) {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("==> resetPolicyUpdateLog(" + retentionInDays + ", " + policyChangeType + ")");
