@@ -22,6 +22,8 @@ package org.apache.ranger.admin.client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.UserGroupInformation;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.http.HttpStatus;
 import org.apache.ranger.admin.client.datatype.RESTResponse;
 import org.apache.ranger.audit.provider.MiscUtil;
@@ -41,8 +43,10 @@ import org.apache.ranger.plugin.util.RangerServiceNotFoundException;
 import org.apache.ranger.plugin.util.RangerUserStore;
 import org.apache.ranger.plugin.util.ServiceGdsInfo;
 import org.apache.ranger.plugin.util.ServicePolicies;
+import org.apache.ranger.plugin.util.ServiceRMSMappings;
 import org.apache.ranger.plugin.util.ServiceTags;
 import org.apache.ranger.plugin.util.URLEncoderUtil;
+import org.glassfish.jersey.client.ClientResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1073,5 +1077,70 @@ public class RangerAdminRESTClient extends AbstractRangerAdminClient {
                 }
             }
         }
+    }
+
+    /**
+     * Get RMS mappings from Ranger Admin (RMS endpoint).
+     */
+    @Override
+    public ServiceRMSMappings getRMSMappings(String serviceName, Long lastKnownVersion) throws Exception {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("==> RangerAdminRESTClient.getRMSMappings(" + serviceName + ", " + lastKnownVersion + ")");
+        }
+
+        ServiceRMSMappings ret = null;
+
+        UserGroupInformation user = MiscUtil.getUGILoginUser();
+        boolean isSecureMode = isKerberosEnabled(user);
+
+        Map<String, String> queryParams = new HashMap<String, String>();
+        if (lastKnownVersion != null) {
+            queryParams.put("lastKnownVersion", Long.toString(lastKnownVersion));
+        }
+        queryParams.put(RangerRESTUtils.REST_PARAM_PLUGIN_ID, pluginId);
+
+        String relativeURL = "/service/rms/mappings/download/" + serviceName;
+
+        ClientResponse response = null;
+
+        if (isSecureMode) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Getting RMS mappings as user: " + user);
+            }
+            final String finalRelativeURL = relativeURL;
+            final Map<String, String> finalQueryParams = queryParams;
+            response = MiscUtil.executePrivilegedAction((PrivilegedExceptionAction<ClientResponse>) () -> {
+                try {
+                    return restClient.get(finalRelativeURL, finalQueryParams);
+                } catch (Exception e) {
+                    LOG.error("Failed to get RMS mappings: " + e.getMessage());
+                }
+                return null;
+            });
+        } else {
+            response = restClient.get(relativeURL, queryParams);
+        }
+
+        if (response != null) {
+            int statusCode = response.getStatus();
+            if (statusCode == HttpServletResponse.SC_OK) {
+                ret = JsonUtilsV2.readResponse(response, ServiceRMSMappings.class);
+            } else if (statusCode == HttpServletResponse.SC_NOT_MODIFIED
+                || statusCode == HttpServletResponse.SC_NO_CONTENT) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("No RMS mapping changes since last known version: {} (status={})", lastKnownVersion, statusCode);
+                }
+            } else if (statusCode == HttpServletResponse.SC_NOT_FOUND) {
+                LOG.warn("RMS endpoint not found - RMS may not be enabled on Ranger Admin");
+            } else {
+                LOG.warn("Error getting RMS mappings. statusCode=" + statusCode + ", serviceName=" + serviceName);
+            }
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== RangerAdminRESTClient.getRMSMappings(" + serviceName + ", " + lastKnownVersion + "): " + ret);
+        }
+
+        return ret;
     }
 }
