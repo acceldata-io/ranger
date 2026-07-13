@@ -126,6 +126,10 @@ public abstract class AbstractRangerAdminClient implements RangerAdminClient {
         return null;
     }
 
+    @Override
+    public ServiceRMSMappings getRMSMappings(String serviceName, Long lastKnownVersion) throws Exception {
+        return null;
+    }
 
     public boolean isKerberosEnabled(UserGroupInformation user) {
         final boolean ret;
