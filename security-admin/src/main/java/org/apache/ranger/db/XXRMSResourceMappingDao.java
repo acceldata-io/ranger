@@ -45,6 +45,32 @@ public class XXRMSResourceMappingDao extends BaseDao<XXRMSResourceMapping> {
 		return getEntityManager().createNamedQuery("XXRMSResourceMapping.getResourceMapping").getResultList();
 	}
 
+	@SuppressWarnings("unchecked")
+	public List<Object[]> getResourceMappingsSinceVersion(Long sinceVersion) {
+		return getEntityManager()
+			.createNamedQuery("XXRMSResourceMapping.getResourceMappingsSinceVersion")
+			.setParameter("sinceVersion", sinceVersion)
+			.getResultList();
+	}
+
+	/**
+	 * Return all resource mappings whose low-level resource belongs to the
+	 * given service and whose mapping_version falls in the half-open
+	 * interval (sinceVersion, currentVersion]. The upper bound prevents
+	 * read-skew between the version snapshot and the row scan; the
+	 * service-scoped filter keeps multi-tenant deltas from pulling rows for
+	 * unrelated services.
+	 */
+	@SuppressWarnings("unchecked")
+	public List<Object[]> findChangedMappingsForService(Long serviceId, Long sinceVersion, Long currentVersion) {
+		return getEntityManager()
+			.createNamedQuery("XXRMSResourceMapping.findChangedMappingsForService")
+			.setParameter("serviceId", serviceId)
+			.setParameter("sinceVersion", sinceVersion)
+			.setParameter("currentVersion", currentVersion)
+			.getResultList();
+	}
+
 	public void deleteByHlResourceId(Long resourceId) {
 		getEntityManager()
 			.createNamedQuery("XXRMSResourceMapping.deleteByHlResourceId")
