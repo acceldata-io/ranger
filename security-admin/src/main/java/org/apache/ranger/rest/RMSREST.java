@@ -140,21 +140,7 @@ public class RMSREST {
             // service-level credentials (when configured).
             bizUtil.failUnauthenticatedDownloadIfNotAllowed();
 
-            // Mutual-TLS client-cert validation. In clusters where the plugin
-            // authenticates via SPNEGO/Kerberos instead of a client cert
-            // (common on ODP), this check throws. ServiceREST's
-            // /service/plugins/policies/download/{svc} tolerates the same
-            // failure by catching the exception and falling through to a
-            // SPNEGO+allow-list path; we mirror that behavior here so the
-            // RMS endpoint reaches parity with the policy endpoint. The
-            // operator's declaration in
-            // {@code ranger.admin.allow.unauthenticated.download.access=true}
-            // is the trust-boundary signal: if it's on, the cluster is
-            // relying on the upstream Kerberos servlet filter for auth and
-            // the cert check is redundant. If it's off, we still enforce
-            // strict mutual-TLS.
-            if (!bizUtil.isUnauthenticatedDownloadAccessAllowed()
-                    && !serviceUtil.isValidateHttpsAuthentication(serviceName, request)) {
+            if (!serviceUtil.isValidateHttpsAuthentication(serviceName, request)) {
                 throw restErrorUtil.createRESTException(
                     HttpServletResponse.SC_UNAUTHORIZED,
                     "Unauthorized RMS mapping download for service: " + serviceName,
