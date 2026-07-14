@@ -143,6 +143,46 @@
 			"uiHint": "",
 			"label": "Global",
 			"description": "Global"
+		},
+
+		{
+			"itemId": 8,
+			"name": "storage-type",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"isValidLeaf": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":true },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"{\"singleValue\":true}",
+			"label": "Storage Type",
+			"description": "Storage Type"
+		},
+
+		{
+			"itemId": 9,
+			"name": "storage-url",
+			"type": "string",
+			"level": 20,
+			"parent": "storage-type",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": true,
+			"excludesSupported": false,
+			"isValidLeaf": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerURLResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Storage URL",
+			"description": "URL for Storage Type"
 		}
 	],
 
@@ -214,7 +254,8 @@
 				"write",
 				"repladmin",
 				"serviceadmin",
-				"refresh"
+				"refresh",
+				"rwstorage"
 			]
 		},
 
@@ -258,6 +299,13 @@
 			"name": "refresh",
 			"label": "Refresh",
 			"category": "MANAGE"
+		},
+
+		{
+			"itemId": 15,
+			"name": "rwstorage",
+			"label": "RW Storage",
+			"category": "UPDATE"
 		}
 	],
 
