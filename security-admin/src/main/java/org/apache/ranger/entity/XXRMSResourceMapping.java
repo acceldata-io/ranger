@@ -78,15 +78,6 @@ public class XXRMSResourceMapping implements Serializable {
 		this.llResourceId = llResourceId;
 	}
 
-	@Column(name="mapping_version")
-	protected Long mappingVersion;
-	public Long getMappingVersion() {
-		return mappingVersion;
-	}
-	public void setMappingVersion(Long mappingVersion) {
-		this.mappingVersion = mappingVersion;
-	}
-
 	public int getMyClassType() {
 		return AppConstants.CLASS_TYPE_RMS_RESOURCE_MAPPING;
 	}

@@ -22,7 +22,6 @@ import org.apache.ranger.plugin.util.RangerRoles;
 import org.apache.ranger.plugin.util.RangerUserStore;
 import org.apache.ranger.plugin.util.ServiceGdsInfo;
 import org.apache.ranger.plugin.util.ServicePolicies;
-import org.apache.ranger.plugin.util.ServiceRMSMappings;
 import org.apache.ranger.plugin.util.ServiceTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -281,7 +280,6 @@ public class RangerHttpClient implements RangerAdminClient {
     @Override public ServiceTags    getServiceTagsIfUpdated(long a, long b)      { return null; }
     @Override public RangerUserStore getUserStoreIfUpdated(long a, long b)       { return null; }
     @Override public ServiceGdsInfo getGdsInfoIfUpdated(long a, long b)          { return null; }
-    @Override public ServiceRMSMappings getRMSMappings(String s, Long v)         { return null; }
 
     @Override public RangerRole createRole(RangerRole r)        { throw unsupported("createRole"); }
     @Override public void       dropRole(String s, String t)    { throw unsupported("dropRole"); }
