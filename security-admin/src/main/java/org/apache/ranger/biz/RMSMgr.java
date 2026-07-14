@@ -39,7 +39,6 @@ import org.apache.ranger.entity.XXRMSServiceResource;
 import org.apache.ranger.entity.XXService;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerServiceResource;
-import org.apache.ranger.plugin.store.RangerServiceResourceSignature;
 import org.apache.ranger.plugin.util.ServiceRMSMappings;
 import org.apache.ranger.plugin.util.ServiceRMSMappings.RMSResourceMapping;
 import org.slf4j.Logger;
@@ -61,7 +60,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * RMSMgr handles all Resource Mapping Server (RMS) business logic.
@@ -107,33 +105,6 @@ public class RMSMgr {
      * version field embedded in {@link CachedFullMappings} ensures stale
      * entries can never be served after a mapping write bumps the version.
      */
-    /**
-     * Bulk-full-sync mode. When the RMS poller runs {@code performFullSync}
-     * over a large HMS (hundreds of thousands to millions of tables), the
-     * per-row {@code updateMappingProviderVersion} bump becomes a hot lock:
-     * every {@code createOrUpdateMapping} takes a write lock on the single
-     * {@code x_rms_mapping_provider} row, killing parallelism.
-     *
-     * <p>Bulk mode defers the version bump: the poller calls
-     * {@link #beginBulkFullSync()} before the sync, {@link #endBulkFullSync(boolean)}
-     * after. During the window, new mapping rows are written with a reserved
-     * {@code pendingBulkVersion} but the provider row is NOT touched — plugins
-     * polling mid-sync see the previous version and receive "no change". On
-     * successful completion, the provider is bumped exactly once to the
-     * reserved version, cache is invalidated, plugins see the full new state
-     * on their next poll. If the sync fails (or the JVM crashes), the reserved
-     * version was never persisted to the provider row, so plugins never
-     * observed intermediate state — a restart re-runs the full sync from
-     * scratch and the previous partial writes are re-verified by the
-     * idempotent {@code createOrUpdateMapping} path.
-     *
-     * <p>Value semantics: {@code 0} means "not in bulk mode, bump per row";
-     * a positive value means "in bulk mode, use this as {@code mapping_version}
-     * for any new row, do not bump the provider".
-     */
-    private final AtomicLong pendingBulkVersion = new AtomicLong(0);
-    private final AtomicLong bulkModeWrittenRows = new AtomicLong(0);
-
     private static final int FULL_MAPPINGS_CACHE_CAPACITY = 16;
     private final Map<String, CachedFullMappings> fullMappingsCache =
             Collections.synchronizedMap(new LinkedHashMap<String, CachedFullMappings>(
@@ -407,21 +378,6 @@ public class RMSMgr {
         Map<Long, XXRMSServiceResource> resourcesById = serviceResourceDao.findByIds(resourceIds);
         Map<Long, XXService> servicesById = new HashMap<>();
 
-        // At scale (100K+ mappings) the biggest wall-clock cost in this method
-        // is JSON re-parsing: the naive version parsed each service resource's
-        // {@code service_resource_elements_text} FOUR times per row (twice for
-        // {@code RMSResourceMapping}, twice for {@code RangerServiceResource}
-        // built inside {@code toRangerServiceResource}). At 790K mappings that
-        // is 3.16M parses — the dominant cost on a cold-cache full download.
-        //
-        // Reduce this to a single parse per unique resource, memoized in
-        // {@code parsedElementsById}. The parsed map is then shared by
-        // reference across the mapping and the ServiceResource; JSON output
-        // is unchanged (Jackson serializes the shared map the same way each
-        // reference is encountered).
-        Map<Long, Map<String, RangerPolicy.RangerPolicyResource>> parsedElementsById =
-                new HashMap<>(resourcesById.size() * 2);
-
         for (Object[] row : rows) {
             Long hlResourceId = (Long) row[0];
             Long llResourceId = (Long) row[1];
@@ -445,40 +401,17 @@ public class RMSMgr {
                 ret.setHlServiceName(hlService.getName());
             }
 
-            Map<String, RangerPolicy.RangerPolicyResource> hlElems = parsedElementsById.computeIfAbsent(
-                    hlResourceId, id -> parseResourceElements(hlResource.getServiceResourceElements()));
-            Map<String, RangerPolicy.RangerPolicyResource> llElems = parsedElementsById.computeIfAbsent(
-                    llResourceId, id -> parseResourceElements(llResource.getServiceResourceElements()));
-
             RMSResourceMapping rmsMapping = new RMSResourceMapping();
             rmsMapping.setHlResourceGuid(hlResource.getGuid());
             rmsMapping.setLlResourceGuid(llResource.getGuid());
-            rmsMapping.setHlResourceElements(hlElems);
-            rmsMapping.setLlResourceElements(llElems);
+            rmsMapping.setHlResourceElements(parseResourceElements(hlResource.getServiceResourceElements()));
+            rmsMapping.setLlResourceElements(parseResourceElements(llResource.getServiceResourceElements()));
 
             ret.addResourceMapping(rmsMapping);
 
-            ret.addServiceResource(toRangerServiceResourceWithElems(hlResource, hlService, hlElems));
-            ret.addServiceResource(toRangerServiceResourceWithElems(llResource, xxService, llElems));
+            ret.addServiceResource(toRangerServiceResource(hlResource, hlService));
+            ret.addServiceResource(toRangerServiceResource(llResource, xxService));
         }
-    }
-
-    /**
-     * Build a {@link RangerServiceResource} from a pre-parsed resource-element
-     * map, avoiding the re-parse that {@link #toRangerServiceResource} would
-     * otherwise incur. Used from the hot assembly path where the caller
-     * already computed / memoized the parsed elements for this resource.
-     */
-    private RangerServiceResource toRangerServiceResourceWithElems(XXRMSServiceResource xxResource,
-                                                                    XXService xxService,
-                                                                    Map<String, RangerPolicy.RangerPolicyResource> parsedElements) {
-        RangerServiceResource ret = new RangerServiceResource();
-        ret.setId(xxResource.getId());
-        ret.setGuid(xxResource.getGuid());
-        ret.setServiceName(xxService != null ? xxService.getName() : null);
-        ret.setResourceElements(parsedElements);
-        ret.setResourceSignature(xxResource.getResourceSignature());
-        return ret;
     }
 
     private XXService lookupServiceCached(Long serviceId, Map<Long, XXService> cache) {
@@ -559,30 +492,17 @@ public class RMSMgr {
             hlSvcResource.getId(), llSvcResource.getId());
 
         if (existingMapping == null) {
-            // Genuine new mapping. In bulk-full-sync mode the version is
-            // pre-reserved and the provider row is deliberately NOT bumped
-            // per-row — see pendingBulkVersion javadoc. Outside bulk mode
-            // (event-driven mutations after initial sync), keep the original
-            // per-mapping bump semantics.
-            long bulkVersion = pendingBulkVersion.get();
-            Long newVersion;
-            if (bulkVersion > 0) {
-                newVersion = bulkVersion;
-                bulkModeWrittenRows.incrementAndGet();
-            } else {
-                newVersion = getNextMappingVersion();
-            }
+            // Genuine new mapping: bump the global version and persist it on the row.
+            Long newVersion = getNextMappingVersion();
             XXRMSResourceMapping newMapping = new XXRMSResourceMapping();
             newMapping.setHlResourceId(hlSvcResource.getId());
             newMapping.setLlResourceId(llSvcResource.getId());
             newMapping.setChangeTimestamp(new Date());
             newMapping.setMappingVersion(newVersion);
             resourceMappingDao.create(newMapping);
-            LOG.debug("Created new RMS mapping: hl={}, ll={}, version={}, bulk={}",
-                     hlSvcResource.getGuid(), llSvcResource.getGuid(), newVersion, bulkVersion > 0);
-            if (bulkVersion == 0) {
-                updateMappingProviderVersion();
-            }
+            LOG.info("Created new RMS mapping: hl={}, ll={}, version={}",
+                     hlSvcResource.getGuid(), llSvcResource.getGuid(), newVersion);
+            updateMappingProviderVersion();
         } else {
             // The mapping is keyed by (hl_resource_id, ll_resource_id); both are
             // resolved from stable signatures by findOrCreateServiceResource. If
@@ -903,76 +823,6 @@ public class RMSMgr {
     }
 
     /**
-     * Enter bulk-full-sync mode: reserve the next mapping version for
-     * every row written during the sync window and suppress the per-row
-     * provider bump. Idempotent — a second call while already in bulk mode
-     * returns the previously-reserved version without changing state, which
-     * lets the RMS poller retry safely on transient errors without
-     * double-reserving.
-     *
-     * @return the reserved {@code mapping_version} that new rows will use.
-     */
-    @Transactional
-    public long beginBulkFullSync() {
-        long existing = pendingBulkVersion.get();
-        if (existing > 0) {
-            LOG.info("beginBulkFullSync(): already in bulk mode at pendingVersion={}", existing);
-            return existing;
-        }
-        XXRMSMappingProvider provider = getMappingProvider();
-        long currentVersion = provider != null && provider.getLastKnownVersion() != null
-                ? provider.getLastKnownVersion() : 0L;
-        long reserved = currentVersion + 1;
-        pendingBulkVersion.set(reserved);
-        bulkModeWrittenRows.set(0);
-        LOG.info("beginBulkFullSync(): reserved pendingVersion={} (currentVersion={})",
-                reserved, currentVersion);
-        return reserved;
-    }
-
-    /**
-     * Exit bulk-full-sync mode. On successful completion with at least one
-     * new mapping written, commits the reserved version to the provider row
-     * (single atomic bump) and invalidates the full-mappings cache so
-     * subsequent plugin polls see the new state. On failure, or when nothing
-     * new was written, discards the reservation without touching the
-     * provider row — plugins never observed the intermediate state.
-     *
-     * @param success   whether the sync ran to completion
-     */
-    @Transactional
-    public void endBulkFullSync(boolean success) {
-        long reserved = pendingBulkVersion.getAndSet(0);
-        long written = bulkModeWrittenRows.getAndSet(0);
-        if (reserved == 0) {
-            LOG.debug("endBulkFullSync(success={}): not in bulk mode, ignoring", success);
-            return;
-        }
-        if (!success) {
-            LOG.warn("endBulkFullSync(success=false): discarding reserved pendingVersion={} "
-                    + "(writtenRows={}). Provider version unchanged; next full sync will retry.",
-                    reserved, written);
-            return;
-        }
-        if (written == 0) {
-            LOG.info("endBulkFullSync(success=true): no new rows written at pendingVersion={}, "
-                    + "provider version unchanged", reserved);
-            return;
-        }
-        XXRMSMappingProvider provider = getMappingProvider();
-        if (provider != null) {
-            long committed = provider.getLastKnownVersion() != null
-                    ? provider.getLastKnownVersion() + 1 : 1L;
-            provider.setLastKnownVersion(committed);
-            provider.setChangeTimestamp(new Date());
-            mappingProviderDao.update(provider);
-            invalidateFullMappingsCache();
-            LOG.info("endBulkFullSync(success=true): committed version={} (reservedWas={}, writtenRows={})",
-                    committed, reserved, written);
-        }
-    }
-
-    /**
      * Find or create a service resource.
      */
     private XXRMSServiceResource findOrCreateServiceResource(XXService service,
@@ -1001,13 +851,24 @@ public class RMSMgr {
         return serviceResourceDao.create(newResource);
     }
 
+    /**
+     * Compute a signature for resource elements.
+     */
     private String computeResourceSignature(Map<String, RangerPolicy.RangerPolicyResource> resourceElements) {
         if (MapUtils.isEmpty(resourceElements)) {
             return "";
         }
-        RangerServiceResource sr = new RangerServiceResource();
-        sr.setResourceElements(resourceElements);
-        return new RangerServiceResourceSignature(sr).getSignature();
+        StringBuilder sb = new StringBuilder();
+        resourceElements.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> {
+                sb.append(entry.getKey()).append("=");
+                if (entry.getValue() != null && entry.getValue().getValues() != null) {
+                    sb.append(String.join(",", entry.getValue().getValues()));
+                }
+                sb.append(";");
+            });
+        return sb.toString();
     }
 
     /**

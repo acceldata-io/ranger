@@ -91,25 +91,6 @@ public class RangerRMSPollerService {
     private static final String CONFIG_RANGER_ADMIN_PRINCIPAL = "ranger.admin.kerberos.principal";
     private static final String CONFIG_RANGER_ADMIN_KEYTAB = "ranger.admin.kerberos.keytab";
 
-    // Initial full-sync scale controls (added to support 1M+ table clusters).
-    // Serial + per-table Thrift RPCs cannot finish in a reasonable time at
-    // that scale; these knobs turn the outer database loop into a bounded
-    // thread pool with per-worker HMS clients, and turn the inner per-table
-    // fetch into a single batched Thrift call.
-    private static final String CONFIG_FULLSYNC_PARALLELISM = "ranger.rms.fullsync.parallelism";
-    private static final String CONFIG_FULLSYNC_BATCH_SIZE = "ranger.rms.fullsync.batch.size";
-    private static final String CONFIG_FULLSYNC_INCLUDED_DB_REGEX = "ranger.rms.fullsync.included.databases.regex";
-    private static final String CONFIG_FULLSYNC_EXCLUDED_DB_REGEX = "ranger.rms.fullsync.excluded.databases.regex";
-
-    private static final int DEFAULT_FULLSYNC_PARALLELISM = 8;
-    private static final int DEFAULT_FULLSYNC_BATCH_SIZE = 200;
-    // Skip the two schema-owned databases HMS ships with by default.
-    private static final String DEFAULT_FULLSYNC_EXCLUDED_DB_REGEX = "(?i)^(sys|information_schema)$";
-    // Absolute upper bound on parallelism: too many concurrent connections
-    // are a DoS vector on HMS's Thrift server. If you're running with a
-    // sharded/replicated HMS behind a VIP you can raise this at build time.
-    private static final int MAX_FULLSYNC_PARALLELISM = 32;
-
     private static final String DEFAULT_HIVE_SERVICE_NAME = "hive";
     private static final String DEFAULT_HDFS_SERVICE_NAME = "hdfs";
     private static final String DEFAULT_OZONE_SERVICE_NAME = "ozone";
@@ -156,11 +137,6 @@ public class RangerRMSPollerService {
     private String hmsTruststorePassword;
     private boolean kerberosLoginAttempted = false;
 
-    private int fullSyncParallelism;
-    private int fullSyncBatchSize;
-    private java.util.regex.Pattern fullSyncIncludedDbPattern;
-    private java.util.regex.Pattern fullSyncExcludedDbPattern;
-
     private ScheduledExecutorService scheduler;
     private HMSClientWrapper hmsClient;
     private AtomicLong lastEventId = new AtomicLong(-1);
@@ -190,10 +166,6 @@ public class RangerRMSPollerService {
         LOG.info("  hmsClientKeytab:      {}", hmsClientKeytab);
         LOG.info("  hmsSslEnabled: {}", hmsSslEnabled);
         LOG.info("  hmsTruststorePath: {}", hmsTruststorePath);
-        LOG.info("  fullSyncParallelism: {}", fullSyncParallelism);
-        LOG.info("  fullSyncBatchSize: {}", fullSyncBatchSize);
-        LOG.info("  fullSyncIncludedDbRegex: {}", fullSyncIncludedDbPattern == null ? "(all)" : fullSyncIncludedDbPattern.pattern());
-        LOG.info("  fullSyncExcludedDbRegex: {}", fullSyncExcludedDbPattern == null ? "(none)" : fullSyncExcludedDbPattern.pattern());
 
         if (enabled) {
             restoreState();
@@ -239,15 +211,6 @@ public class RangerRMSPollerService {
         for (String scheme : schemes.split(",")) {
             supportedUriSchemes.add(scheme.trim().toLowerCase());
         }
-
-        int rawParallelism = PropertiesUtil.getIntProperty(CONFIG_FULLSYNC_PARALLELISM, DEFAULT_FULLSYNC_PARALLELISM);
-        fullSyncParallelism = Math.max(1, Math.min(MAX_FULLSYNC_PARALLELISM, rawParallelism));
-        fullSyncBatchSize = Math.max(1, PropertiesUtil.getIntProperty(CONFIG_FULLSYNC_BATCH_SIZE, DEFAULT_FULLSYNC_BATCH_SIZE));
-
-        String includedRegex = PropertiesUtil.getProperty(CONFIG_FULLSYNC_INCLUDED_DB_REGEX, "");
-        fullSyncIncludedDbPattern = StringUtils.isBlank(includedRegex) ? null : java.util.regex.Pattern.compile(includedRegex);
-        String excludedRegex = PropertiesUtil.getProperty(CONFIG_FULLSYNC_EXCLUDED_DB_REGEX, DEFAULT_FULLSYNC_EXCLUDED_DB_REGEX);
-        fullSyncExcludedDbPattern = StringUtils.isBlank(excludedRegex) ? null : java.util.regex.Pattern.compile(excludedRegex);
     }
 
     private void restoreState() {
@@ -442,267 +405,66 @@ public class RangerRMSPollerService {
         }
     }
 
-    /**
-     * Full-sync the HMS catalog into RMS.
-     *
-     * At the scale we target on this branch (up to a few million tables) a
-     * serial per-table walk is not viable — a naive implementation takes
-     * many hours and holds a hot write-lock on
-     * {@code x_rms_mapping_provider.last_known_version} for every row.
-     *
-     * <p>Three coordinated optimizations run here:
-     * <ol>
-     *   <li><b>Bulk mode:</b> {@link RMSMgr#beginBulkFullSync()} reserves the
-     *       next {@code mapping_version} up-front, and every
-     *       {@code createOrUpdateMapping} write during the sync uses that
-     *       reserved version without bumping the provider row. The single
-     *       commit-bump happens in {@link RMSMgr#endBulkFullSync(boolean)}
-     *       at the end. Plugins polling mid-sync see the previous version and
-     *       receive "no change" — they never observe intermediate state.</li>
-     *   <li><b>Parallel database workers:</b> the outer database loop runs
-     *       across N worker threads (see {@code ranger.rms.fullsync.parallelism}).
-     *       Each worker owns its own {@link HMSClientWrapper} because the
-     *       wrapper wraps a single non-thread-safe Thrift transport. Databases
-     *       are independent units of work in HMS, so this fans out cleanly.</li>
-     *   <li><b>Batched table fetch:</b> instead of one {@code get_table} RPC
-     *       per table, each worker groups the table list of a database into
-     *       chunks of {@code ranger.rms.fullsync.batch.size} and calls the
-     *       bulk {@code get_table_objects_by_name_req} Thrift API. Cuts
-     *       round-trips ~100-200×.</li>
-     * </ol>
-     */
-    private FullSyncStats performFullSync(HMSClientWrapper primaryClient) throws Exception {
-        LOG.info("==> performFullSync(parallelism={}, batchSize={})", fullSyncParallelism, fullSyncBatchSize);
+    private FullSyncStats performFullSync(HMSClientWrapper client) throws Exception {
+        LOG.info("==> performFullSync()");
 
         FullSyncStats stats = new FullSyncStats();
 
-        List<String> allDatabases;
         try {
-            allDatabases = primaryClient.getAllDatabases();
+            List<String> databases = client.getAllDatabases();
+            LOG.info("Found {} databases in HMS", databases.size());
+
+            for (String dbName : databases) {
+                try {
+                    if ("sys".equalsIgnoreCase(dbName) || "information_schema".equalsIgnoreCase(dbName)) {
+                        continue;
+                    }
+
+                    DatabaseInfo db = client.getDatabase(dbName);
+                    if (db != null) {
+                        String dbLocation = db.locationUri;
+                        if (StringUtils.isNotBlank(dbLocation) && isSupportedLocation(dbLocation)) {
+                            stats.attempted++;
+                            if (!processCreateDatabase(dbName, dbLocation)) {
+                                stats.failed++;
+                            }
+                        }
+                    }
+
+                    List<String> tables = client.getAllTables(dbName);
+                    LOG.info("Database {}: found {} tables", dbName, tables.size());
+
+                    for (String tableName : tables) {
+                        try {
+                            TableInfo table = client.getTable(dbName, tableName);
+                            stats.attempted++;
+                            if (!processTable(table)) {
+                                stats.failed++;
+                            }
+                        } catch (Exception e) {
+                            stats.failed++;
+                            Throwable rootCause = e;
+                            while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+                                rootCause = rootCause.getCause();
+                            }
+                            LOG.warn("Error processing table {}.{}: [{}] {}",
+                                    dbName, tableName, rootCause.getClass().getName(), rootCause.getMessage(), e);
+                        }
+                    }
+
+                } catch (Exception e) {
+                    LOG.warn("Error processing database {}: [{}] {}",
+                            dbName, e.getClass().getName(), e.getMessage(), e);
+                }
+            }
+
         } catch (Exception e) {
-            LOG.error("Error listing databases from HMS", e);
+            LOG.error("Error during full sync", e);
             throw e;
         }
-        LOG.info("Found {} databases in HMS", allDatabases.size());
 
-        List<String> databases = filterDatabases(allDatabases);
-        LOG.info("After include/exclude filtering: {} databases eligible for sync", databases.size());
-
-        if (databases.isEmpty()) {
-            LOG.info("<== performFullSync() attempted=0, failed=0 (no databases to sync)");
-            return stats;
-        }
-
-        rmsMgr.beginBulkFullSync();
-        boolean bulkSuccess = false;
-        java.util.concurrent.ExecutorService executor = null;
-        List<HMSClientWrapper> workerClients = new java.util.ArrayList<>();
-        java.util.concurrent.atomic.AtomicInteger attempted = new java.util.concurrent.atomic.AtomicInteger(0);
-        java.util.concurrent.atomic.AtomicInteger failed = new java.util.concurrent.atomic.AtomicInteger(0);
-        java.util.concurrent.atomic.AtomicInteger dbCounter = new java.util.concurrent.atomic.AtomicInteger(0);
-
-        try {
-            // We want the primary client to remain usable for post-sync work
-            // (e.g. get_current_notificationEventId). If parallelism == 1 the
-            // primary client is our only worker; if > 1 we spin up fresh
-            // wrappers so we don't share a non-thread-safe Thrift connection.
-            int workers = fullSyncParallelism;
-            executor = java.util.concurrent.Executors.newFixedThreadPool(workers,
-                    new java.util.concurrent.ThreadFactory() {
-                        private final java.util.concurrent.atomic.AtomicInteger seq = new java.util.concurrent.atomic.AtomicInteger();
-                        @Override public Thread newThread(Runnable r) {
-                            Thread t = new Thread(r, "RMS-FullSync-Worker-" + seq.incrementAndGet());
-                            t.setDaemon(true);
-                            return t;
-                        }
-                    });
-
-            for (int i = 0; i < workers; i++) {
-                HMSClientWrapper client = (i == 0) ? primaryClient : createHMSClient();
-                if (client == null) {
-                    LOG.warn("Could not create HMS client for worker #{}, reducing parallelism", i);
-                    continue;
-                }
-                workerClients.add(client);
-            }
-
-            if (workerClients.isEmpty()) {
-                throw new IllegalStateException("No HMS clients available for full sync");
-            }
-
-            int effectiveWorkers = workerClients.size();
-            LOG.info("Full sync starting with {} worker(s), {} database(s), batch size {}",
-                    effectiveWorkers, databases.size(), fullSyncBatchSize);
-
-            // Round-robin each database to a fixed worker so we never share
-            // a wrapper across threads. This is simpler than a work-stealing
-            // queue over a client pool and adequate: within a worker the
-            // per-database cost is dominated by table count, and Hive
-            // clusters have a long-tail distribution across databases.
-            List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
-            for (int i = 0; i < effectiveWorkers; i++) {
-                final int workerIdx = i;
-                final HMSClientWrapper client = workerClients.get(i);
-                futures.add(executor.submit(() -> {
-                    for (int dbIdx = workerIdx; dbIdx < databases.size(); dbIdx += effectiveWorkers) {
-                        String dbName = databases.get(dbIdx);
-                        int done = dbCounter.incrementAndGet();
-                        try {
-                            processDatabaseFully(client, dbName, attempted, failed);
-                        } catch (Exception e) {
-                            Throwable rootCause = unwrap(e);
-                            LOG.warn("Error processing database {}: [{}] {}",
-                                    dbName, rootCause.getClass().getName(), rootCause.getMessage(), e);
-                        }
-                        if (done % 100 == 0 || done == databases.size()) {
-                            LOG.info("Full sync progress: {}/{} databases processed, attempted={}, failed={}",
-                                    done, databases.size(), attempted.get(), failed.get());
-                        }
-                    }
-                }));
-            }
-
-            for (java.util.concurrent.Future<?> f : futures) {
-                try {
-                    f.get();
-                } catch (Exception e) {
-                    LOG.warn("Full sync worker terminated with error: {}", e.getMessage(), e);
-                }
-            }
-
-            stats.attempted = attempted.get();
-            stats.failed = failed.get();
-
-            // Only commit the reserved version if at least one write succeeded.
-            // isFullyFailed() (checked by the caller) additionally guards the
-            // fullSyncCompleted flag; consistent semantics between the two.
-            bulkSuccess = stats.attempted > 0 && !stats.isFullyFailed();
-
-        } finally {
-            rmsMgr.endBulkFullSync(bulkSuccess);
-            if (executor != null) {
-                executor.shutdownNow();
-            }
-            // Close every extra worker client we opened. The primary client
-            // stays open — the poll loop needs it for the notification cursor.
-            for (int i = 1; i < workerClients.size(); i++) {
-                try {
-                    workerClients.get(i).close();
-                } catch (Exception ignored) { /* best-effort cleanup */ }
-            }
-        }
-
-        LOG.info("<== performFullSync() attempted={}, failed={}, bulkCommitted={}",
-                stats.attempted, stats.failed, bulkSuccess);
+        LOG.info("<== performFullSync() attempted={}, failed={}", stats.attempted, stats.failed);
         return stats;
-    }
-
-    /**
-     * Process a single database's worth of work using the given (worker-owned)
-     * HMS client: fetch DB metadata, walk tables in batches, and hand each
-     * batch to {@link #processTable} via {@link RMSMgr#createOrUpdateMapping}.
-     * Failures on individual tables are logged but never propagate — one bad
-     * table shouldn't fail the whole sync.
-     */
-    private void processDatabaseFully(HMSClientWrapper client,
-                                       String dbName,
-                                       java.util.concurrent.atomic.AtomicInteger attempted,
-                                       java.util.concurrent.atomic.AtomicInteger failed) {
-        try {
-            DatabaseInfo db = client.getDatabase(dbName);
-            if (db != null) {
-                String dbLocation = db.locationUri;
-                if (StringUtils.isNotBlank(dbLocation) && isSupportedLocation(dbLocation)) {
-                    attempted.incrementAndGet();
-                    if (!processCreateDatabase(dbName, dbLocation)) {
-                        failed.incrementAndGet();
-                    }
-                }
-            }
-
-            List<String> tables = client.getAllTables(dbName);
-            if (tables == null || tables.isEmpty()) {
-                return;
-            }
-            LOG.info("Database {}: found {} tables", dbName, tables.size());
-
-            for (int start = 0; start < tables.size(); start += fullSyncBatchSize) {
-                int end = Math.min(start + fullSyncBatchSize, tables.size());
-                List<String> batch = tables.subList(start, end);
-
-                List<TableInfo> fetched;
-                try {
-                    fetched = client.getTables(dbName, batch);
-                } catch (Exception e) {
-                    // Bulk fetch failed for the whole batch. Charge each
-                    // requested table to `failed` so isFullyFailed() sees
-                    // the true error rate.
-                    failed.addAndGet(batch.size());
-                    attempted.addAndGet(batch.size());
-                    Throwable rootCause = unwrap(e);
-                    LOG.warn("Error batch-fetching tables from {} (batch {}..{}): [{}] {}",
-                            dbName, start, end, rootCause.getClass().getName(), rootCause.getMessage(), e);
-                    continue;
-                }
-
-                for (TableInfo table : fetched) {
-                    attempted.incrementAndGet();
-                    try {
-                        if (!processTable(table)) {
-                            failed.incrementAndGet();
-                        }
-                    } catch (Exception e) {
-                        failed.incrementAndGet();
-                        Throwable rootCause = unwrap(e);
-                        LOG.warn("Error processing table {}.{}: [{}] {}",
-                                dbName, table != null ? table.tableName : "?",
-                                rootCause.getClass().getName(), rootCause.getMessage(), e);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            Throwable rootCause = unwrap(e);
-            LOG.warn("Error processing database {}: [{}] {}",
-                    dbName, rootCause.getClass().getName(), rootCause.getMessage(), e);
-        }
-    }
-
-    /**
-     * Walk an exception's cause chain to its terminal cause. Used to surface
-     * the real HMS-side error (e.g.Â {@code UnsupportedFileSystemException:
-     * No FileSystem for scheme "ofs"}) on the WARN one-liner instead of the
-     * outer reflection wrapper (usually {@code InvocationTargetException}
-     * with a {@code null} message that hides the actual problem).
-     *
-     * <p>Cycle-guarded: some exception chains reference themselves as their
-     * own cause, so we bail if we see the same throwable twice.
-     */
-    private static Throwable unwrap(Throwable t) {
-        Throwable cur = t;
-        while (cur.getCause() != null && cur.getCause() != cur) {
-            cur = cur.getCause();
-        }
-        return cur;
-    }
-
-    /**
-     * Apply include/exclude regex filters to the raw HMS database list.
-     * Returns a new list preserving input order (workers stripe over it).
-     */
-    private List<String> filterDatabases(List<String> allDatabases) {
-        List<String> result = new java.util.ArrayList<>(allDatabases.size());
-        for (String dbName : allDatabases) {
-            if (fullSyncIncludedDbPattern != null && !fullSyncIncludedDbPattern.matcher(dbName).matches()) {
-                LOG.debug("Skipping {}: does not match include regex", dbName);
-                continue;
-            }
-            if (fullSyncExcludedDbPattern != null && fullSyncExcludedDbPattern.matcher(dbName).matches()) {
-                LOG.debug("Skipping {}: matches exclude regex", dbName);
-                continue;
-            }
-            result.add(dbName);
-        }
-        return result;
     }
 
     private void processNotificationEvent(HMSClientWrapper client, NotificationEventInfo event) {
@@ -1112,34 +874,29 @@ public class RangerRMSPollerService {
             LOG.warn("HMS client connection lost, reconnecting...");
             closeHMSClient();
         }
-        hmsClient = createHMSClient();
-        return hmsClient;
-    }
 
-    /**
-     * Build a fresh, connected HMS client instance without touching the
-     * singleton {@link #hmsClient}. Used by parallel full-sync workers, each
-     * of which owns its own client because {@code HMSClientWrapper} wraps a
-     * single Thrift connection and is NOT thread-safe. Returns {@code null}
-     * if the connection or Kerberos handshake fails.
-     */
-    private HMSClientWrapper createHMSClient() {
         try {
-            HMSClientWrapper client = new HMSClientWrapper();
-            client.setSaslEnabled(hmsSaslEnabled);
-            client.setKerberosServerPrincipal(hmsKerberosPrincipal);
-            client.setSslEnabled(hmsSslEnabled);
-            client.setTruststorePath(hmsTruststorePath);
-            client.setTruststorePassword(hmsTruststorePassword);
+            hmsClient = new HMSClientWrapper();
+            hmsClient.setSaslEnabled(hmsSaslEnabled);
+            hmsClient.setKerberosServerPrincipal(hmsKerberosPrincipal);
+            hmsClient.setSslEnabled(hmsSslEnabled);
+            hmsClient.setTruststorePath(hmsTruststorePath);
+            hmsClient.setTruststorePassword(hmsTruststorePassword);
 
             boolean connected;
             if (hmsSaslEnabled) {
                 ensureKerberosLogin();
-                connected = client.connectAsKerberosUser(hmsUri);
+                connected = hmsClient.connectAsKerberosUser(hmsUri);
             } else {
-                connected = client.connect(hmsUri);
+                connected = hmsClient.connect(hmsUri);
             }
-            return connected ? client : null;
+
+            if (connected) {
+                return hmsClient;
+            } else {
+                hmsClient = null;
+                return null;
+            }
         } catch (Exception e) {
             LOG.error("Failed to create HMS client", e);
             return null;
