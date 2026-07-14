@@ -40,6 +40,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class PatchForHiveServiceDefUpdate_J10064 extends BaseLoader {
@@ -128,9 +129,13 @@ public class PatchForHiveServiceDefUpdate_J10064 extends BaseLoader {
 
 		XXServiceDef xXServiceDefObj = daoMgr.getXXServiceDef().findByName(SERVICEDBSTORE_SERVICEDEFBYNAME_HIVE_NAME);
 		if (xXServiceDefObj == null) {
-			logger.info("Hive service-definition is not present in the DB. Fresh install path — nothing to patch.");
+			logger.info("Hive service-definition is not present in the DB. Fresh install path - nothing to patch.");
 			return;
 		}
+
+		String jsonStrPreUpdate = xXServiceDefObj.getDefOptions();
+		Map<String, String> serviceDefOptionsPreUpdate = jsonUtil.jsonToMap(jsonStrPreUpdate);
+		String valueBeforeUpdate = serviceDefOptionsPreUpdate == null ? null : serviceDefOptionsPreUpdate.get(RangerServiceDef.OPTION_ENABLE_DENY_AND_EXCEPTIONS_IN_POLICIES);
 
 		RangerServiceDef dbHiveServiceDef = svcDBStore.getServiceDefByName(SERVICEDBSTORE_SERVICEDEFBYNAME_HIVE_NAME);
 		if (dbHiveServiceDef == null) {
@@ -148,6 +153,33 @@ public class PatchForHiveServiceDefUpdate_J10064 extends BaseLoader {
 		validator.validate(dbHiveServiceDef, Action.UPDATE);
 		svcStore.updateServiceDef(dbHiveServiceDef);
 		logger.info("Hive service-def updated with storage-type/storage-url resources and rwstorage access type.");
+
+		// Preserve OPTION_ENABLE_DENY_AND_EXCEPTIONS_IN_POLICIES across the update, matching
+		// the pattern used by PatchForHiveServiceDefUpdate_J10017 and _J10030.
+		xXServiceDefObj = daoMgr.getXXServiceDef().findByName(SERVICEDBSTORE_SERVICEDEFBYNAME_HIVE_NAME);
+		if (xXServiceDefObj == null) {
+			return;
+		}
+		String jsonStrPostUpdate = xXServiceDefObj.getDefOptions();
+		Map<String, String> serviceDefOptionsPostUpdate = jsonUtil.jsonToMap(jsonStrPostUpdate);
+		String valueAfterUpdate = serviceDefOptionsPostUpdate == null ? null : serviceDefOptionsPostUpdate.get(RangerServiceDef.OPTION_ENABLE_DENY_AND_EXCEPTIONS_IN_POLICIES);
+
+		if (!StringUtils.equals(valueBeforeUpdate, valueAfterUpdate)) {
+			if (serviceDefOptionsPostUpdate == null) {
+				return;
+			}
+			if (StringUtils.isEmpty(valueBeforeUpdate)) {
+				serviceDefOptionsPostUpdate.remove(RangerServiceDef.OPTION_ENABLE_DENY_AND_EXCEPTIONS_IN_POLICIES);
+			} else {
+				serviceDefOptionsPostUpdate.put(RangerServiceDef.OPTION_ENABLE_DENY_AND_EXCEPTIONS_IN_POLICIES, valueBeforeUpdate);
+			}
+			xXServiceDefObj.setDefOptions(mapToJsonString(serviceDefOptionsPostUpdate));
+			daoMgr.getXXServiceDef().update(xXServiceDefObj);
+		}
+	}
+
+	private String mapToJsonString(Map<String, String> map) throws Exception {
+		return map == null ? null : jsonUtil.readMapToString(map);
 	}
 
 	private boolean mergeStorageResourcesAndAccessType(RangerServiceDef dbServiceDef, RangerServiceDef embeddedServiceDef) {
