@@ -25,6 +25,16 @@ BEGIN
 END
 GO
 
+-- SQL Server does NOT backfill existing rows when ADD COLUMN is nullable with
+-- a DEFAULT — the DEFAULT applies only to future inserts, so pre-existing
+-- mappings would remain NULL. That diverges from MySQL/Oracle/Postgres/SQL
+-- Anywhere (which all populate 0 on add) and breaks the delta query on this
+-- column: `WHERE mapping_version > :sinceVersion` with sinceVersion=-1 matches
+-- 0>-1 elsewhere but not NULL>-1 (unknown) here, so SQL Server plugins would
+-- silently miss their baseline mappings on the first delta.
+UPDATE [dbo].[x_rms_resource_mapping] SET [mapping_version] = 0 WHERE [mapping_version] IS NULL
+GO
+
 IF NOT EXISTS (
   SELECT 1 FROM sys.indexes
   WHERE object_id = OBJECT_ID('x_rms_resource_mapping')
