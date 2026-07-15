@@ -116,6 +116,11 @@ public class RangerRMSPollerService {
     private static final String DEFAULT_S3_SERVICE_NAME = "s3";
     private static final String DEFAULT_SUPPORTED_URI_SCHEMES = "hdfs,o3fs,ofs,s3a";
     private static final long DEFAULT_POLLING_INTERVAL_MS = 30000;
+    // Lower bound on the HMS poll interval. A misconfigured 0 or negative
+    // value would make scheduleAtFixedRate throw IllegalArgumentException
+    // inside init(), failing Spring bean init and preventing Ranger Admin
+    // from starting. Anything below 5s is also unhealthy for HMS load.
+    private static final long MIN_POLLING_INTERVAL_MS = 5000;
 
     private static final String EVENT_CREATE_DATABASE = "CREATE_DATABASE";
     private static final String EVENT_DROP_DATABASE = "DROP_DATABASE";
@@ -167,6 +172,17 @@ public class RangerRMSPollerService {
     private AtomicBoolean isRunning = new AtomicBoolean(false);
     private AtomicBoolean fullSyncCompleted = new AtomicBoolean(false);
 
+    // Consecutive-empty-poll gate for the "range non-empty but response empty" case.
+    // A single empty response is indistinguishable from a real event gap vs. a
+    // transient HMS-VIP lag or metastore restart. Only after MIN_CONSECUTIVE_EMPTY_POLLS
+    // empties at the same watermark do we accept the "real gap" verdict and advance.
+    // Any non-empty response (progress) or a change to the watermark resets the counter.
+    // Only ever touched from the single-threaded poll executor thread, so plain
+    // fields are safe (no cross-thread visibility guarantees needed).
+    private static final int MIN_CONSECUTIVE_EMPTY_POLLS = 3;
+    private int consecutiveEmptyPolls = 0;
+    private long consecutiveEmptyPollsBaseEventId = -1L;
+
     @PostConstruct
     public void init() {
         LOG.info("==> RangerRMSPollerService.init()");
@@ -208,7 +224,12 @@ public class RangerRMSPollerService {
     private void loadConfiguration() {
         enabled = PropertiesUtil.getBooleanProperty(CONFIG_RMS_ENABLED, false);
         hmsUri = PropertiesUtil.getProperty(CONFIG_HMS_URI, "");
-        pollingIntervalMs = PropertiesUtil.getLongProperty(CONFIG_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL_MS);
+        long configuredPollingIntervalMs = PropertiesUtil.getLongProperty(CONFIG_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL_MS);
+        pollingIntervalMs = Math.max(MIN_POLLING_INTERVAL_MS, configuredPollingIntervalMs);
+        if (pollingIntervalMs != configuredPollingIntervalMs) {
+            LOG.warn("Configured {}={}ms is below the {}ms floor; clamped to {}ms",
+                    CONFIG_POLLING_INTERVAL, configuredPollingIntervalMs, MIN_POLLING_INTERVAL_MS, pollingIntervalMs);
+        }
         hiveServiceName = PropertiesUtil.getProperty(CONFIG_HIVE_SERVICE_NAME, DEFAULT_HIVE_SERVICE_NAME);
         hdfsServiceName = PropertiesUtil.getProperty(CONFIG_HDFS_SERVICE_NAME, DEFAULT_HDFS_SERVICE_NAME);
         ozoneServiceName = PropertiesUtil.getProperty(CONFIG_OZONE_SERVICE_NAME, DEFAULT_OZONE_SERVICE_NAME);
@@ -394,19 +415,47 @@ public class RangerRMSPollerService {
                         lastEventId.set(event.eventId);
                     }
                     persistState();
+                    // Progress observed — reset the empty-poll gate.
+                    consecutiveEmptyPolls = 0;
+                    consecutiveEmptyPollsBaseEventId = -1L;
                 } else {
                     // HMS reports a higher current event ID than we've processed
-                    // but returns no events for the requested range. This is
-                    // typically a real gap (events trimmed/expired between two
-                    // polls) rather than a transient error, but we cannot tell
-                    // for sure. Log loudly and skip ahead to currentEventId so
-                    // the poller does not get permanently stuck; subsequent
-                    // events will continue to be processed.
-                    LOG.warn("No notification events returned for range ({}, {}], "
-                            + "advancing watermark to {} (possible event gap on HMS)",
-                            lastEventId.get(), currentEventId, currentEventId);
-                    lastEventId.set(currentEventId);
-                    persistState();
+                    // but returned no events for the requested range. Two very
+                    // different possibilities produce the same signal:
+                    //   (a) real event gap — events between (lastEventId, currentEventId]
+                    //       were trimmed/expired between two polls; safe to advance.
+                    //   (b) transient empty — a lagging HMS secondary behind a
+                    //       load-balancer/VIP returned currentEventId but the
+                    //       matching event rows haven't replicated yet, or an HMS
+                    //       just restarted and the notification log is warming up.
+                    //       Advancing here permanently skips real events.
+                    //
+                    // Since we cannot tell (a) from (b) on a single poll, require
+                    // MIN_CONSECUTIVE_EMPTY_POLLS empties at the same watermark before
+                    // advancing. A subsequent non-empty response (progress) resets
+                    // the counter; a change to lastEventId from any other path also
+                    // resets it because the "base" no longer matches.
+                    long base = lastEventId.get();
+                    if (consecutiveEmptyPollsBaseEventId != base) {
+                        consecutiveEmptyPollsBaseEventId = base;
+                        consecutiveEmptyPolls = 1;
+                    } else {
+                        consecutiveEmptyPolls++;
+                    }
+
+                    if (consecutiveEmptyPolls >= MIN_CONSECUTIVE_EMPTY_POLLS) {
+                        LOG.warn("No notification events for range ({}, {}] across {} consecutive polls, "
+                                + "advancing watermark to {} (accepting event gap on HMS)",
+                                base, currentEventId, consecutiveEmptyPolls, currentEventId);
+                        lastEventId.set(currentEventId);
+                        persistState();
+                        consecutiveEmptyPolls = 0;
+                        consecutiveEmptyPollsBaseEventId = -1L;
+                    } else {
+                        LOG.info("No notification events for range ({}, {}] "
+                                + "(empty poll {}/{} at same watermark; waiting before advancing)",
+                                base, currentEventId, consecutiveEmptyPolls, MIN_CONSECUTIVE_EMPTY_POLLS);
+                    }
                 }
             } catch (Exception e) {
                 // On fetch / processing error keep the watermark unchanged so
@@ -418,8 +467,14 @@ public class RangerRMSPollerService {
             }
             LOG.debug("<== pollHMS() processed events up to eventId={}", lastEventId.get());
 
-        } catch (Exception e) {
-            LOG.error("Error polling HMS for notifications", e);
+        } catch (Throwable t) {
+            // Catching Throwable (not just Exception) because scheduleAtFixedRate
+            // suppresses all future runs if the task escapes with an uncaught
+            // Throwable — an Error from the Thrift/Hive reflection init path
+            // (NoClassDefFoundError, ExceptionInInitializerError) or a sync-time
+            // OutOfMemoryError would otherwise silently kill the poller until
+            // Admin restart, with no further log lines.
+            LOG.error("Error polling HMS for notifications", t);
             closeHMSClient();
         } finally {
             isRunning.set(false);
