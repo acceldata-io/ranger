@@ -159,8 +159,14 @@ public class RangerRMSMappingRefresher implements Runnable {
 
         try {
             downloadMappings();
-        } catch (Exception e) {
-            LOG.error("Error during RMS mapping refresh", e);
+        } catch (Throwable t) {
+            // Catching Throwable (not just Exception) because this Runnable is
+            // handed to scheduleAtFixedRate; per the executor contract, if the
+            // task escapes with an uncaught Throwable all future runs are
+            // suppressed. An Error from a native/JNI path or an OutOfMemoryError
+            // during a large download would otherwise silently stop the
+            // refresher until the plugin JVM restarts.
+            LOG.error("Error during RMS mapping refresh", t);
         } finally {
             isRunning.set(false);
         }
