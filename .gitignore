@@ -10,6 +10,7 @@
 winpkg/target
 .DS_Store
 .idea
+.vscode
 
 #Python
 *.pyc
