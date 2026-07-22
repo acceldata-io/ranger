@@ -16,6 +16,7 @@
       "level": 10,
       "parent": "",
       "mandatory": true,
+      "isValidLeaf": true,
       "lookupSupported": true,
       "recursiveSupported": false,
       "excludesSupported": false,
