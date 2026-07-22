@@ -7588,13 +7588,13 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 	 * scoped to a single bucket.
 	 *
 	 * <p>Only allow-type policy items are translated; deny items and role items
-	 * (Ranger roles ≠ GCP roles) are intentionally skipped.
+	 * (Ranger roles ≠ GCP roles) are intentionally skipped. Ranger deny policy items 
+	 * are not currently supported.
 	 */
 	Map<Role, Set<Identity>> computeGCSIAMBindings(List<RangerPolicy> policies, String bucketName, String projectId) {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("==> ServiceDBStore.computeGCSIAMBindings() bucket={}", bucketName);
 		}
-
 		Map<Role, Set<Identity>> bindings = new HashMap<>();
 
 		if (CollectionUtils.isEmpty(policies)) {
@@ -7608,6 +7608,10 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 
 			if (CollectionUtils.isEmpty(policy.getPolicyItems())) {
 				continue;
+			}
+			if (CollectionUtils.isNotEmpty(policy.getDenyPolicyItems())) {
+				LOG.warn("DENY operation is not supported for GCS IAM policy '{}'; skipping {} deny item(s)",
+				policy.getName(), policy.getDenyPolicyItems().size());
 			}
 
 			for (RangerPolicyItem item : policy.getPolicyItems()) {
