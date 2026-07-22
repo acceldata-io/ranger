@@ -7743,7 +7743,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			if (bucketResource != null && CollectionUtils.isNotEmpty(bucketResource.getValues())) {
 				for (String value : bucketResource.getValues()) {
 					if (StringUtils.isNotBlank(value)) {
-						buckets.add(value.startsWith("*") ? defaultBucket : value);
+						buckets.add("*".equals(value) ? defaultBucket : value);
 					}
 				}
 			}
