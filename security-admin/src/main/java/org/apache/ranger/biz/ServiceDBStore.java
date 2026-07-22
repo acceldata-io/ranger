@@ -7704,10 +7704,9 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		Policy newPolicy = existingPolicy.toBuilder().setBindings(updatedBindings).build();
 		storage.setIamPolicy(bucketName, newPolicy);
 
-		LOG.info("Updated GCS IAM policy for bucket '{}': {} total role bindings ({} Ranger-managed)",
-				bucketName, updatedBindings.size(), rangerBindings.size());
-
 		if (LOG.isDebugEnabled()) {
+			LOG.debug("Updated GCS IAM policy for bucket '{}': {} total role bindings ({} Ranger-managed)",
+				bucketName,updatedBindings.size(),rangerBindings == null ? 0 : rangerBindings.size());
 			LOG.debug("<== ServiceDBStore.applyGCSIAMPolicy() bucket={}", bucketName);
 		}
 	}
