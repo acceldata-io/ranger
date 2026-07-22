@@ -7701,7 +7701,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			return;
 		}
 
-		Policy newPolicy = existingPolicy.toBuilder().setBindings(updatedBindings).build();
+		Policy newPolicy = existingPolicy.toBuilder().setBindings(updatedBindings).setEtag(existingPolicy.getEtag()).build();
 		storage.setIamPolicy(bucketName, newPolicy);
 
 		if (LOG.isDebugEnabled()) {
