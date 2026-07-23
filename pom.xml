@@ -190,7 +190,7 @@
         <paranamer.version>2.3</paranamer.version>
         <presto.version>333</presto.version>
         <trino.version>472.3.3.6.5-SNAPSHOT</trino.version>
-        <poi.version>5.2.2</poi.version>
+        <poi.version>5.4.0</poi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protobuf-java.version>3.25.5</protobuf-java.version>
         <gcp.protobuf-java.version>3.25.5</gcp.protobuf-java.version>
