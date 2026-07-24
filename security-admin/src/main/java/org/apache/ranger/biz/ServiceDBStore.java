@@ -7641,9 +7641,12 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 						}
 					}
 					for (String group : item.getGroups()) {
-						if (StringUtils.isNotBlank(group)) {
-							members.add(Identity.group(group));
+						if (!group.contains("@")) {
+							LOG.warn("Skipping Ranger group '{}' during GCS IAM sync: expected a Google Group email address",group);
+							continue;
 						}
+						members.add(Identity.group(group));
+						LOG.debug("Added GCS IAM binding for group '{}'", group);
 					}
 				}
 			}
