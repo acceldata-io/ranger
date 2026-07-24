@@ -91,45 +91,51 @@ public class GCSResourceMgr {
 
             if (RangerGCSConstants.BUCKET.equals(resource)) {
                 final String bucketPrefix = userInput.replace("*", "");
-                Callable<List<String>> callable = () -> {
-                    List<String> names = new ArrayList<>();
-                    Page<Bucket> buckets = storage.list();
-                    for (Bucket bucket : buckets.iterateAll()) {
-                        if (names.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
-                            break;
+                Callable<List<String>> callable = new Callable<List<String>>() {
+                    @Override
+                    public List<String> call() {
+                        List<String> names = new ArrayList<>();
+                        Page<Bucket> buckets = storage.list();
+                        for (Bucket bucket : buckets.iterateAll()) {
+                            if (names.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
+                                break;
+                            }
+                            String name = bucket.getName();
+                            if (bucketPrefix.isEmpty() || name.startsWith(bucketPrefix)) {
+                                names.add(name);
+                            }
                         }
-                        String name = bucket.getName();
-                        if (bucketPrefix.isEmpty() || name.startsWith(bucketPrefix)) {
-                            names.add(name);
-                        }
+                        return names;
                     }
-                    return names;
                 };
                 resultList = TimedEventUtil.timedTask(callable, timeLookupMs, TimeUnit.MILLISECONDS);
 
-            } else if (RangerGCSConstants.OBJECT.equals(resource) && !selectedBuckets.isEmpty()
-                       && !selectedBuckets.contains("*")) {
+            } 
+            else if (RangerGCSConstants.OBJECT.equals(resource) && !selectedBuckets.isEmpty() && !selectedBuckets.contains("*")) {
                 final String objectPrefix = userInput.replace("*", "");
-                Callable<List<String>> callable = () -> {
-                    List<String> blobs = new ArrayList<>();
-                    for (String bucketName : selectedBuckets) {
-                        if (blobs.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
-                            break;
-                        }
-                        Page<Blob> blobPage = objectPrefix.isEmpty()
+                Callable<List<String>> callable = new Callable<List<String>>() {
+                    @Override
+                    public List<String> call() {
+                        List<String> blobs = new ArrayList<>();
+                        for (String bucketName : selectedBuckets) {
+                            if (blobs.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
+                                break;
+                            }
+                            Page<Blob> blobPage = objectPrefix.isEmpty()
                                 ? storage.list(bucketName,
                                     Storage.BlobListOption.pageSize(RangerGCSConstants.GCS_LIST_MAX_RESULTS))
                                 : storage.list(bucketName,
                                     Storage.BlobListOption.prefix(objectPrefix),
                                     Storage.BlobListOption.pageSize(RangerGCSConstants.GCS_LIST_MAX_RESULTS));
-                        for (Blob blob : blobPage.iterateAll()) {
-                            if (blobs.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
-                                break;
+                            for (Blob blob : blobPage.iterateAll()) {
+                                if (blobs.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
+                                    break;
+                                }
+                                 blobs.add(blob.getName());
                             }
-                            blobs.add(blob.getName());
                         }
+                        return blobs;
                     }
-                    return blobs;
                 };
                 resultList = TimedEventUtil.timedTask(callable, timeLookupMs, TimeUnit.MILLISECONDS);
             }
