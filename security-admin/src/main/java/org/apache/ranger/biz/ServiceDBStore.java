@@ -7460,6 +7460,8 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			LOG.debug("==> ServiceDBStore.cleanupGCSBucketPoliciesForService({})", service.getName());
 		}
 
+		Set<String> affectedBuckets = new HashSet<>();
+
 		try {
 			Map<String, String> configs = service.getConfigs();
 			Storage storage = GCSClientConnectionMgr.getStorageClient(configs);
@@ -7467,19 +7469,19 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			String defaultBucket = configs.get(RangerGCSConstants.BUCKET_NAME);
 
 			// Collect all distinct bucket names referenced by the policies
-			Set<String> affectedBuckets = new HashSet<>();
 			for (RangerPolicy policy : policiesToDelete) {
 				affectedBuckets.addAll(extractAffectedBucketsGCS(policy, defaultBucket));
 			}
 
 			// Remove only members that Ranger contributed; preserve IAM members added outside Ranger.
 			for (String bucketName : affectedBuckets) {
-				Map<Role, Set<Identity>> previousRangerBindings =
-						computeGCSIAMBindings(policiesToDelete, bucketName, projectId);
+				Map<Role, Set<Identity>> previousRangerBindings = computeGCSIAMBindings(policiesToDelete, bucketName, projectId);
 				applyGCSIAMPolicy(storage, bucketName, previousRangerBindings, Collections.emptyMap());
 			}
 		} catch (Exception e) {
-			LOG.error("GCS IAM cleanup failed for service {}: {}", service.getName(), e.getMessage(), e);
+			LOG.warn("GCS IAM cleanup failed for service '{}'; service deletion will continue. "
+                        + "Ranger-managed IAM bindings may remain on buckets: {}",
+                service.getName(), affectedBuckets, e);
 		}
 
 		if (LOG.isDebugEnabled()) {
