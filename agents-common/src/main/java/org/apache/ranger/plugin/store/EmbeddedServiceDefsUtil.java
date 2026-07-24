@@ -130,20 +130,9 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef kuduServiceDef;
 	private RangerServiceDef nestedStructureServiveDef;
 	private RangerServiceDef s3ServiceDef;
-<<<<<<< HEAD
-<<<<<<< HEAD
 	private RangerServiceDef yuniKornServiceDef;
 	private RangerServiceDef polarisServiceDef;
-
-=======
 	private RangerServiceDef gcsServiceDef;
-	private RangerServiceDef yunikornServiceDef;
->>>>>>> 946bef0fe (ODP-6601 Bootstrap GCS as default service on Ranger startup)
-=======
-	private RangerServiceDef yuniKornServiceDef;
-	private RangerServiceDef gcsServiceDef;
->>>>>>> 3b58e83ed (ODP-6601 Revert yuniKornServiceDef and getYuniKornServiceDefId() renaming)
-	private RangerServiceDef tagServiceDef;
 	private RangerServiceDef gdsServiceDef;
 
 	private final RangerAdminConfig config;
@@ -192,19 +181,9 @@ public class EmbeddedServiceDefsUtil {
 			kuduServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KUDU_NAME);
 			nestedStructureServiveDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME);
 			s3ServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_S3_NAME);
-<<<<<<< HEAD
-<<<<<<< HEAD
 			yuniKornServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YUNIKORN_NAME);
 			polarisServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_POLARIS_NAME);
-
-=======
 			gcsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GCS_NAME);
-			yunikornServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YUNIKORN_NAME);
->>>>>>> 946bef0fe (ODP-6601 Bootstrap GCS as default service on Ranger startup)
-=======
-			yuniKornServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YUNIKORN_NAME);
-			gcsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GCS_NAME);
->>>>>>> 3b58e83ed (ODP-6601 Revert yuniKornServiceDef and getYuniKornServiceDefId() renaming)
 			tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
 			gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
 
@@ -299,18 +278,10 @@ public class EmbeddedServiceDefsUtil {
 
 	public long getS3ServiceDefId() { return getId(s3ServiceDef); }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 	public long getYuniKornServiceDefId() { return getId(yuniKornServiceDef); }
 
 	public long getPolarisServiceDefId() { return getId(polarisServiceDef); }
 
-=======
->>>>>>> 946bef0fe (ODP-6601 Bootstrap GCS as default service on Ranger startup)
-=======
-	public long getYuniKornServiceDefId() { return getId(yuniKornServiceDef); }
-
->>>>>>> 3b58e83ed (ODP-6601 Revert yuniKornServiceDef and getYuniKornServiceDefId() renaming)
 	public long getTagServiceDefId() { return getId(tagServiceDef); }
 
 	public long getGdsServiceDefId() { return getId(gdsServiceDef); }
