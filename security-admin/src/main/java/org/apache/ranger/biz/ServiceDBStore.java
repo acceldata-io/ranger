@@ -7487,7 +7487,6 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 		}
 	}
 
-	/**
 	/** Mapping from a Ranger GCS access type to the corresponding predefined GCP IAM role. */
 	private static final Map<String, String> GCS_ACCESS_TO_ROLE_MAP;
 	static {
@@ -7710,7 +7709,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Updated GCS IAM policy for bucket '{}': {} total role bindings ({} Ranger-managed)",
-				bucketName,updatedBindings.size(),rangerBindings == null ? 0 : rangerBindings.size());
+        bucketName, updatedBindings.size(), rangerBindings == null ? 0 : rangerBindings.size());
 			LOG.debug("<== ServiceDBStore.applyGCSIAMPolicy() bucket={}", bucketName);
 		}
 	}

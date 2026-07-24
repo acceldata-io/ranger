@@ -44,11 +44,6 @@ public class RangerServiceGCS extends RangerBaseService {
     }
 
     @Override
-    public void init(RangerServiceDef serviceDef, RangerService service) {
-        super.init(serviceDef, service);
-    }
-
-    @Override
     public Map<String, Object> validateConfig() throws Exception {
         Map<String, Object> ret = new HashMap<>();
         String serviceName = getServiceName();
@@ -102,7 +97,8 @@ public class RangerServiceGCS extends RangerBaseService {
             String lookupUser  = configs.get(RangerGCSConstants.USER_NAME);
             String bucketName  = configs.get(RangerGCSConstants.BUCKET_NAME);
 
-            if (defaultPolicy.getName().contains("all") && StringUtils.isNotBlank(lookupUser)) {
+            // Fetch automatically generated hierarchy policy all - bucket
+            if (defaultPolicy.getName().contains("all - ") && StringUtils.isNotBlank(lookupUser)) {
                 RangerPolicy.RangerPolicyResource bucketResource =
                         defaultPolicy.getResources().get(RangerGCSConstants.BUCKET);
                 if (bucketResource != null) {
