@@ -133,6 +133,7 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef yuniKornServiceDef;
 	private RangerServiceDef polarisServiceDef;
 	private RangerServiceDef gcsServiceDef;
+	private RangerServiceDef tagServiceDef;
 	private RangerServiceDef gdsServiceDef;
 
 	private final RangerAdminConfig config;
