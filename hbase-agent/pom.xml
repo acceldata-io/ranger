@@ -226,6 +226,11 @@
             <version>${io.opentelemetry.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-common</artifactId>
+            <version>${io.opentelemetry.version}</version>
+        </dependency>
+        <dependency>
             <groupId>io.opentelemetry.semconv</groupId>
             <artifactId>opentelemetry-semconv</artifactId>
             <version>${io.opentelemetry-semconv.version}</version>
