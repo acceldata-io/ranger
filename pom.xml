@@ -788,7 +788,7 @@
         <repository>
                 <id>acceldata staging repo</id>
                 <name>acceldata staging repo</name>
-                <url>https://repo1.acceldata.dev/repository/odp-central/</url>
+                <url>https://repo1.acceldata.dev/repository/odp-staging-central/</url>
                 <releases>
             <enabled>true</enabled>
           </releases>
@@ -807,6 +807,41 @@
             <url>https://repo.maven.apache.org/maven2</url>
         </repository>
     </repositories>
+    <!-- Plugins resolve against pluginRepositories, never repositories. Without this
+         block every plugin and its transitive closure comes from Maven Central, which
+         is both rate limited (HTTP 429) from shared CI egress IPs and the dominant
+         share of build traffic. Listing the Acceldata proxies here keeps plugin
+         resolution off Central even when no mirror settings.xml is in play, such as
+         local builds or when the Nexus mirror is disabled. -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>acceldata plugin repo</id>
+            <name>acceldata plugin repo</name>
+            <url>https://repo1.acceldata.dev/repository/odp-central/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>acceldata staging plugin repo</id>
+            <name>acceldata staging plugin repo</name>
+            <url>https://repo1.acceldata.dev/repository/odp-staging-central/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </pluginRepository>
+    </pluginRepositories>
     <dependencyManagement>
         <dependencies>
             <dependency>

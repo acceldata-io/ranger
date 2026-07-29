@@ -67,10 +67,16 @@ BUILD_ONLY=false
 
 MAVEN_VERSION="${MAVEN_VERSION:-3.9.6}"
 
-# Route Maven Central traffic through the Acceldata Nexus proxy group. Building
-# straight off repo.maven.apache.org gets throttled (HTTP 429) from shared CI
-# egress IPs, which surfaces as spurious metadata/artifact resolution failures.
-NEXUS_MAVEN_PUBLIC_URL="${NEXUS_MAVEN_PUBLIC_URL:-https://nexus.xdp.acceldata.tech/repository/maven-public/}"
+# Route Maven Central traffic through the Acceldata Nexus proxy. Building straight
+# off repo.maven.apache.org gets throttled (HTTP 429) from shared CI egress IPs,
+# which surfaces as spurious metadata/artifact resolution failures.
+#
+# This deliberately does NOT read NEXUS_MAVEN_PUBLIC_URL: CI injects that variable
+# cluster-wide pointing at a host that does not reliably serve this build's full
+# dependency set. Override with RANGER_MAVEN_MIRROR_URL instead.
+#
+# Must be https - Maven 3.8.1+ blocks plain-HTTP repositories by default.
+RANGER_MAVEN_MIRROR_URL="${RANGER_MAVEN_MIRROR_URL:-https://repo1.acceldata.dev/repository/odp-staging-central/}"
 MAVEN_SETTINGS="${MAVEN_SETTINGS:-}"
 USE_NEXUS_MIRROR=true
 
@@ -144,8 +150,9 @@ OPTIONS:
                                   mirroring through the Acceldata Nexus proxy group
 
 ENVIRONMENT:
-    NEXUS_MAVEN_PUBLIC_URL        Nexus proxy group used to mirror Maven Central
-                                  (default: ${NEXUS_MAVEN_PUBLIC_URL})
+    RANGER_MAVEN_MIRROR_URL       Nexus proxy used to mirror Maven Central. Must be https,
+                                  since Maven 3.8.1+ blocks plain-HTTP repositories.
+                                  (default: ${RANGER_MAVEN_MIRROR_URL})
     MAVEN_SETTINGS                Path to an existing settings.xml to pass to Maven via -s.
                                   When set, no settings.xml is generated.
     MAVEN_VERSION                 Maven version to install under /tmp (default: ${MAVEN_VERSION})
@@ -276,8 +283,13 @@ ensure_maven() {
 # generating one only when the caller has not supplied their own configuration.
 #
 # The mirror is deliberately scoped to the 'central' repository id rather than '*':
-# the Nexus group proxies Central but not repository.apache.org, so a wildcard mirror
+# the Nexus proxy does not carry repository.apache.org content, so a wildcard mirror
 # would break resolution of Apache snapshot artifacts.
+#
+# The mirror covers plugin resolution too, since mirrors match by repository id and
+# plugins resolve against the implicit 'central'. The root pom additionally declares
+# this proxy under <repositories> and <pluginRepositories> so resolution can fall
+# through to it directly whenever the mirror itself is unhealthy.
 ensure_maven_settings() {
     if [[ "$USE_NEXUS_MIRROR" != "true" ]]; then
         log_warning "Nexus mirror disabled (--no-nexus-mirror); resolving from Maven Central directly"
@@ -312,14 +324,14 @@ ensure_maven_settings() {
     <mirror>
       <id>acceldata-nexus-central</id>
       <name>Acceldata Nexus proxy for Maven Central</name>
-      <url>${NEXUS_MAVEN_PUBLIC_URL}</url>
+      <url>${RANGER_MAVEN_MIRROR_URL}</url>
       <mirrorOf>central</mirrorOf>
     </mirror>
   </mirrors>
 </settings>
 EOF
 
-    log_info "Mirroring Maven Central via ${NEXUS_MAVEN_PUBLIC_URL}"
+    log_info "Mirroring Maven Central via ${RANGER_MAVEN_MIRROR_URL}"
     log_info "Generated Maven settings: ${MAVEN_SETTINGS}"
 }
 
