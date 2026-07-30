@@ -67,6 +67,19 @@ BUILD_ONLY=false
 
 MAVEN_VERSION="${MAVEN_VERSION:-3.9.6}"
 
+# Route Maven Central traffic through the Acceldata Nexus proxy. Building straight
+# off repo.maven.apache.org gets throttled (HTTP 429) from shared CI egress IPs,
+# which surfaces as spurious metadata/artifact resolution failures.
+#
+# This deliberately does NOT read NEXUS_MAVEN_PUBLIC_URL: CI injects that variable
+# cluster-wide pointing at a host that does not reliably serve this build's full
+# dependency set. Override with RANGER_MAVEN_MIRROR_URL instead.
+#
+# Must be https - Maven 3.8.1+ blocks plain-HTTP repositories by default.
+RANGER_MAVEN_MIRROR_URL="${RANGER_MAVEN_MIRROR_URL:-https://repo1.acceldata.dev/repository/odp-staging-central/}"
+MAVEN_SETTINGS="${MAVEN_SETTINGS:-}"
+USE_NEXUS_MIRROR=true
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -133,6 +146,16 @@ OPTIONS:
     --save-dist-tar               Copy the Ranger admin distribution tar to --output-dir
     --output-dir DIR              Output directory for tar artifacts (default: ./artifacts)
     --build-only                  Only run the Maven distro build; skip Docker build and push
+    --no-nexus-mirror             Resolve dependencies straight from Maven Central instead of
+                                  mirroring through the Acceldata Nexus proxy group
+
+ENVIRONMENT:
+    RANGER_MAVEN_MIRROR_URL       Nexus proxy used to mirror Maven Central. Must be https,
+                                  since Maven 3.8.1+ blocks plain-HTTP repositories.
+                                  (default: ${RANGER_MAVEN_MIRROR_URL})
+    MAVEN_SETTINGS                Path to an existing settings.xml to pass to Maven via -s.
+                                  When set, no settings.xml is generated.
+    MAVEN_VERSION                 Maven version to install under /tmp (default: ${MAVEN_VERSION})
 
 QUICK START:
     $0 --build-only
@@ -256,6 +279,62 @@ ensure_maven() {
     export PATH="${MAVEN_HOME}/bin:${PATH}"
 }
 
+# Resolves MAVEN_SETTINGS to a settings.xml that mirrors Maven Central through Nexus,
+# generating one only when the caller has not supplied their own configuration.
+#
+# The mirror is deliberately scoped to the 'central' repository id rather than '*':
+# the Nexus proxy does not carry repository.apache.org content, so a wildcard mirror
+# would break resolution of Apache snapshot artifacts.
+#
+# The mirror covers plugin resolution too, since mirrors match by repository id and
+# plugins resolve against the implicit 'central'. The root pom additionally declares
+# this proxy under <repositories> and <pluginRepositories> so resolution can fall
+# through to it directly whenever the mirror itself is unhealthy.
+ensure_maven_settings() {
+    if [[ "$USE_NEXUS_MIRROR" != "true" ]]; then
+        log_warning "Nexus mirror disabled (--no-nexus-mirror); resolving from Maven Central directly"
+        MAVEN_SETTINGS=""
+        return 0
+    fi
+
+    if [[ -n "${MAVEN_SETTINGS}" ]]; then
+        if [[ ! -f "${MAVEN_SETTINGS}" ]]; then
+            log_error "MAVEN_SETTINGS points to a missing file: ${MAVEN_SETTINGS}"
+            exit 1
+        fi
+        log_info "Using caller-supplied Maven settings: ${MAVEN_SETTINGS}"
+        return 0
+    fi
+
+    if [[ -f "${HOME}/.m2/settings.xml" ]]; then
+        log_warning "Found ${HOME}/.m2/settings.xml; deferring to it and not applying the Nexus mirror"
+        log_warning "Set MAVEN_SETTINGS to override, or add a mirror for the 'central' repository id yourself"
+        return 0
+    fi
+
+    local tmp_dir="${TMPDIR:-/tmp}"
+    MAVEN_SETTINGS="${tmp_dir%/}/ranger-maven-settings-$(id -u).xml"
+
+    cat > "${MAVEN_SETTINGS}" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>acceldata-nexus-central</id>
+      <name>Acceldata Nexus proxy for Maven Central</name>
+      <url>${RANGER_MAVEN_MIRROR_URL}</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>
+EOF
+
+    log_info "Mirroring Maven Central via ${RANGER_MAVEN_MIRROR_URL}"
+    log_info "Generated Maven settings: ${MAVEN_SETTINGS}"
+}
+
 get_default_image_name() {
     echo "ranger"
 }
@@ -331,9 +410,14 @@ build_distribution() {
     log_info "Building Ranger distro with Maven (target artifacts: ranger-admin + ranger-usersync)..."
 
     ensure_maven
+    ensure_maven_settings
 
     local mvn_cmd=(mvn clean -pl distro -am package)
     mvn_cmd+=("-Dpython.command.invoker=python3")
+
+    if [[ -n "${MAVEN_SETTINGS}" ]]; then
+        mvn_cmd+=("-s" "${MAVEN_SETTINGS}")
+    fi
 
     if [[ "$SKIP_UNIT_TESTS" == "true" ]]; then
         mvn_cmd+=("-DskipTests")
@@ -655,6 +739,10 @@ main() {
                 ;;
             --build-only)
                 BUILD_ONLY=true
+                shift
+                ;;
+            --no-nexus-mirror)
+                USE_NEXUS_MIRROR=false
                 shift
                 ;;
             --local-image)
