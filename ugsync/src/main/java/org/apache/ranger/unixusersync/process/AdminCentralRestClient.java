@@ -148,8 +148,19 @@ final class AdminCentralRestClient {
 			IOUtils.copy(stream, buffer);
 		}
 		String body = buffer.toString(StandardCharsets.UTF_8.name());
+		String apiError = AdminCentralResponseParser.apiErrorMessageIfPresent(body);
+		if (apiError != null) {
+			LOG.error("Admin Central API error from {}: errorCode=1, message={}", urlString, apiError);
+		}
 		if (code < 200 || code >= 300) {
+			if (apiError != null) {
+				throw new IOException("HTTP " + code + " from " + urlString + ": " + apiError);
+			}
 			throw new IOException("HTTP " + code + " from " + urlString + ": " + body);
+		}
+		if (apiError != null) {
+			// HTTP 2xx with application-level error envelope (errorCode=1)
+			throw new IOException("Admin Central API error from " + urlString + ": " + apiError);
 		}
 		return body;
 	}
