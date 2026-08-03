@@ -84,11 +84,13 @@ COPY target/${RANGER_USERSYNC_TAR} /home/ranger/dist/ranger-usersync.tar.gz
 
 RUN chmod +x ${RANGER_SCRIPTS}/*.sh ${RANGER_SCRIPTS}/*.py
 
+# awk (not `head -1`) reads the whole tar listing: under `pipefail` an early-exiting
+# reader kills tar with SIGPIPE and the pipeline returns 141.
 RUN set -eux; \
-    RANGER_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-admin.tar.gz | head -1 | cut -d/ -f1)"; \
+    RANGER_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-admin.tar.gz | awk -F/ 'NR==1 { print $1 }')"; \
     tar xvfz /home/ranger/dist/ranger-admin.tar.gz --directory="${RANGER_HOME}"; \
     ln -s "${RANGER_HOME}/${RANGER_TOP_DIR}" "${RANGER_HOME}/admin"; \
-    USERSYNC_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-usersync.tar.gz | head -1 | cut -d/ -f1)"; \
+    USERSYNC_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-usersync.tar.gz | awk -F/ 'NR==1 { print $1 }')"; \
     tar xvfz /home/ranger/dist/ranger-usersync.tar.gz --directory="${RANGER_HOME}"; \
     ln -s "${RANGER_HOME}/${USERSYNC_TOP_DIR}" "${RANGER_HOME}/usersync"; \
     echo "${RANGER_TOP_DIR}" | sed -e 's/^ranger-//' -e 's/-admin$//' > /home/ranger/dist/version; \
