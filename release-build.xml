@@ -27,7 +27,7 @@
  	<target name="version-check">
 		<fail message="Missing ranger-release-version; -Dranger-release-version=&lt;version-number&gt; should be defined" unless="ranger-release-version"/>
     </target>
-	
+
 	<!-- Macro to sign and generate checksums for a given file -->
 	<macrodef name="sign-and-checksum">
 		<attribute name="filename"/>
@@ -72,13 +72,13 @@
 				<exclude name="winpkg/*"/>
 			</tarfileset>
 		</tar>
-		
+
 		<!-- Sign and checksum main release tarball -->
 		<sign-and-checksum filename="${build-release-tar-file}"/>
 		<exec executable="sha256sum" output="${release-dir}/${build-release-tar-file}.sha256" dir="${release-dir}">
 			<arg value="${build-release-tar-file}"/>
 		</exec>
-		
+
 		<!-- Sign and checksum plugin files -->
 		<sign-and-checksum filename="ranger-${ranger-release-version}-atlas-plugin.tar.gz"/>
 		<sign-and-checksum filename="ranger-${ranger-release-version}-elasticsearch-plugin.tar.gz"/>
@@ -95,13 +95,13 @@
 		<sign-and-checksum filename="ranger-${ranger-release-version}-sqoop-plugin.tar.gz"/>
 		<sign-and-checksum filename="ranger-${ranger-release-version}-storm-plugin.tar.gz"/>
 		<sign-and-checksum filename="ranger-${ranger-release-version}-yarn-plugin.tar.gz"/>
-		
+
 		<!-- Sign and checksum admin/service files -->
 		<sign-and-checksum filename="ranger-${ranger-release-version}-admin.tar.gz"/>
 		<sign-and-checksum filename="ranger-${ranger-release-version}-kms.tar.gz"/>
 		<sign-and-checksum filename="ranger-${ranger-release-version}-tagsync.tar.gz"/>
 		<sign-and-checksum filename="ranger-${ranger-release-version}-usersync.tar.gz"/>
-		
+
 		<!-- Sign and checksum utility files -->
 		<sign-and-checksum filename="ranger-${ranger-release-version}-migration-util.tar.gz"/>
 		<sign-and-checksum filename="ranger-${ranger-release-version}-ranger-tools.tar.gz"/>
