@@ -33,7 +33,7 @@
         <avro.version>1.11.5</avro.version>
         <jersey.version>2.47</jersey.version>
         <jettison.version>1.5.4</jettison.version>
-        <schema.registry.version>0.9.1</schema.registry.version>
+        <schema.registry.version>1.0.0.3.4.3.0-1</schema.registry.version>
         <servlet-api.version>3.0.1</servlet-api.version>
         <snakeyaml.version>2.2</snakeyaml.version>
     </properties>
