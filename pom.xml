@@ -182,6 +182,7 @@
         <maven.version.required>3.6.3</maven.version.required>
         <metrics.core.version>3.0.2</metrics.core.version>
         <mockito.version>5.23.0</mockito.version>
+        <native-maven-plugin.version>1.0-alpha-8</native-maven-plugin.version>
         <net.minidev.asm.version>1.0.2</net.minidev.asm.version>
         <netty-all.version>4.1.130.Final</netty-all.version>
         <nimbus-jose-jwt.version>10.0.1</nimbus-jose-jwt.version>
