@@ -18,10 +18,6 @@
  */
 package org.apache.ranger.services.s3.client;
 
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.services.s3.RangerS3Constants;
 import org.slf4j.Logger;
@@ -31,7 +27,14 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 
 public class S3ClientConnectionMgr extends BaseClient {
     private static final Logger LOG = LoggerFactory.getLogger(S3ClientConnectionMgr.class);
@@ -41,7 +44,7 @@ public class S3ClientConnectionMgr extends BaseClient {
     }
 
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) {
-        LOG.debug("==> S3ClientConnectionMgr.connectionTest ServiceName: "+ serviceName + "Configs" + configs );
+        LOG.debug("==> S3ClientConnectionMgr.connectionTest ServiceName: " + serviceName + "Configs" + configs);
         boolean connectivityStatus = false;
         Map<String, Object> responseData = new HashMap<String, Object>();
         // String bucketName = "odp-ranger-test";
@@ -60,7 +63,6 @@ public class S3ClientConnectionMgr extends BaseClient {
             connectivityStatus = true;
             String successMsg = "ConnectionTest Successful - Bucket '" + bucketName + "' is accessible";
             generateResponseDataMap(connectivityStatus, successMsg, successMsg, null, null, responseData);
-
         } catch (NoSuchBucketException e) {
             String failureMsg = "Bucket '" + bucketName + "' does not exist";
             generateResponseDataMap(connectivityStatus, failureMsg, failureMsg, null, null, responseData);
@@ -95,7 +97,7 @@ public class S3ClientConnectionMgr extends BaseClient {
             LOG.error("<== S3ClientConnectionMgr.testConnection Error: " + e.getMessage(),  e);
         } */
 
-        LOG.debug("<== S3ClientConnectionMgr.connectionTest Result : "+ responseData  );
+        LOG.debug("<== S3ClientConnectionMgr.connectionTest Result : " + responseData);
         return responseData;
     }
 

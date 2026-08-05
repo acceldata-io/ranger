@@ -26,7 +26,6 @@ import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class S3BucketPolicy {
-
     @JsonProperty("Version")
     private String version;
     @JsonProperty("Statement")

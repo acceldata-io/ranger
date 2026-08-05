@@ -20,6 +20,9 @@
 package org.apache.ranger.services.s3;
 
 public class RangerS3Constants {
+    private RangerS3Constants() {
+    }
+
     public static final String S3 = "s3";
     public static final String AWS = "AWS";
     public static final String ALLOW = "Allow";
@@ -31,7 +34,7 @@ public class RangerS3Constants {
     public static final String ENDPOINT = "endpoint";
     public static final String REGION = "region";
     public static final String BUCKET_NAME = "bucketname";
-    public static final String PATH	= "path";
+    public static final String PATH = "path";
     public static final String S3_RESOURCE_PATH_ARN = "arn:aws:s3:::";
     public static final String S3_AWS_ACCOUNT_URN = "arn:aws:iam::";
     public static final int MAX_AUTOCOMPLETE_RESULTS = 100;

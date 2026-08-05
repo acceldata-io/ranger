@@ -29,12 +29,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class RangerServiceS3 extends RangerBaseService {
-
     private static final Logger LOG                     = LoggerFactory.getLogger(RangerServiceS3.class);
     public static final String ACCESS_TYPE_LIST_BUCKET = "s3:ListBucket";
+
     public RangerServiceS3() {
         super();
     }
@@ -45,16 +49,16 @@ public class RangerServiceS3 extends RangerBaseService {
     }
 
     @Override
-    public Map<String,Object> validateConfig() throws Exception {
+    public Map<String, Object> validateConfig() throws Exception {
         Map<String, Object> ret = new HashMap<String, Object>();
-        String 	serviceName  	    = getServiceName();
+        String serviceName = getServiceName();
         LOG.info("==> RangerServiceS3.validateConfig Service: (" + serviceName + " )");
 
-        if ( configs != null) {
-            try  {
+        if (configs != null) {
+            try {
                 ret = S3ResourceMgr.connectionTest(serviceName, configs);
             } catch (S3Exception e) {
-                LOG.error("<== RangerServiceS3.validateConfig Error: " + e.getMessage(),e);
+                LOG.error("<== RangerServiceS3.validateConfig Error: " + e.getMessage(), e);
                 throw e;
             }
         }
@@ -67,9 +71,9 @@ public class RangerServiceS3 extends RangerBaseService {
     @Override
     public List<String> lookupResource(ResourceLookupContext context) throws Exception {
         List<String> ret = new ArrayList<String>();
-        String 	serviceName  	   = getServiceName();
-        String	serviceType		   = getServiceType();
-        Map<String,String> configs = getConfigs();
+        String serviceName = getServiceName();
+        String serviceType = getServiceType();
+        Map<String, String> configs = getConfigs();
 
         LOG.info("==> RangerServiceS3.lookupResource Context: (" + context + ")");
 
@@ -78,7 +82,7 @@ public class RangerServiceS3 extends RangerBaseService {
                 long timeLookup = Long.valueOf(this.config.getProperties().getProperty("ranger.resource.lookup.timeout.value.in.ms"));
                 ret  = S3ResourceMgr.getS3Resources(serviceName, configs, context, timeLookup);
             } catch (S3Exception e) {
-                LOG.error( "<==RangerServiceS3.lookupResource Error : " + e);
+                LOG.error("<==RangerServiceS3.lookupResource Error : " + e);
                 throw e;
             }
         }
@@ -97,9 +101,8 @@ public class RangerServiceS3 extends RangerBaseService {
         List<RangerPolicy> ret = super.getDefaultRangerPolicies();
 
         for (RangerPolicy defaultPolicy : ret) {
-
-            String 	lookUpUser = configs.get(RangerS3Constants.USER_NAME);
-            String  bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
+            String lookUpUser = configs.get(RangerS3Constants.USER_NAME);
+            String bucketName = configs.get(RangerS3Constants.BUCKET_NAME);
 
             if (defaultPolicy.getName().contains("all") && StringUtils.isNotBlank(lookUpUser)) {
                 // Update the resource path value to use bucket name instead of wildcard
@@ -139,5 +142,4 @@ public class RangerServiceS3 extends RangerBaseService {
 
         return ret;
     }
-
 }

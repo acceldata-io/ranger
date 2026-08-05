@@ -37,25 +37,27 @@ import java.util.concurrent.TimeUnit;
 
 public class S3ResourceMgr {
     private static final Logger LOG = LoggerFactory.getLogger(S3ResourceMgr.class);
-    public static final String PATH	= "path";
+    public static final String PATH = "path";
+
+    private S3ResourceMgr() {
+    }
 
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) throws Exception {
         Map<String, Object> ret;
-        LOG.debug("==> S3ResourceMgr.connectionTest ServiceName: "+ serviceName );
+        LOG.debug("==> S3ResourceMgr.connectionTest ServiceName: " + serviceName);
 
         try {
             ret = S3ClientConnectionMgr.connectionTest(serviceName, configs);
         } catch (HadoopException e) {
-            LOG.error("<== S3ResourceMgr.testConnection Error: " + e.getMessage(),  e);
+            LOG.error("<== S3ResourceMgr.testConnection Error: " + e.getMessage(), e);
             throw e;
         }
 
-        LOG.debug("<== S3ResourceMgr.connectionTest Result : "+ ret  );
+        LOG.debug("<== S3ResourceMgr.connectionTest Result : " + ret);
         return ret;
     }
 
     public static List<String> getS3Resources(String serviceName, Map<String, String> configs, ResourceLookupContext context, long timeLookup) throws Exception {
-
         List<String> resultList = new ArrayList<>();
         String userInput = context.getUserInput();
         String resource = context.getResourceName();
@@ -64,7 +66,7 @@ public class S3ResourceMgr {
 
         LOG.debug("==> S3ResourceMgr.getS3Resources ServiceName:{}", serviceName);
 
-        if (resourceMap != null && resource != null && resourceMap.get(PATH) !=null && !resourceMap.get(PATH).isEmpty()) {
+        if (resourceMap != null && resource != null && resourceMap.get(PATH) != null && !resourceMap.get(PATH).isEmpty()) {
             pathList.addAll(resourceMap.get(PATH));
         }
 
@@ -78,10 +80,8 @@ public class S3ResourceMgr {
 
                 if (s3 != null) {
                     final Callable<List<String>> callableObj = new Callable<List<String>>() {
-
                         @Override
                         public List<String> call() throws Exception {
-
                             List<String> resultListInner = new ArrayList<>();
                             if (userInput.contains("/")) {
                                 String bucketName = userInput.substring(0, userInput.indexOf("/"));
@@ -89,7 +89,7 @@ public class S3ResourceMgr {
                                 ListObjectsV2Request.Builder listObjectsRequestBuilder = ListObjectsV2Request.builder()
                                         .bucket(bucketName)
                                         .maxKeys(RangerS3Constants.S3_LIST_OBJECTS_MAX_KEYS);
-                                if(!path.isEmpty()) {
+                                if (!path.isEmpty()) {
                                     listObjectsRequestBuilder.prefix(path.replace("*", ""));  // Replace '*' to use only the prefix part
                                 }
                                 ListObjectsV2Request listObjectsRequest = listObjectsRequestBuilder.build();
@@ -100,7 +100,7 @@ public class S3ResourceMgr {
                                         // Check if we've reached the limit before adding more results
                                         if (resultListInner.size() >= RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS) {
                                             if (LOG.isDebugEnabled()) {
-                                                LOG.debug("Reached maximum autocomplete results limit of {}, stopping pagination", 
+                                                LOG.debug("Reached maximum autocomplete results limit of {}, stopping pagination",
                                                         RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS);
                                             }
                                             break;
@@ -108,20 +108,20 @@ public class S3ResourceMgr {
                                         String key = s3Object.key();
                                         String prefixPath = path.replace("*", "");
                                         if (key.startsWith(prefixPath) && !pathList.contains(prefixPath)) {
-                                            resultListInner.add(bucketName+"/"+key);
+                                            resultListInner.add(bucketName + "/" + key);
                                         }
                                     }
 
-                                // Short-circuit if we've reached the maximum number of results
-                                if (resultListInner.size() >= RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS) {
-                                    break;
-                                }
+                                    // Short-circuit if we've reached the maximum number of results
+                                    if (resultListInner.size() >= RangerS3Constants.MAX_AUTOCOMPLETE_RESULTS) {
+                                        break;
+                                    }
 
-                                // If the response is truncated, set the next continuation token for the next request
-                                String nextContinuationToken = listObjectsResponse.nextContinuationToken();
-                                if (nextContinuationToken != null) {
-                                    listObjectsRequest = listObjectsRequest.toBuilder().continuationToken(nextContinuationToken).build();
-                                }
+                                    // If the response is truncated, set the next continuation token for the next request
+                                    String nextContinuationToken = listObjectsResponse.nextContinuationToken();
+                                    if (nextContinuationToken != null) {
+                                        listObjectsRequest = listObjectsRequest.toBuilder().continuationToken(nextContinuationToken).build();
+                                    }
                                 } while (listObjectsResponse.isTruncated());
                             }
                             return resultListInner;
@@ -134,7 +134,6 @@ public class S3ResourceMgr {
                         }
                     }
                 }
-
             } catch (S3Exception e) {
                 LOG.error("Failed to list objects for bucket: {}", e.getMessage());
             }
@@ -143,8 +142,7 @@ public class S3ResourceMgr {
                 throw e;
             }
         }
-            LOG.info("<== S3ResourceMgr.getS3Resources()");
-            return resultList;
-        }
-
+        LOG.info("<== S3ResourceMgr.getS3Resources()");
+        return resultList;
+    }
 }
