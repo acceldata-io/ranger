@@ -7749,8 +7749,19 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			RangerPolicyResource bucketResource = policy.getResources().get(RangerGCSConstants.BUCKET);
 			if (bucketResource != null && CollectionUtils.isNotEmpty(bucketResource.getValues())) {
 				for (String value : bucketResource.getValues()) {
-					if (StringUtils.isNotBlank(value)) {
-						buckets.add("*".equals(value) ? defaultBucket : value);
+					if (StringUtils.isBlank(value)) {
+						continue;
+					}
+					if ("*".equals(value)) {
+						if (StringUtils.isNotBlank(defaultBucket)) {
+							buckets.add(defaultBucket);
+						}
+						else {
+							LOG.warn("GCS policy '{}' uses wildcard bucket but service default bucket is not configured; skipping wildcard expansion", policy.getName());
+						}
+					}
+					else {
+						buckets.add(value);
 					}
 				}
 			}
