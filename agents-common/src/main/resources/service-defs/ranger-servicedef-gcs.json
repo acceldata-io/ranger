@@ -6,7 +6,7 @@
   "label": "GCS Repository",
   "description": "Google Cloud Storage Repository",
   "guid": "",
-  "options": { "enableDenyAndExceptionsInPolicies": "true" },
+  "options": { "enableDenyAndExceptionsInPolicies": "false" },
   "resources":
   [
     {
