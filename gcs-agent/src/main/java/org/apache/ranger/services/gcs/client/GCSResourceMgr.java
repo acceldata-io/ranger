@@ -95,15 +95,15 @@ public class GCSResourceMgr {
                     @Override
                     public List<String> call() {
                         List<String> names = new ArrayList<>();
-                        Page<Bucket> buckets = storage.list();
+                        Page<Bucket> buckets = bucketPrefix.isEmpty()
+                                ? storage.list(Storage.BucketListOption.pageSize(RangerGCSConstants.GCS_LIST_MAX_RESULTS))
+                                : storage.list(Storage.BucketListOption.prefix(bucketPrefix),
+                                Storage.BucketListOption.pageSize(RangerGCSConstants.GCS_LIST_MAX_RESULTS));
                         for (Bucket bucket : buckets.iterateAll()) {
                             if (names.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
                                 break;
                             }
-                            String name = bucket.getName();
-                            if (bucketPrefix.isEmpty() || name.startsWith(bucketPrefix)) {
-                                names.add(name);
-                            }
+                            names.add(bucket.getName());
                         }
                         return names;
                     }
