@@ -43,6 +43,13 @@ JAVA_OPTS = os.getenv("JAVA_OPTS")
 if JAVA_OPTS is None:
 	JAVA_OPTS = ""
 
+# Spring falls back to downloading an XML schema when its schemaLocation is not mapped on the
+# classpath. On a cluster without internet access that download blocks for the OS level connect
+# timeout on every context load, which is long enough to trip the Ranger start timeout, so cap it.
+for xmlFetchTimeoutOpt in ("-Dsun.net.client.defaultConnectTimeout=10000", "-Dsun.net.client.defaultReadTimeout=10000"):
+	if xmlFetchTimeoutOpt.split("=")[0] not in JAVA_OPTS:
+		JAVA_OPTS = JAVA_OPTS + " " + xmlFetchTimeoutOpt
+
 RANGER_ADMIN_HOME = os.getenv("RANGER_ADMIN_HOME")
 if RANGER_ADMIN_HOME is None:
 	RANGER_ADMIN_HOME = os.getcwd()
