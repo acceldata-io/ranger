@@ -70,6 +70,20 @@ public class RangerJSONAuditWriterTest {
     }
 
     @Test
+    public void checkCreateWriterWhenReuseFlagSetWithoutFileSystem() throws Exception {
+        RangerJSONAuditWriter jsonAuditWriter = spy(new RangerJSONAuditWriter());
+
+        setup();
+        jsonAuditWriter.init(props, "test", "localfs", auditConfigs);
+        jsonAuditWriter.reUseLastLogFile = true;
+        jsonAuditWriter.fileSystem = null;
+        jsonAuditWriter.auditPath = null;
+
+        assertFalse(jsonAuditWriter.logJSON(Collections.singleton("This event will not be logged!")));
+        assertFalse(jsonAuditWriter.reUseLastLogFile);
+    }
+
+    @Test
     public void checkAppendtoFileWhenExceptionsOccur() throws Exception {
         RangerJSONAuditWriter jsonAuditWriter = spy(new RangerJSONAuditWriter());
 
