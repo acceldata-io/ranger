@@ -233,6 +233,7 @@
                     <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
                     <include>org.apache.commons:commons-lang3</include>
                     <include>org.apache.commons:commons-configuration2</include>
+                    <include>commons-io:commons-io</include>
                     <include>commons-lang:commons-lang</include>
                     <include>commons-collections:commons-collections</include>
                     <include>commons-logging:commons-logging</include>
