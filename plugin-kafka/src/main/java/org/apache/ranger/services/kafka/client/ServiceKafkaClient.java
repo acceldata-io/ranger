@@ -28,9 +28,11 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.ranger.plugin.client.BaseClient;
@@ -108,6 +110,7 @@ public class ServiceKafkaClient {
 			{
 				props.put(KEY_SASL_JAAS_CONFIG, getJAASConfig(configs));
 			}
+			configureSslProperties(props);
 			props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, getIntProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, sessionTimeout));
 			props.put(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, getIntProperty(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, connectionTimeout));
 			adminClient = KafkaAdminClient.create(props);
@@ -229,6 +232,31 @@ public class ServiceKafkaClient {
 			return defaultValue;
 		}
 		return Integer.valueOf(rtrnVal);
+	}
+
+	private void configureSslProperties(Properties props) {
+		String securityProtocol = configs.get(AdminClientConfig.SECURITY_PROTOCOL_CONFIG);
+		if (StringUtils.isEmpty(securityProtocol) || !StringUtils.contains(securityProtocol, "SSL")) {
+			return;
+		}
+		copyConfigToProps(props, SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+		copyConfigToProps(props, SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+		copyConfigToProps(props, SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG);
+		copyConfigToProps(props, SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG);
+		copyConfigToProps(props, SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG);
+		copyConfigToProps(props, SslConfigs.SSL_KEY_PASSWORD_CONFIG);
+		copyConfigToProps(props, SslConfigs.SSL_KEYSTORE_TYPE_CONFIG);
+		copyConfigToProps(props, SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG);
+	}
+
+	private void copyConfigToProps(Properties props, String configKey) {
+		if (!configs.containsKey(configKey)) {
+			return;
+		}
+		String configValue = configs.get(configKey);
+		if (configValue != null) {
+			props.put(configKey, configValue);
+		}
 	}
 
 	private String getJAASConfig(Map<String,String> configs){
