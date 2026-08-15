@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -91,5 +92,38 @@ class TestAdminCentralResponseParser {
 		assertNotNull(content);
 		assertEquals(1, content.size());
 		assertEquals("alice", content.get(0).get("username").asText());
+	}
+
+	@Test
+	void apiErrorMessageIfPresentReturnsMessageWhenErrorCodeIsOne() throws Exception {
+		String json =
+				"{"
+						+ "\"errorCode\":1,"
+						+ "\"success\":false,"
+						+ "\"message\":\"Failed to fetch users: {  \\\"message\\\" : \\\"User  dataplane-service-user should have view:serviceUsers permissions\\\"}\","
+						+ "\"detailedMessage\":\"{  \\\"message\\\" : \\\"User  dataplane-service-user should have view:serviceUsers permissions\\\"}\","
+						+ "\"data\":null,"
+						+ "\"meta\":null"
+						+ "}";
+		JsonNode root = mapper.readTree(json);
+		String msg = AdminCentralResponseParser.apiErrorMessageIfPresent(root);
+		assertNotNull(msg);
+		assertTrue(msg.contains("view:serviceUsers"));
+		assertEquals(msg, AdminCentralResponseParser.apiErrorMessageIfPresent(json));
+	}
+
+	@Test
+	void apiErrorMessageIfPresentReturnsNullForSuccessEnvelope() throws Exception {
+		String json = "{\"errorCode\":0,\"success\":true,\"message\":null,\"data\":{\"users\":[]}}";
+		assertNull(AdminCentralResponseParser.apiErrorMessageIfPresent(json));
+		assertNull(AdminCentralResponseParser.apiErrorMessageIfPresent(mapper.readTree(json)));
+	}
+
+	@Test
+	void apiErrorMessageIfPresentFallsBackToDetailedMessage() throws Exception {
+		ObjectNode root = mapper.createObjectNode();
+		root.put("errorCode", 1);
+		root.put("detailedMessage", "permission denied");
+		assertEquals("permission denied", AdminCentralResponseParser.apiErrorMessageIfPresent(root));
 	}
 }
