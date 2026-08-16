@@ -49,8 +49,8 @@ public class EmbeddedServiceDefsUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedServiceDefsUtil.class);
 
 
-	// following servicedef list should be reviewed/updated whenever a new embedded service-def is added
-	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,yunikorn,polaris";
+	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,yunikorn,polaris";
+
 	private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
 	private Set<String> supportedServiceDefs;
 	public static final String EMBEDDED_SERVICEDEF_TAG_NAME  = "tag";
@@ -79,6 +79,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String EMBEDDED_SERVICEDEF_KUDU_NAME  = "kudu";
 	public static final String EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME  = "nestedstructure";
 	public static final String EMBEDDED_SERVICEDEF_S3_NAME  = "s3";
+	public static final String EMBEDDED_SERVICEDEF_GCS_NAME = "gcs";
 	public static final String EMBEDDED_SERVICEDEF_YUNIKORN_NAME  = "yunikorn";
 	public static final String EMBEDDED_SERVICEDEF_POLARIS_NAME = "polaris";
 
@@ -100,6 +101,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String TRINO_IMPL_CLASS_NAME  = "org.apache.ranger.services.trino.RangerServiceTrino";
 	public static final String OZONE_IMPL_CLASS_NAME  = "org.apache.ranger.services.ozone.RangerServiceOzone";
 	public static final String KUDU_IMPL_CLASS_NAME  = "org.apache.ranger.services.kudu.RangerServiceKudu";
+	public static final String GCS_IMPL_CLASS_NAME   = "org.apache.ranger.services.gcs.RangerServiceGCS";
 
 	private static EmbeddedServiceDefsUtil instance = new EmbeddedServiceDefsUtil();
 
@@ -130,7 +132,7 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef s3ServiceDef;
 	private RangerServiceDef yuniKornServiceDef;
 	private RangerServiceDef polarisServiceDef;
-
+	private RangerServiceDef gcsServiceDef;
 	private RangerServiceDef tagServiceDef;
 	private RangerServiceDef gdsServiceDef;
 
@@ -182,7 +184,7 @@ public class EmbeddedServiceDefsUtil {
 			s3ServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_S3_NAME);
 			yuniKornServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YUNIKORN_NAME);
 			polarisServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_POLARIS_NAME);
-
+			gcsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GCS_NAME);
 			tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
 			gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
 
@@ -284,6 +286,8 @@ public class EmbeddedServiceDefsUtil {
 	public long getTagServiceDefId() { return getId(tagServiceDef); }
 
 	public long getGdsServiceDefId() { return getId(gdsServiceDef); }
+
+	public long getGcsServiceDefId() { return getId(gcsServiceDef); }
 
 	public RangerServiceDef getEmbeddedServiceDef(String defType) throws Exception {
 		RangerServiceDef serviceDef=null;

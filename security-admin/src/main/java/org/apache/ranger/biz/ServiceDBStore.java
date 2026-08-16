@@ -195,6 +195,13 @@ import org.apache.ranger.service.XGroupService;
 import org.apache.ranger.service.XUserService;
 import org.apache.ranger.services.s3.client.S3ClientConnectionMgr;
 import org.apache.ranger.services.s3.RangerS3Constants;
+import com.google.cloud.Identity;
+import com.google.cloud.Policy;
+import com.google.cloud.Role;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
+import org.apache.ranger.services.gcs.client.GCSClientConnectionMgr;
+import org.apache.ranger.services.gcs.RangerGCSConstants;
 import org.apache.ranger.util.RestUtil;
 import org.apache.ranger.view.RangerExportPolicyList;
 import org.apache.ranger.view.RangerExportRoleList;
@@ -1880,6 +1887,30 @@ public class ServiceDBStore extends AbstractServiceStore {
 			} catch (Exception e) {
 				LOG.error("Error cleaning up S3 bucket policies for service: " + service.getName(), e);
 				// Continue with service deletion even if S3 cleanup fails
+			}
+		}
+
+		// Handle GCS bucket IAM cleanup BEFORE deleting policies
+		if (CollectionUtils.isNotEmpty(policyIds) &&
+				service.getType() != null &&
+				service.getType().equalsIgnoreCase(RangerGCSConstants.GCS)) {
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Cleaning up GCS bucket IAM bindings for service: {}", service.getName());
+			}
+
+			try {
+				List<RangerPolicy> policiesToDelete = new ArrayList<>();
+				for (Long policyID : policyIds) {
+					RangerPolicy policy = getPolicy(policyID);
+					if (policy != null) {
+						policiesToDelete.add(policy);
+					}
+				}
+				cleanupGCSBucketPoliciesForService(service, policiesToDelete);
+			} catch (Exception e) {
+				LOG.error("Error cleaning up GCS bucket IAM bindings for service: {}", service.getName(), e);
+				// Continue with service deletion even if GCS cleanup fails
 			}
 		}
 
@@ -7416,5 +7447,352 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 				throw restErrorUtil.createRESTException(e.awsErrorDetails().toString());
 			}
 		}
+	}
+
+	// ==================== GCS IAM sync ====================
+
+	/**
+	 * Removes all Ranger-managed GCS IAM bindings for every bucket referenced by
+	 * the policies belonging to a service that is being deleted.
+	 */
+	private void cleanupGCSBucketPoliciesForService(RangerService service, List<RangerPolicy> policiesToDelete) {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("==> ServiceDBStore.cleanupGCSBucketPoliciesForService({})", service.getName());
+		}
+
+		Set<String> affectedBuckets = new HashSet<>();
+
+		try {
+			Map<String, String> configs = service.getConfigs();
+			Storage storage = GCSClientConnectionMgr.getStorageClient(configs);
+			String projectId = configs.get(RangerGCSConstants.PROJECT_ID);
+			String defaultBucket = configs.get(RangerGCSConstants.BUCKET_NAME);
+
+			// Collect all distinct bucket names referenced by the policies
+			for (RangerPolicy policy : policiesToDelete) {
+				affectedBuckets.addAll(extractAffectedBucketsGCS(policy, defaultBucket));
+			}
+
+			// Remove only members that Ranger contributed; preserve IAM members added outside Ranger.
+			for (String bucketName : affectedBuckets) {
+				Map<Role, Set<Identity>> previousRangerBindings = computeGCSIAMBindings(policiesToDelete, bucketName, projectId);
+				applyGCSIAMPolicy(storage, bucketName, previousRangerBindings, Collections.emptyMap());
+			}
+		} catch (Exception e) {
+			LOG.warn("GCS IAM cleanup failed for service '{}'; service deletion will continue. "
+                        + "Ranger-managed IAM bindings may remain on buckets: {}",
+                service.getName(), affectedBuckets, e);
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("<== ServiceDBStore.cleanupGCSBucketPoliciesForService({})", service.getName());
+		}
+	}
+
+	/** Mapping from a Ranger GCS access type to the corresponding predefined GCP IAM role. */
+	private static final Map<String, String> GCS_ACCESS_TO_ROLE_MAP;
+	static {
+		GCS_ACCESS_TO_ROLE_MAP = new HashMap<>();
+		GCS_ACCESS_TO_ROLE_MAP.put("storage.buckets.list",   "roles/storage.legacyBucketReader");
+		GCS_ACCESS_TO_ROLE_MAP.put("storage.buckets.get",    "roles/storage.legacyBucketReader");
+		GCS_ACCESS_TO_ROLE_MAP.put("storage.objects.list",   "roles/storage.objectViewer");
+		GCS_ACCESS_TO_ROLE_MAP.put("storage.objects.get",    "roles/storage.objectViewer");
+		GCS_ACCESS_TO_ROLE_MAP.put("storage.objects.create", "roles/storage.objectCreator");
+		GCS_ACCESS_TO_ROLE_MAP.put("storage.objects.delete", "roles/storage.legacyObjectOwner");
+	}
+
+	/**
+	 * Entry point called from {@link org.apache.ranger.rest.ServiceREST} on every
+	 * Ranger GCS policy create, update, or delete.  Translates the current set of
+	 * Ranger policies for the service into GCP IAM bindings and pushes them to
+	 * every GCS bucket affected by the change.
+	 *
+	 * @param rangerPolicy the policy being created / updated / deleted
+	 * @param action       one of {@code RangerConstants.ACTION_CREATE / UPDATE / DELETE}
+	 * @param oldPolicy    pre-change snapshot (null for CREATE); used to pick up
+	 *                     buckets that were in the old policy but may no longer be
+	 */
+	public boolean createGCSBucketIAMPolicy(RangerPolicy rangerPolicy, String action, RangerPolicy oldPolicy) throws Exception {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("==> ServiceDBStore.createGCSBucketIAMPolicy() action={}", action);
+		}
+
+		String serviceName = rangerPolicy.getService();
+		try {
+			RangerService rangerService = getServiceByName(serviceName);
+			Map<String, String> configs = rangerService.getConfigs();
+
+			Storage storage = GCSClientConnectionMgr.getStorageClient(configs);
+			String projectId  = configs.get(RangerGCSConstants.PROJECT_ID);
+			String defaultBucket = configs.get(RangerGCSConstants.BUCKET_NAME);
+
+			// Collect all buckets touched by the current and (if present) previous policy
+			Set<String> affectedBuckets = extractAffectedBucketsGCS(rangerPolicy, defaultBucket);
+			if (oldPolicy != null) {
+				affectedBuckets.addAll(extractAffectedBucketsGCS(oldPolicy, defaultBucket));
+			}
+
+			// Build the post-change and pre-change views of all service policies.
+			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
+			List<RangerPolicy> combinedPolicies = combinePolicies(servicePolicies, rangerPolicy, action);
+			List<RangerPolicy> previousPolicies = buildPreviousGCSPolicies(servicePolicies, rangerPolicy, oldPolicy);
+
+			LOG.info("GCS IAM sync: {} affected bucket(s), {} combined policies for service {}",
+					affectedBuckets.size(), combinedPolicies.size(), serviceName);
+
+			for (String bucketName : affectedBuckets) {
+				Map<Role, Set<Identity>> previousRangerBindings =
+						computeGCSIAMBindings(previousPolicies, bucketName, projectId);
+				Map<Role, Set<Identity>> rangerBindings =
+						computeGCSIAMBindings(combinedPolicies, bucketName, projectId);
+				applyGCSIAMPolicy(storage, bucketName, previousRangerBindings, rangerBindings);
+			}
+		} catch (StorageException e) {
+			LOG.error("GCS storage error during IAM sync for service {}: {}", serviceName, e.getMessage(), e);
+			throw restErrorUtil.createRESTException("GCS IAM sync failed: " + e.getMessage());
+		} catch (IOException e) {
+			LOG.error("GCS credential error during IAM sync for service {}: {}", serviceName, e.getMessage(), e);
+			throw restErrorUtil.createRESTException("GCS credential error: " + e.getMessage());
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("<== ServiceDBStore.createGCSBucketIAMPolicy()");
+		}
+		return true;
+	}
+
+	/**
+	 * Reconstructs the service policy set as it existed before the current GCS
+	 * policy mutation so IAM cleanup can remove stale Ranger members precisely.
+	 */
+	private List<RangerPolicy> buildPreviousGCSPolicies(List<RangerPolicy> servicePolicies, RangerPolicy rangerPolicy, RangerPolicy oldPolicy) {
+		List<RangerPolicy> previousPolicies = new ArrayList<>();
+		Long policyId = rangerPolicy != null ? rangerPolicy.getId() : null;
+
+		if (CollectionUtils.isNotEmpty(servicePolicies)) {
+			for (RangerPolicy policy : servicePolicies) {
+				if (policyId == null || policy.getId() == null || !policy.getId().equals(policyId)) {
+					previousPolicies.add(policy);
+				}
+			}
+		}
+
+		if (oldPolicy != null) {
+			previousPolicies.add(oldPolicy);
+		}
+
+		return previousPolicies;
+	}
+
+	/**
+	 * Translates a list of Ranger GCS policies into GCP IAM role→members bindings
+	 * scoped to a single bucket.
+	 *
+	 * <p>Only allow-type policy items are translated; deny items and role items
+	 * (Ranger roles ≠ GCP roles) are intentionally skipped. Ranger deny policy items 
+	 * are not currently supported.
+	 */
+	Map<Role, Set<Identity>> computeGCSIAMBindings(List<RangerPolicy> policies, String bucketName, String projectId) {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("==> ServiceDBStore.computeGCSIAMBindings() bucket={}", bucketName);
+		}
+		Map<Role, Set<Identity>> bindings = new HashMap<>();
+
+		if (CollectionUtils.isEmpty(policies)) {
+			return bindings;
+		}
+
+		for (RangerPolicy policy : policies) {
+			if (!gcsPolicyAppliesToBucket(policy, bucketName)) {
+				continue;
+			}
+
+			if (CollectionUtils.isEmpty(policy.getPolicyItems())) {
+				continue;
+			}
+			if (CollectionUtils.isNotEmpty(policy.getDenyPolicyItems())) {
+				LOG.warn("DENY operation is not supported for GCS IAM policy '{}'; skipping {} deny item(s)",
+				policy.getName(), policy.getDenyPolicyItems().size());
+			}
+
+			for (RangerPolicyItem item : policy.getPolicyItems()) {
+				if (CollectionUtils.isEmpty(item.getAccesses())) {
+					continue;
+				}
+
+				// Collect distinct GCP roles implied by this item's access types
+				Set<String> gcsRoles = new HashSet<>();
+				for (RangerPolicyItemAccess access : item.getAccesses()) {
+					if (Boolean.FALSE.equals(access.getIsAllowed())) {
+						continue;
+					}
+					String gcsRole = GCS_ACCESS_TO_ROLE_MAP.get(access.getType());
+					if (gcsRole != null) {
+						gcsRoles.add(gcsRole);
+					}
+				}
+
+				for (String gcsRole : gcsRoles) {
+					Role role = Role.of(gcsRole);
+					Set<Identity> members = bindings.computeIfAbsent(role, r -> new HashSet<>());
+
+					for (String user : item.getUsers()) {
+						Identity identity = toGCSIdentity(user, projectId);
+						if (identity != null) {
+							members.add(identity);
+						}
+					}
+					for (String group : item.getGroups()) {
+						if (!group.contains("@")) {
+							LOG.warn("Skipping Ranger group '{}' during GCS IAM sync: expected a Google Group email address",group);
+							continue;
+						}
+						members.add(Identity.group(group));
+						LOG.debug("Added GCS IAM binding for group '{}'", group);
+					}
+				}
+			}
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("<== ServiceDBStore.computeGCSIAMBindings() bucket={} roles={}", bucketName, bindings.keySet());
+		}
+		return bindings;
+	}
+
+	/**
+	 * Pushes the Ranger-computed IAM bindings for one bucket to GCS.
+	 *
+	 * <p>This performs a member-level differential merge: members Ranger
+	 * previously granted are removed, members Ranger currently wants are added,
+	 * and all other live IAM members remain unchanged.
+	 */
+	void applyGCSIAMPolicy(Storage storage, String bucketName, Map<Role, Set<Identity>> previousRangerBindings,
+						  Map<Role, Set<Identity>> rangerBindings) {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("==> ServiceDBStore.applyGCSIAMPolicy() bucket={}", bucketName);
+		}
+
+		Policy existingPolicy = storage.getIamPolicy(bucketName);
+
+		Map<Role, Set<Identity>> updatedBindings = new HashMap<>();
+		for (Map.Entry<Role, Set<Identity>> entry : existingPolicy.getBindings().entrySet()) {
+			updatedBindings.put(entry.getKey(), new HashSet<>(entry.getValue()));
+		}
+
+		Set<Role> touchedRoles = new HashSet<>();
+		if (previousRangerBindings != null) {
+			touchedRoles.addAll(previousRangerBindings.keySet());
+		}
+		if (rangerBindings != null) {
+			touchedRoles.addAll(rangerBindings.keySet());
+		}
+
+		for (Role role : touchedRoles) {
+			Set<Identity> updatedMembers = updatedBindings.computeIfAbsent(role, r -> new HashSet<>());
+			Set<Identity> previousMembers = previousRangerBindings != null ? previousRangerBindings.get(role) : null;
+			Set<Identity> currentMembers = rangerBindings != null ? rangerBindings.get(role) : null;
+
+			if (CollectionUtils.isNotEmpty(previousMembers)) {
+				updatedMembers.removeAll(previousMembers);
+			}
+			if (CollectionUtils.isNotEmpty(currentMembers)) {
+				updatedMembers.addAll(currentMembers);
+			}
+			if (updatedMembers.isEmpty()) {
+				updatedBindings.remove(role);
+			}
+		}
+
+		if (updatedBindings.equals(existingPolicy.getBindings())) {
+			LOG.info("GCS IAM policy unchanged for bucket '{}'; skipping setIamPolicy call", bucketName);
+			return;
+		}
+
+		Policy newPolicy = existingPolicy.toBuilder().setBindings(updatedBindings).setEtag(existingPolicy.getEtag()).build();
+		storage.setIamPolicy(bucketName, newPolicy);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Updated GCS IAM policy for bucket '{}': {} total role bindings ({} Ranger-managed)",
+        bucketName, updatedBindings.size(), rangerBindings == null ? 0 : rangerBindings.size());
+			LOG.debug("<== ServiceDBStore.applyGCSIAMPolicy() bucket={}", bucketName);
+		}
+	}
+
+	/**
+	 * Returns true if the given Ranger policy covers {@code bucketName}
+	 * (either explicitly by name or via a wildcard '*').
+	 */
+	private boolean gcsPolicyAppliesToBucket(RangerPolicy policy, String bucketName) {
+		if (policy.getResources() == null) {
+			return false;
+		}
+		RangerPolicyResource bucketResource = policy.getResources().get(RangerGCSConstants.BUCKET);
+		if (bucketResource == null || CollectionUtils.isEmpty(bucketResource.getValues())) {
+			return false;
+		}
+		for (String value : bucketResource.getValues()) {
+			if ("*".equals(value) || value.equals(bucketName)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Returns the set of GCS bucket names referenced by the policy resources.
+	 * A wildcard value ('*') resolves to {@code defaultBucket}.
+	 */
+	private Set<String> extractAffectedBucketsGCS(RangerPolicy policy, String defaultBucket) {
+		Set<String> buckets = new HashSet<>();
+		if (policy.getResources() != null) {
+			RangerPolicyResource bucketResource = policy.getResources().get(RangerGCSConstants.BUCKET);
+			if (bucketResource != null && CollectionUtils.isNotEmpty(bucketResource.getValues())) {
+				for (String value : bucketResource.getValues()) {
+					if (StringUtils.isBlank(value)) {
+						continue;
+					}
+					if ("*".equals(value)) {
+						if (StringUtils.isNotBlank(defaultBucket)) {
+							buckets.add(defaultBucket);
+						}
+						else {
+							LOG.warn("GCS policy '{}' uses wildcard bucket but service default bucket is not configured; skipping wildcard expansion", policy.getName());
+						}
+					}
+					else {
+						buckets.add(value);
+					}
+				}
+			}
+		}
+		if (buckets.isEmpty() && StringUtils.isNotBlank(defaultBucket)) {
+			buckets.add(defaultBucket);
+		}
+		return buckets;
+	}
+
+	/**
+	 * Converts a Ranger username into a GCP {@link Identity}.
+	 *
+	 * <ul>
+	 *   <li>Ends with {@code .iam.gserviceaccount.com} → treated as a service account.</li>
+	 *   <li>Contains {@code @} → treated as a regular Google user account.</li>
+	 *   <li>Plain name (no {@code @}) → treated as a project-local service account
+	 *       {@code <name>@<projectId>.iam.gserviceaccount.com}.</li>
+	 * </ul>
+	 */
+	private Identity toGCSIdentity(String rangerUser, String projectId) {
+		if (StringUtils.isBlank(rangerUser)) {
+			return null;
+		}
+		if (rangerUser.endsWith(".iam.gserviceaccount.com")) {
+			return Identity.serviceAccount(rangerUser);
+		}
+		if (rangerUser.contains("@")) {
+			return Identity.user(rangerUser);
+		}
+		// Plain name — assume it is a GCP service account in the project
+		return Identity.serviceAccount(rangerUser + "@" + projectId + ".iam.gserviceaccount.com");
 	}
 }
