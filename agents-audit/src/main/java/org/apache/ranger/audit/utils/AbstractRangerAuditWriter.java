@@ -262,6 +262,11 @@ public abstract class AbstractRangerAuditWriter implements RangerAuditWriter {
         if (logWriter == null) {
             boolean appendMode = false;
             // if append is supported, reuse last log file
+            if (reUseLastLogFile && (fileSystem == null || auditPath == null)) {
+                logger.warn("Cannot append to last log file because FileSystem is not initialized. " +
+                        "Will create a new log file. auditPath={}, destName={}", fullPath, auditProviderName);
+                reUseLastLogFile = false;
+            }
             if (reUseLastLogFile && fileSystem.hasPathCapability(auditPath, CommonPathCapabilities.FS_APPEND)) {
                 logger.info("Appending to last log file. auditPath = {}", fullPath);
                 try {
