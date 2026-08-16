@@ -81,6 +81,7 @@
           <include>org.apache.thrift:libfb303:jar:${libfb303.version}</include>
           <include>org.apache.thrift:libthrift:jar:${libthrift.version}</include>
           <include>com.google.guava:guava:jar:${guava.version}</include>
+          <include>com.google.guava:failureaccess:jar:1.0.1</include>
         </includes>
       </binaries>
     </moduleSet>

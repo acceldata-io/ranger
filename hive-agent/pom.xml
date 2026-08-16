@@ -211,6 +211,12 @@
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
         </dependency>
+        <!-- Guava 32+ splits Lists helpers; required by Hive MetaStore client used in Test Connection -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>failureaccess</artifactId>
+            <version>1.0.1</version>
+        </dependency>
 
         <!-- Test -->
         <dependency>
