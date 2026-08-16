@@ -743,6 +743,17 @@
             <artifactId>hbase-shaded-miscellaneous</artifactId>
             <version>${hbase-shaded-miscellaneous}</version>
         </dependency>
+        <!-- Unshaded Guava required by Hive MetaStore client during Ranger Admin Test Connection -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>failureaccess</artifactId>
+            <version>1.0.1</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
