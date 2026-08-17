@@ -112,7 +112,7 @@
                 <version>${hadoop.version}</version>
                 <exclusions>
                     <exclusion>
-                        <groupId>log4j</groupId>
+                        <groupId>com.fasterxml.woodstox</groupId>
                         <artifactId>*</artifactId>
                     </exclusion>
                     <exclusion>
@@ -124,11 +124,11 @@
                         <artifactId>jersey-json</artifactId>
                     </exclusion>
                     <exclusion>
-                        <groupId>org.slf4j</groupId>
+                        <groupId>log4j</groupId>
                         <artifactId>*</artifactId>
                     </exclusion>
                     <exclusion>
-                        <groupId>com.fasterxml.woodstox</groupId>
+                        <groupId>org.slf4j</groupId>
                         <artifactId>*</artifactId>
                     </exclusion>
                 </exclusions>
@@ -206,6 +206,10 @@
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
+                    <groupId>com.fasterxml.woodstox</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>com.sun.jersey</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
@@ -231,10 +235,6 @@
                 </exclusion>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.woodstox</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
@@ -266,11 +266,11 @@
                 </exclusion>
                 <exclusion>
                     <groupId>io.netty</groupId>
-                    <artifactId>netty-transport</artifactId>
+                    <artifactId>netty-handler</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>io.netty</groupId>
-                    <artifactId>netty-handler</artifactId>
+                    <artifactId>netty-transport</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>log4j</groupId>
