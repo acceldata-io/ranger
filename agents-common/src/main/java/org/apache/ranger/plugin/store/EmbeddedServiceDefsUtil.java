@@ -228,7 +228,7 @@ public class EmbeddedServiceDefsUtil {
 	public long getYarnServiceDefId() {
 		return getId(yarnServiceDef);
 	}
-	
+
 	public long getKafkaServiceDefId() {
 		return getId(kafkaServiceDef);
 	}
@@ -280,12 +280,12 @@ public class EmbeddedServiceDefsUtil {
 	public long getNestedStructureServiceDefId() { return getId(nestedStructureServiveDef); }
 
 	public long getS3ServiceDefId() { return getId(s3ServiceDef); }
-	
+
 	public long getYuniKornServiceDefId() { return getId(yuniKornServiceDef); }
 
 	public long getPolarisServiceDefId() { return getId(polarisServiceDef); }
 
-	public long getGCSServiceDefId() { return getId(gcsServiceDef); }
+	public long getGcsServiceDefId() { return getId(gcsServiceDef); }
 
 	public long getTagServiceDefId() { return getId(tagServiceDef); }
 
@@ -357,7 +357,7 @@ public class EmbeddedServiceDefsUtil {
 		}
 
 		RangerServiceDef ret = null;
-	
+
 		String resource = "/service-defs/ranger-servicedef-" + serviceType + ".json";
 
 		InputStream inStream = getClass().getResourceAsStream(resource);
