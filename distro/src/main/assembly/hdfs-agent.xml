@@ -89,7 +89,6 @@
             <include>com.carrotsearch:hppc</include>
             <include>commons-collections:commons-collections</include>
             <include>io.airlift:aircompressor:jar:${aircompressor.version}</include>
-            <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
             <include>javax.annotation:javax.annotation-api</include>
             <include>joda-time:joda-time</include>
             <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>

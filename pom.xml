@@ -144,7 +144,7 @@
         <jaxb-impl.version>2.3.9</jaxb-impl.version>
         <jaxb.api.version>2.3.1</jaxb.api.version>
         <jericho.html.version>3.4</jericho.html.version>
-        <jersey-client.version>2.47</jersey-client.version>
+        <jersey-client.version>2.46</jersey-client.version>
         <jettison.version>1.5.4</jettison.version>
         <jetty-client.version>9.4.56.v20240826</jetty-client.version>
         <jline.version>0.9.94</jline.version>
