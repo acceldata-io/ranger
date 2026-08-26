@@ -213,7 +213,11 @@ public class ABFSAclSyncService {
             LOG.debug("ABFS setAccessControlList on '{}' (dir={}): {} total entries ({} Ranger-managed)",
                     path, isDirectory, merged.size(), desired.size());
         } catch (Exception e) {
-            LOG.warn("ABFS failed to apply ACL on '{}' (dir={}): {}", path, isDirectory, e.getMessage());
+            LOG.error("ABFS failed to apply ACL on '{}' (dir={})", path, isDirectory, e);
+            throw new IllegalStateException(
+                    "Failed to apply ABFS ACL on path '" + path
+                            + "' (directory=" + isDirectory + ")",
+                    e);
         }
     }
 
