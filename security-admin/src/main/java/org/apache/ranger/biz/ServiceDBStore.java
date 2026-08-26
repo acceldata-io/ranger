@@ -7846,7 +7846,13 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			RangerService rangerService = getServiceByName(serviceName);
 			Map<String, String> configs = rangerService.getConfigs();
 
-			abfsAclSyncService.syncPolicy(rangerPolicy, action, oldPolicy, configs);
+			List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
+			List<RangerPolicy> desiredPolicies = combinePolicies(servicePolicies, rangerPolicy, action);
+			List<RangerPolicy> previousPolicies =
+					buildPreviousABFSPolicies(servicePolicies, rangerPolicy, oldPolicy);
+
+			abfsAclSyncService.syncPolicies(
+					desiredPolicies, previousPolicies, rangerPolicy, oldPolicy, configs);
 		} catch (Exception e) {
 			LOG.error("ABFS ACL sync failed for service {}: {}", serviceName, e.getMessage(), e);
 			throw restErrorUtil.createRESTException("ABFS ACL sync failed: " + e.getMessage());
@@ -7856,5 +7862,25 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 			LOG.debug("<== ServiceDBStore.createABFSDirectoryAclPolicy()");
 		}
 		return true;
+	}
+
+	private List<RangerPolicy> buildPreviousABFSPolicies(List<RangerPolicy> servicePolicies,
+													 RangerPolicy rangerPolicy, RangerPolicy oldPolicy) {
+		List<RangerPolicy> previousPolicies = new ArrayList<>();
+		Long policyId = rangerPolicy != null ? rangerPolicy.getId() : null;
+
+		if (CollectionUtils.isNotEmpty(servicePolicies)) {
+			for (RangerPolicy policy : servicePolicies) {
+				if (policyId == null || policy.getId() == null || !policy.getId().equals(policyId)) {
+					previousPolicies.add(policy);
+				}
+			}
+		}
+
+		if (oldPolicy != null) {
+			previousPolicies.add(oldPolicy);
+		}
+
+		return previousPolicies;
 	}
 }

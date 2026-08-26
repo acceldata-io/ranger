@@ -21,7 +21,9 @@ package org.apache.ranger.services.abfs.client;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.azure.storage.file.datalake.DataLakePathClient;
+import com.azure.storage.file.datalake.DataLakeServiceClient;
 import com.azure.storage.file.datalake.models.AccessControlType;
+import com.azure.storage.file.datalake.models.FileSystemItem;
 import com.azure.storage.file.datalake.models.ListPathsOptions;
 import com.azure.storage.file.datalake.models.PathAccessControl;
 import com.azure.storage.file.datalake.models.PathAccessControlEntry;
@@ -38,12 +40,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.LinkedHashSet;
+import java.util.regex.Pattern;
 
 /**
  * Translates Ranger ABFS policies into Azure Data Lake Storage Gen2 (ADLS Gen2)
@@ -141,9 +145,79 @@ public class ABFSAclSyncService {
         LOG.debug("<== ABFSAclSyncService.syncPolicy action={}, policyId={}", action, policy.getId());
     }
 
+    /**
+     * Reconciles ACLs for a policy mutation using the complete pre-change and
+     * post-change policy sets. This prevents overlapping recursive or wildcard
+     * policies from replacing each other's principal entries.
+     */
+    public void syncPolicies(List<RangerPolicy> desiredPolicies, List<RangerPolicy> previousPolicies,
+                             RangerPolicy changedPolicy, RangerPolicy oldPolicy,
+                             Map<String, String> configs) {
+        if (changedPolicy == null) {
+            return;
+        }
+
+        ABFSIdentityResolver resolver = new ABFSIdentityResolver(configs);
+        boolean defaultAclInheritance = isDefaultAclInheritanceEnabled(configs);
+        Set<ABFSPathRef> affectedPaths = getAffectedPathRefs(changedPolicy, oldPolicy, configs);
+
+        for (ABFSPathRef pathRef : affectedPaths) {
+            try {
+                DataLakeFileSystemClient fsClient =
+                        ABFSClientConnectionMgr.getFileSystemClient(configs, pathRef.getContainer());
+                String targetPath = syncAnchorPath(pathRef.getRelativePath());
+                List<DesiredGrant> targetDesired = buildEffectiveGrants(
+                        desiredPolicies, resolver, pathRef.getContainer(), targetPath, configs);
+
+                if (!targetDesired.isEmpty()) {
+                    applyAncestorTraverse(fsClient, pathRef, targetDesired);
+                }
+
+                applyTargetForPolicies(fsClient, pathRef, desiredPolicies, previousPolicies,
+                        resolver, configs, defaultAclInheritance);
+            } catch (Exception e) {
+                LOG.error("ABFS policy-set sync failed for container={}, path={}: {}",
+                        pathRef.getContainer(), pathRef.getRelativePath(), e.getMessage(), e);
+                throw new RuntimeException("ABFS ACL sync failed for path '" + pathRef.getRelativePath()
+                        + "' in container '" + pathRef.getContainer() + "': " + e.getMessage(), e);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------
     // Target + children application
     // ------------------------------------------------------------------
+
+    private void applyTargetForPolicies(DataLakeFileSystemClient fsClient, ABFSPathRef pathRef,
+                                        List<RangerPolicy> desiredPolicies, List<RangerPolicy> previousPolicies,
+                                        ABFSIdentityResolver resolver, Map<String, String> configs,
+                                        boolean defaultAclInheritance) {
+        String path = syncAnchorPath(pathRef.getRelativePath());
+        applyEffectiveNode(fsClient, path, true, pathRef.getContainer(), desiredPolicies,
+                previousPolicies, resolver, configs, defaultAclInheritance);
+
+        if (!pathRef.isRecursive()) {
+            return;
+        }
+
+        int count = 0;
+        for (PathItem item : listChildren(fsClient, path)) {
+            applyEffectiveNode(fsClient, item.getName(), item.isDirectory(), pathRef.getContainer(),
+                    desiredPolicies, previousPolicies, resolver, configs, defaultAclInheritance);
+            count++;
+        }
+        LOG.info("ABFS effective ACL applied to {} children under '{}'", count, path);
+    }
+
+    private void applyEffectiveNode(DataLakeFileSystemClient fsClient, String path, boolean isDirectory,
+                                    String container, List<RangerPolicy> desiredPolicies,
+                                    List<RangerPolicy> previousPolicies, ABFSIdentityResolver resolver,
+                                    Map<String, String> configs, boolean defaultAclInheritance) {
+        List<DesiredGrant> desired = buildEffectiveGrants(desiredPolicies, resolver, container, path, configs);
+        List<DesiredGrant> previous = buildEffectiveGrants(previousPolicies, resolver, container, path, configs);
+
+        applyNode(fsClient, path, isDirectory, desired, previous, defaultAclInheritance);
+    }
 
     private void applyTarget(DataLakeFileSystemClient fsClient, ABFSPathRef pathRef,
                              List<DesiredGrant> desiredGrants, List<DesiredGrant> previousGrants,
@@ -350,6 +424,126 @@ public class ABFSAclSyncService {
         return new ArrayList<>(byKey.values());
     }
 
+    List<DesiredGrant> buildEffectiveGrants(List<RangerPolicy> policies, ABFSIdentityResolver resolver,
+                                            String container, String path, Map<String, String> configs) {
+        Map<String, DesiredGrant> byKey = new LinkedHashMap<>();
+
+        if (policies == null) {
+            return new ArrayList<>();
+        }
+
+        for (RangerPolicy policy : policies) {
+            if (policy == null || Boolean.FALSE.equals(policy.getIsEnabled())
+                    || policy.getPolicyType() != RangerPolicy.POLICY_TYPE_ACCESS
+                    || !policyAppliesToPath(policy, container, path, configs)) {
+                continue;
+            }
+
+            for (DesiredGrant grant : buildDesiredGrants(policy, resolver)) {
+                mergeGrant(byKey, grant.identity, grant.flags);
+            }
+        }
+
+        return new ArrayList<>(byKey.values());
+    }
+
+    static boolean policyAppliesToPath(RangerPolicy policy, String container, String path,
+                                       Map<String, String> configs) {
+        if (policy == null) {
+            return false;
+        }
+
+        String storageAccount = configs.get(RangerABFSConstants.STORAGE_ACCOUNT);
+        if (!matchesAnyResourceValue(storageAccount,
+                getResourceValues(policy, RangerABFSConstants.STORAGE_ACCOUNT_RESOURCE))) {
+            return false;
+        }
+        if (!matchesAnyResourceValue(container, getResourceValues(policy, RangerABFSConstants.CONTAINER))) {
+            return false;
+        }
+
+        List<String> policyPaths = getResourceValues(policy, RangerABFSConstants.RELATIVE_PATH);
+        boolean recursive = isResourceRecursive(policy, RangerABFSConstants.RELATIVE_PATH);
+        String normalizedPath = normalizeRelativePath(path);
+
+        for (String policyPath : policyPaths) {
+            String normalizedPolicyPath = normalizeRelativePath(policyPath);
+
+            if (matchesPath(normalizedPolicyPath, normalizedPath, recursive)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean matchesAnyResourceValue(String value, List<String> patterns) {
+        if (StringUtils.isBlank(value) || patterns == null) {
+            return false;
+        }
+        for (String pattern : patterns) {
+            if (globMatches(pattern, value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesPath(String policyPath, String path, boolean recursive) {
+        if (StringUtils.isEmpty(policyPath) || "*".equals(policyPath)) {
+            return true;
+        }
+
+        if (policyPath.endsWith("/*")) {
+            String anchor = policyPath.substring(0, policyPath.length() - 2);
+            return StringUtils.equals(path, anchor) || path.startsWith(anchor + "/");
+        }
+
+        if (globMatches(policyPath, path)) {
+            return true;
+        }
+
+        return recursive && !containsWildcard(policyPath) && path.startsWith(policyPath + "/");
+    }
+
+    private static boolean globMatches(String glob, String value) {
+        if (StringUtils.isBlank(glob) || value == null) {
+            return false;
+        }
+
+        StringBuilder regex = new StringBuilder("^");
+        for (int index = 0; index < glob.length(); index++) {
+            char current = glob.charAt(index);
+            if (current == '*') {
+                regex.append(".*");
+            } else if (current == '?') {
+                regex.append('.');
+            } else {
+                regex.append(Pattern.quote(String.valueOf(current)));
+            }
+        }
+        return Pattern.compile(regex.append('$').toString()).matcher(value).matches();
+    }
+
+    private static boolean containsWildcard(String value) {
+        return StringUtils.contains(value, '*') || StringUtils.contains(value, '?');
+    }
+
+    private static String normalizeRelativePath(String path) {
+        if (StringUtils.isBlank(path) || "/".equals(path)) {
+            return "";
+        }
+
+        String normalized = path;
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        while (normalized.endsWith("/") && normalized.length() > 1) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
     private void mergeGrant(Map<String, DesiredGrant> byKey, ResolvedIdentity identity, AccessFlags flags) {
         if (identity == null) {
             return;
@@ -514,14 +708,31 @@ public class ABFSAclSyncService {
         return fsClient.getDirectoryClient(StringUtils.isEmpty(path) ? "/" : path);
     }
 
+    private Set<ABFSPathRef> getAffectedPathRefs(RangerPolicy policy, RangerPolicy oldPolicy,
+                                                 Map<String, String> configs) {
+        Map<String, ABFSPathRef> byPath = new LinkedHashMap<>();
+        addAffectedPathRefs(byPath, getPolicyPathRefs(policy, configs));
+        addAffectedPathRefs(byPath, getPolicyPathRefs(oldPolicy, configs));
+        return new LinkedHashSet<>(byPath.values());
+    }
+
+    private static void addAffectedPathRefs(Map<String, ABFSPathRef> byPath, Set<ABFSPathRef> refs) {
+        for (ABFSPathRef ref : refs) {
+            String key = ref.getContainer() + "\u0000" + syncAnchorPath(ref.getRelativePath());
+            ABFSPathRef existing = byPath.get(key);
+
+            if (existing == null || ref.isRecursive() && !existing.isRecursive()) {
+                byPath.put(key, ref);
+            }
+        }
+    }
+
     private Set<ABFSPathRef> getPolicyPathRefs(RangerPolicy policy, Map<String, String> configs) {
         Set<ABFSPathRef> refs = new LinkedHashSet<>();
-        String defaultContainer = configs.get(RangerABFSConstants.DEFAULT_CONTAINER);
 
         List<String> containers = getResourceValues(policy, RangerABFSConstants.CONTAINER);
         List<String> relPaths   = getResourceValues(policy, RangerABFSConstants.RELATIVE_PATH);
-        boolean recursive       = isResourceRecursive(policy, RangerABFSConstants.RELATIVE_PATH)
-                && isRecursiveAclSyncEnabled(configs);
+        boolean policyRecursive = isResourceRecursive(policy, RangerABFSConstants.RELATIVE_PATH);
 
         if (relPaths.isEmpty()) {
             relPaths = new ArrayList<>();
@@ -529,15 +740,33 @@ public class ABFSAclSyncService {
         }
 
         for (String container : containers) {
-            String resolvedContainer = StringUtils.startsWith(container, "*") ? defaultContainer : container;
-            if (StringUtils.isBlank(resolvedContainer)) {
-                continue;
-            }
-            for (String relPath : relPaths) {
-                refs.add(new ABFSPathRef(resolvedContainer, relPath, recursive));
+            for (String resolvedContainer : resolveContainers(container, configs)) {
+                for (String relPath : relPaths) {
+                    boolean recursive = (policyRecursive || containsWildcard(relPath))
+                            && isRecursiveAclSyncEnabled(configs);
+                    refs.add(new ABFSPathRef(resolvedContainer, relPath, recursive));
+                }
             }
         }
         return refs;
+    }
+
+    private List<String> resolveContainers(String containerPattern, Map<String, String> configs) {
+        if (StringUtils.isBlank(containerPattern)) {
+            return new ArrayList<>();
+        }
+        if (!containsWildcard(containerPattern)) {
+            return new ArrayList<>(Collections.singletonList(containerPattern));
+        }
+
+        List<String> containers = new ArrayList<>();
+        DataLakeServiceClient serviceClient = ABFSClientConnectionMgr.getDataLakeServiceClient(configs);
+        for (FileSystemItem fileSystem : serviceClient.listFileSystems()) {
+            if (fileSystem != null && globMatches(containerPattern, fileSystem.getName())) {
+                containers.add(fileSystem.getName());
+            }
+        }
+        return containers;
     }
 
     private static List<String> getResourceValues(RangerPolicy policy, String resourceName) {
@@ -600,12 +829,30 @@ public class ABFSAclSyncService {
         return normalized;
     }
 
+    /**
+     * Returns the concrete directory from which a wildcard policy must be
+     * enumerated. The policy matcher is applied to each listed node.
+     */
+    private static String syncAnchorPath(String relativePath) {
+        String normalized = stripLeadingSlash(relativePath);
+        int star = StringUtils.indexOf(normalized, '*');
+        int question = StringUtils.indexOf(normalized, '?');
+        int wildcard = star < 0 ? question : question < 0 ? star : Math.min(star, question);
+
+        if (wildcard < 0) {
+            return normalized;
+        }
+
+        int lastSeparator = normalized.lastIndexOf('/', wildcard);
+        return lastSeparator < 0 ? "" : normalized.substring(0, lastSeparator);
+    }
+
     // ------------------------------------------------------------------
     // Small value types
     // ------------------------------------------------------------------
 
     /** Mutable set of granted Ranger access types for a single principal. */
-    private static final class AccessFlags {
+    static final class AccessFlags {
         private boolean read;
         private boolean list;
         private boolean write;
@@ -630,16 +877,32 @@ public class ABFSAclSyncService {
             write  |= other.write;
             delete |= other.delete;
         }
+
+        boolean isRead() {
+            return read;
+        }
+
+        boolean isWrite() {
+            return write;
+        }
     }
 
     /** A resolved principal together with the access it should be granted. */
-    private static final class DesiredGrant {
+    static final class DesiredGrant {
         private final ResolvedIdentity identity;
         private final AccessFlags flags;
 
         private DesiredGrant(ResolvedIdentity identity, AccessFlags flags) {
             this.identity = identity;
             this.flags    = flags;
+        }
+
+        ResolvedIdentity getIdentity() {
+            return identity;
+        }
+
+        AccessFlags getFlags() {
+            return flags;
         }
     }
 
