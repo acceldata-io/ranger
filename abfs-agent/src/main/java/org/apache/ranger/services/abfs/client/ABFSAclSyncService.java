@@ -87,6 +87,7 @@ public class ABFSAclSyncService {
     private static final Logger LOG = LoggerFactory.getLogger(ABFSAclSyncService.class);
 
     private static final String ACTION_DELETE = "delete";
+    private static final int MAX_ACL_ENTRIES = 32;
 
     /**
      * Entry point invoked on every Ranger ABFS policy create/update/delete.
@@ -146,7 +147,7 @@ public class ABFSAclSyncService {
 
     private void applyTarget(DataLakeFileSystemClient fsClient, ABFSPathRef pathRef,
                              List<DesiredGrant> desiredGrants, List<DesiredGrant> previousGrants,
-                             boolean defaultAclInheritance) {
+            boolean defaultAclInheritance) {
         if (desiredGrants.isEmpty() && previousGrants.isEmpty()) {
             return;
         }
@@ -168,6 +169,22 @@ public class ABFSAclSyncService {
             count++;
         }
         LOG.info("ABFS per-node ACL applied to {} children under '{}'", count, path);
+    }
+    
+    private void validateAclLimit(String path, List<PathAccessControlEntry> entries) {
+        long accessCount = entries.stream()
+                .filter(entry -> !entry.isInDefaultScope())
+                .count();
+        long defaultCount = entries.stream()
+                .filter(PathAccessControlEntry::isInDefaultScope)
+                .count();
+
+        if (accessCount > MAX_ACL_ENTRIES || defaultCount > MAX_ACL_ENTRIES) {
+            throw new IllegalStateException(
+                "ACL limit exceeded for '" + path + "': access="
+                        + accessCount + "/32, default=" + defaultCount + "/32. "
+                        + "Use Microsoft Entra groups to reduce named ACL entries.");
+        }
     }
 
     /**
@@ -191,6 +208,7 @@ public class ABFSAclSyncService {
             PathAccessControl current = client.getAccessControl();
             List<PathAccessControlEntry> merged =
                     mergeAclEntries(current.getAccessControlList(), desired, previous);
+            validateAclLimit(path, merged);
             client.setAccessControlList(merged, current.getGroup(), current.getOwner());
             LOG.debug("ABFS setAccessControlList on '{}' (dir={}): {} total entries ({} Ranger-managed)",
                     path, isDirectory, merged.size(), desired.size());
