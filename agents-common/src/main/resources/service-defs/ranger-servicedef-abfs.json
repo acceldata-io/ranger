@@ -2,9 +2,9 @@
   "id":          103,
   "name":        "abfs",
   "displayName": "abfs",
-  "implClass":   "",
+  "implClass":   "org.apache.ranger.services.abfs.RangerServiceABFS",
   "label":       "Azure Blob File System",
-  "description": "Ranger plugin for ABFS",
+  "description": "Ranger plugin for ABFS  (Azure Data Lake Storage Gen2) directory ACL management",
   "guid":        "",
   "options":     { "enableDenyAndExceptionsInPolicies": "true" },
   "resources": [
@@ -15,6 +15,7 @@
       "level":          10,
       "type":           "string",
       "mandatory":      true,
+      "lookupSupported": true,
       "matcher":        "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": { "wildCard": true, "ignoreCase": false },
       "label":          "Storage Account",
@@ -27,6 +28,7 @@
       "level":          20,
       "type":           "string",
       "mandatory":      true,
+      "lookupSupported": true,
       "matcher":        "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": { "wildCard": true, "ignoreCase": false },
       "label":          "Storage Account Container",
@@ -51,12 +53,17 @@
   ],
   "accessTypes": [
     { "itemId": 1, "name": "read",  "label": "Read",  "category": "READ" },
-    { "itemId": 2, "name": "write", "label": "Write", "category": "UPDATE" }
+    { "itemId": 2, "name": "list",  "label": "List/Traverse",  "category": "READ" },
+    { "itemId": 3, "name": "write",  "label": "Write",  "category": "UPDATE" },
+    { "itemId": 4, "name": "delete", "label": "Delete", "category": "DELETE" }
   ],
   "configs": [
-    { "itemId": 1, "name": "username",                 "type": "string", "mandatory": false, "label": "Username" },
-    { "itemId": 2, "name": "password",                 "type": "string", "mandatory": false, "label": "Password" },
-    { "itemId": 3, "name": "commonNameForCertificate", "type": "string", "mandatory": false, "label": "Common Name for Certificate" }
+    { "itemId": 1, "name": "username",                 "type": "string",   "mandatory": false, "label": "Username" },
+    { "itemId": 2, "name": "storageAccount",           "type": "string",   "mandatory": true,  "label": "Storage Account Name" },
+    { "itemId": 3, "name": "tenantId",                 "type": "string",   "mandatory": true,  "label": "Azure AD Tenant ID" },
+    { "itemId": 4, "name": "clientId",                 "type": "string",   "mandatory": true,  "label": "Service Principal Client ID" },
+    { "itemId": 5, "name": "clientSecret",             "type": "password", "mandatory": true,  "label": "Service Principal Client Secret" },
+    { "itemId": 6, "name": "defaultContainer",         "type": "string",   "mandatory": false, "label": "Default Container (for connection test / lookup)" }
   ],
   "policyConditions": [
     {

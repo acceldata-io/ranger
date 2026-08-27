@@ -49,6 +49,12 @@
         <aws-java-sdk2.version>2.17.102</aws-java-sdk2.version>
         <google-cloud-storage.version>2.36.1</google-cloud-storage.version>
         <google-auth-library.version>1.23.0</google-auth-library.version>
+        <azure-storage-file-datalake.version>12.18.0</azure-storage-file-datalake.version>
+        <azure-identity.version>1.11.4</azure-identity.version>
+        <azure-core-http-jdk-httpclient.version>1.0.0-beta.10</azure-core-http-jdk-httpclient.version>
+        <!-- jdk-httpclient beta.10 is built against azure-core 1.46.0 (uses
+             HttpHeadersAccessHelper, absent in the 1.45.0 the storage SDK pulls). -->
+        <azure-core.version>1.46.0</azure-core.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <cglib.version>2.2.0-b23</cglib.version>
         <checkstyle.failOnViolation>true</checkstyle.failOnViolation>
@@ -1025,6 +1031,7 @@
                 <module>ranger-yarn-plugin-shim</module>
                 <module>s3-agent</module>
                 <module>gcs-agent</module>
+                <module>abfs-agent</module>
                 <module>security-admin</module>
                 <module>tagsync</module>
                 <module>ugsync</module>
@@ -1366,6 +1373,7 @@
                 <module>ranger-yarn-plugin-shim</module>
                 <module>s3-agent</module>
                 <module>gcs-agent</module>
+                <module>abfs-agent</module>
                 <module>security-admin</module>
                 <module>tagsync</module>
                 <module>ugsync</module>
