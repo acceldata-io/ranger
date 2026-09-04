@@ -43,8 +43,8 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class PatchForHiveServiceDefUpdate_J10064 extends BaseLoader {
-	private static final Logger logger = LoggerFactory.getLogger(PatchForHiveServiceDefUpdate_J10064.class);
+public class PatchForHiveServiceDefUpdate_J10065 extends BaseLoader {
+	private static final Logger logger = LoggerFactory.getLogger(PatchForHiveServiceDefUpdate_J10065.class);
 
 	public static final String SERVICEDBSTORE_SERVICEDEFBYNAME_HIVE_NAME = "hive";
 	public static final String STORAGE_TYPE_RESOURCE_NAME                = "storage-type";
@@ -85,7 +85,7 @@ public class PatchForHiveServiceDefUpdate_J10064 extends BaseLoader {
 	public static void main(String[] args) {
 		logger.info("main()");
 		try {
-			PatchForHiveServiceDefUpdate_J10064 loader = (PatchForHiveServiceDefUpdate_J10064) CLIUtil.getBean(PatchForHiveServiceDefUpdate_J10064.class);
+			PatchForHiveServiceDefUpdate_J10065 loader = (PatchForHiveServiceDefUpdate_J10065) CLIUtil.getBean(PatchForHiveServiceDefUpdate_J10065.class);
 			loader.init();
 			while (loader.isMoreToProcess()) {
 				loader.load();
@@ -105,18 +105,18 @@ public class PatchForHiveServiceDefUpdate_J10064 extends BaseLoader {
 
 	@Override
 	public void execLoad() {
-		logger.info("==> PatchForHiveServiceDefUpdate_J10064.execLoad()");
+		logger.info("==> PatchForHiveServiceDefUpdate_J10065.execLoad()");
 		try {
 			updateHiveServiceDef();
 		} catch (Exception e) {
 			logger.error("Error while updating hive service-def with storage-type/storage-url resources and rwstorage access type", e);
 		}
-		logger.info("<== PatchForHiveServiceDefUpdate_J10064.execLoad()");
+		logger.info("<== PatchForHiveServiceDefUpdate_J10065.execLoad()");
 	}
 
 	@Override
 	public void printStats() {
-		logger.info("PatchForHiveServiceDefUpdate_J10064 data ");
+		logger.info("PatchForHiveServiceDefUpdate_J10065 data ");
 	}
 
 	private void updateHiveServiceDef() throws Exception {
