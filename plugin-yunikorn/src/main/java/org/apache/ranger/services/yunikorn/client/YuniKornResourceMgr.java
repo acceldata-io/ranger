@@ -19,17 +19,16 @@
 
 package org.apache.ranger.services.yunikorn.client;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.apache.ranger.services.yunikorn.RangerYuniKornConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class YuniKornResourceMgr {
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
+public final class YuniKornResourceMgr {
     private static final Logger LOG = LoggerFactory.getLogger(YuniKornResourceMgr.class);
 
     /**

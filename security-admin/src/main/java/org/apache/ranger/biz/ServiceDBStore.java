@@ -22,6 +22,11 @@ package org.apache.ranger.biz;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.cloud.Identity;
+import com.google.cloud.Policy;
+import com.google.cloud.Role;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.io.IOUtils;
@@ -164,16 +169,11 @@ import org.apache.ranger.service.RangerServiceService;
 import org.apache.ranger.service.RangerServiceWithAssignedIdService;
 import org.apache.ranger.service.XGroupService;
 import org.apache.ranger.service.XUserService;
-import org.apache.ranger.services.s3.RangerS3Constants;
-import com.google.cloud.Identity;
-import com.google.cloud.Policy;
-import com.google.cloud.Role;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
-import org.apache.ranger.services.gcs.client.GCSClientConnectionMgr;
-import org.apache.ranger.services.gcs.RangerGCSConstants;
 import org.apache.ranger.services.abfs.RangerABFSConstants;
 import org.apache.ranger.services.abfs.client.ABFSAclSyncService;
+import org.apache.ranger.services.gcs.RangerGCSConstants;
+import org.apache.ranger.services.gcs.client.GCSClientConnectionMgr;
+import org.apache.ranger.services.s3.RangerS3Constants;
 import org.apache.ranger.services.s3.client.S3ClientConnectionMgr;
 import org.apache.ranger.util.RestUtil;
 import org.apache.ranger.view.RangerExportPolicyList;
@@ -1315,9 +1315,8 @@ public class ServiceDBStore extends AbstractServiceStore {
 
         // Handle GCS bucket IAM cleanup BEFORE deleting policies
         if (CollectionUtils.isNotEmpty(policyIds) &&
-            service.getType() != null &&
-            service.getType().equalsIgnoreCase(RangerGCSConstants.GCS)) {
-
+                service.getType() != null &&
+                service.getType().equalsIgnoreCase(RangerGCSConstants.GCS)) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Cleaning up GCS bucket IAM bindings for service: {}", service.getName());
             }
@@ -1339,9 +1338,8 @@ public class ServiceDBStore extends AbstractServiceStore {
 
         // Handle ABFS directory ACL cleanup BEFORE deleting policies
         if (CollectionUtils.isNotEmpty(policyIds) &&
-            service.getType() != null &&
-            service.getType().equalsIgnoreCase(RangerABFSConstants.ABFS)) {
-
+                service.getType() != null &&
+                service.getType().equalsIgnoreCase(RangerABFSConstants.ABFS)) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Cleaning up ABFS directory ACLs for service: {}", service.getName());
             }
@@ -7836,7 +7834,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
         } catch (Exception e) {
             LOG.warn("GCS IAM cleanup failed for service '{}'; service deletion will continue. "
                     + "Ranger-managed IAM bindings may remain on buckets: {}",
-                service.getName(), affectedBuckets, e);
+                    service.getName(), affectedBuckets, e);
         }
 
         if (LOG.isDebugEnabled()) {
@@ -7846,6 +7844,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 
     /** Mapping from a Ranger GCS access type to the corresponding predefined GCP IAM role. */
     private static final Map<String, String> GCS_ACCESS_TO_ROLE_MAP;
+
     static {
         GCS_ACCESS_TO_ROLE_MAP = new HashMap<>();
         GCS_ACCESS_TO_ROLE_MAP.put("storage.buckets.list",   "roles/storage.legacyBucketReader");
@@ -7893,13 +7892,13 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
             List<RangerPolicy> previousPolicies = buildPreviousGCSPolicies(servicePolicies, rangerPolicy, oldPolicy);
 
             LOG.info("GCS IAM sync: {} affected bucket(s), {} combined policies for service {}",
-                affectedBuckets.size(), combinedPolicies.size(), serviceName);
+                    affectedBuckets.size(), combinedPolicies.size(), serviceName);
 
             for (String bucketName : affectedBuckets) {
                 Map<Role, Set<Identity>> previousRangerBindings =
-                    computeGCSIAMBindings(previousPolicies, bucketName, projectId);
+                        computeGCSIAMBindings(previousPolicies, bucketName, projectId);
                 Map<Role, Set<Identity>> rangerBindings =
-                    computeGCSIAMBindings(combinedPolicies, bucketName, projectId);
+                        computeGCSIAMBindings(combinedPolicies, bucketName, projectId);
                 applyGCSIAMPolicy(storage, bucketName, previousRangerBindings, rangerBindings);
             }
         } catch (StorageException e) {
@@ -7967,7 +7966,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
             }
             if (CollectionUtils.isNotEmpty(policy.getDenyPolicyItems())) {
                 LOG.warn("DENY operation is not supported for GCS IAM policy '{}'; skipping {} deny item(s)",
-                    policy.getName(), policy.getDenyPolicyItems().size());
+                        policy.getName(), policy.getDenyPolicyItems().size());
             }
 
             for (RangerPolicyItem item : policy.getPolicyItems()) {
@@ -7999,7 +7998,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
                     }
                     for (String group : item.getGroups()) {
                         if (!group.contains("@")) {
-                            LOG.warn("Skipping Ranger group '{}' during GCS IAM sync: expected a Google Group email address",group);
+                            LOG.warn("Skipping Ranger group '{}' during GCS IAM sync: expected a Google Group email address", group);
                             continue;
                         }
                         members.add(Identity.group(group));
@@ -8023,7 +8022,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
      * and all other live IAM members remain unchanged.
      */
     void applyGCSIAMPolicy(Storage storage, String bucketName, Map<Role, Set<Identity>> previousRangerBindings,
-        Map<Role, Set<Identity>> rangerBindings) {
+            Map<Role, Set<Identity>> rangerBindings) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> ServiceDBStore.applyGCSIAMPolicy() bucket={}", bucketName);
         }
@@ -8069,7 +8068,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Updated GCS IAM policy for bucket '{}': {} total role bindings ({} Ranger-managed)",
-                bucketName, updatedBindings.size(), rangerBindings == null ? 0 : rangerBindings.size());
+                    bucketName, updatedBindings.size(), rangerBindings == null ? 0 : rangerBindings.size());
             LOG.debug("<== ServiceDBStore.applyGCSIAMPolicy() bucket={}", bucketName);
         }
     }
@@ -8177,10 +8176,10 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
             List<RangerPolicy> servicePolicies = getServicePolicies(serviceName, new SearchFilter());
             List<RangerPolicy> desiredPolicies = combinePolicies(servicePolicies, rangerPolicy, action);
             List<RangerPolicy> previousPolicies =
-                buildPreviousABFSPolicies(servicePolicies, rangerPolicy, oldPolicy);
+                    buildPreviousABFSPolicies(servicePolicies, rangerPolicy, oldPolicy);
 
             abfsAclSyncService.syncPolicies(
-                desiredPolicies, previousPolicies, rangerPolicy, oldPolicy, configs);
+                    desiredPolicies, previousPolicies, rangerPolicy, oldPolicy, configs);
         } catch (Exception e) {
             LOG.error("ABFS ACL sync failed for service {}: {}", serviceName, e.getMessage(), e);
             throw restErrorUtil.createRESTException("ABFS ACL sync failed: " + e.getMessage());
@@ -8193,7 +8192,7 @@ Case 4: No Change - existing default bucket with * or with path but not in affec
     }
 
     private List<RangerPolicy> buildPreviousABFSPolicies(List<RangerPolicy> servicePolicies,
-        RangerPolicy rangerPolicy, RangerPolicy oldPolicy) {
+            RangerPolicy rangerPolicy, RangerPolicy oldPolicy) {
         List<RangerPolicy> previousPolicies = new ArrayList<>();
         Long policyId = rangerPolicy != null ? rangerPolicy.getId() : null;
 

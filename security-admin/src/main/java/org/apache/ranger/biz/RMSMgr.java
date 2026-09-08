@@ -50,6 +50,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -400,8 +401,13 @@ public class RMSMgr {
         for (Object[] row : rows) {
             Long hlId = (Long) row[0];
             Long llId = (Long) row[1];
-            if (hlId != null) resourceIds.add(hlId);
-            if (llId != null) resourceIds.add(llId);
+            if (hlId != null) {
+                resourceIds.add(hlId);
+            }
+
+            if (llId != null) {
+                resourceIds.add(llId);
+            }
         }
 
         Map<Long, XXRMSServiceResource> resourcesById = serviceResourceDao.findByIds(resourceIds);
@@ -556,7 +562,7 @@ public class RMSMgr {
         }
 
         XXRMSResourceMapping existingMapping = resourceMappingDao.findByHlAndLlResourceId(
-            hlSvcResource.getId(), llSvcResource.getId());
+                hlSvcResource.getId(), llSvcResource.getId());
 
         if (existingMapping == null) {
             // Genuine new mapping. In bulk-full-sync mode the version is
@@ -619,13 +625,13 @@ public class RMSMgr {
         String llResourceSignature = computeResourceSignature(llResource);
 
         XXRMSServiceResource hlSvcResource = serviceResourceDao.findByServiceAndResourceSignature(
-            hlService.getId(), hlResourceSignature);
+                hlService.getId(), hlResourceSignature);
         XXRMSServiceResource llSvcResource = serviceResourceDao.findByServiceAndResourceSignature(
-            llService.getId(), llResourceSignature);
+                llService.getId(), llResourceSignature);
 
         if (hlSvcResource != null && llSvcResource != null) {
             XXRMSResourceMapping mapping = resourceMappingDao.findByHlAndLlResourceId(
-                hlSvcResource.getId(), llSvcResource.getId());
+                    hlSvcResource.getId(), llSvcResource.getId());
             if (mapping != null) {
                 resourceMappingDao.remove(mapping.getId());
                 LOG.info("Deleted RMS mapping: id={}", mapping.getId());
@@ -636,7 +642,7 @@ public class RMSMgr {
                 // continue to evaluate stale policies for the LL path.
                 List<DeletionRecord> deletions = new ArrayList<>();
                 deletions.add(new DeletionRecord(
-                    hlSvcResource.getGuid(), llSvcResource.getGuid(), llSvcResource.getServiceId()));
+                        hlSvcResource.getGuid(), llSvcResource.getGuid(), llSvcResource.getServiceId()));
 
                 updateMappingProviderVersion();
                 Long version = getMappingProvider().getLastKnownVersion();
@@ -670,7 +676,7 @@ public class RMSMgr {
 
         String resourceSignature = computeResourceSignature(hlResource);
         XXRMSServiceResource hlSvcResource = serviceResourceDao.findByServiceAndResourceSignature(
-            hlService.getId(), resourceSignature);
+                hlService.getId(), resourceSignature);
 
         if (hlSvcResource != null) {
             List<Long> llResourceIds = resourceMappingDao.findByHlResourceId(hlSvcResource.getId());
@@ -681,7 +687,7 @@ public class RMSMgr {
                     XXRMSServiceResource llSvcResource = serviceResourceDao.getById(llResourceId);
                     if (llSvcResource != null) {
                         deletions.add(new DeletionRecord(
-                            hlSvcResource.getGuid(), llSvcResource.getGuid(), llSvcResource.getServiceId()));
+                                hlSvcResource.getGuid(), llSvcResource.getGuid(), llSvcResource.getServiceId()));
                     }
                 }
             }
@@ -983,7 +989,7 @@ public class RMSMgr {
 
         String resourceSignature = computeResourceSignature(resourceElements);
         XXRMSServiceResource existing = serviceResourceDao.findByServiceAndResourceSignature(
-            service.getId(), resourceSignature);
+                service.getId(), resourceSignature);
 
         if (existing != null) {
             return existing;

@@ -17,12 +17,6 @@
 
 package org.apache.ranger.services.yunikorn;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyItem;
@@ -35,6 +29,12 @@ import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.apache.ranger.services.yunikorn.client.YuniKornResourceMgr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Ranger service implementation for Apache YuniKorn.
@@ -54,7 +54,6 @@ import org.slf4j.LoggerFactory;
  * YuniKorn ConfigMap).
  */
 public class RangerServiceYuniKorn extends RangerBaseService {
-
     private static final Logger LOG = LoggerFactory.getLogger(RangerServiceYuniKorn.class);
 
     public RangerServiceYuniKorn() {

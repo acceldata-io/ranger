@@ -40,7 +40,6 @@ import java.util.regex.Pattern;
  * case an {@link IllegalStateException} is thrown.</p>
  */
 public class ABFSIdentityResolver {
-
     private static final Logger LOG = LoggerFactory.getLogger(ABFSIdentityResolver.class);
 
     private static final Pattern GUID_PATTERN = Pattern.compile(

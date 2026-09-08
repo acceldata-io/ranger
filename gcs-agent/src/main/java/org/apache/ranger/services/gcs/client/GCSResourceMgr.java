@@ -37,6 +37,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 public class GCSResourceMgr {
+    private GCSResourceMgr() {
+        // to block instantiation
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(GCSResourceMgr.class);
 
@@ -109,8 +112,7 @@ public class GCSResourceMgr {
                     }
                 };
                 resultList = TimedEventUtil.timedTask(callable, timeLookupMs, TimeUnit.MILLISECONDS);
-
-            } 
+            }
             else if (RangerGCSConstants.OBJECT.equals(resource) && !selectedBuckets.isEmpty() && !selectedBuckets.contains("*")) {
                 final String objectPrefix = userInput.replace("*", "");
                 Callable<List<String>> callable = new Callable<List<String>>() {
@@ -122,16 +124,16 @@ public class GCSResourceMgr {
                                 break;
                             }
                             Page<Blob> blobPage = objectPrefix.isEmpty()
-                                ? storage.list(bucketName,
+                                    ? storage.list(bucketName,
                                     Storage.BlobListOption.pageSize(RangerGCSConstants.GCS_LIST_MAX_RESULTS))
-                                : storage.list(bucketName,
+                                    : storage.list(bucketName,
                                     Storage.BlobListOption.prefix(objectPrefix),
                                     Storage.BlobListOption.pageSize(RangerGCSConstants.GCS_LIST_MAX_RESULTS));
                             for (Blob blob : blobPage.iterateAll()) {
                                 if (blobs.size() >= RangerGCSConstants.MAX_AUTOCOMPLETE_RESULTS) {
                                     break;
                                 }
-                                 blobs.add(blob.getName());
+                                blobs.add(blob.getName());
                             }
                         }
                         return blobs;
@@ -139,7 +141,6 @@ public class GCSResourceMgr {
                 };
                 resultList = TimedEventUtil.timedTask(callable, timeLookupMs, TimeUnit.MILLISECONDS);
             }
-
         } catch (StorageException e) {
             LOG.error("GCSResourceMgr.getGCSResources StorageException: {}", e.getMessage(), e);
         } catch (Exception e) {

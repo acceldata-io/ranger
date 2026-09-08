@@ -19,7 +19,6 @@
 
 package org.apache.ranger.service;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.biz.RMSMgr;
 import org.apache.ranger.plugin.model.RangerPolicy;
@@ -31,10 +30,9 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+
 import java.net.URI;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -152,8 +150,8 @@ public class RangerHMSNotificationHandler {
             t.setDaemon(true);
             return t;
         });
-        scheduler.scheduleAtFixedRate(this::pollHMSNotifications, 
-            pollingIntervalMs, pollingIntervalMs, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(this::pollHMSNotifications,
+                pollingIntervalMs, pollingIntervalMs, TimeUnit.MILLISECONDS);
     }
 
     private void pollHMSNotifications() {
@@ -338,7 +336,6 @@ public class RangerHMSNotificationHandler {
             }
 
             return hdfsServiceName;
-
         } catch (Exception e) {
             LOG.error("Failed to parse location URI: {}", location, e);
             return null;
@@ -389,7 +386,6 @@ public class RangerHMSNotificationHandler {
             }
 
             return createHdfsResource(uri);
-
         } catch (Exception e) {
             LOG.error("Failed to create storage resource for location: {}", location, e);
             return null;

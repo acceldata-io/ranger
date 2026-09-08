@@ -22,7 +22,6 @@ package org.apache.ranger.services.yunikorn.client;
 import java.util.Map;
 
 public final class YuniKornConnectionMgr {
-
     public static YuniKornClient getYuniKornClient(String serviceName, Map<String, String> configs) {
         return new YuniKornClient(serviceName, configs);
     }

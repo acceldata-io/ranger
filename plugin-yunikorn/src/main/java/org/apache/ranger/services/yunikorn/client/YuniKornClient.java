@@ -19,12 +19,10 @@
 
 package org.apache.ranger.services.yunikorn.client;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.api.client.WebResource;
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.client.HadoopException;
 import org.apache.ranger.services.yunikorn.RangerYuniKornConstants;
@@ -32,10 +30,11 @@ import org.apache.ranger.services.yunikorn.client.json.model.YuniKornQueueRespon
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.api.client.WebResource;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Client for the YuniKorn read-only REST API.
@@ -52,7 +51,6 @@ import com.sun.jersey.api.client.WebResource;
  * network layer, not here.
  */
 public class YuniKornClient extends BaseClient {
-
     private static final Logger LOG = LoggerFactory.getLogger(YuniKornClient.class);
 
     private static final String EXPECTED_MIME_TYPE = "application/json";
@@ -99,7 +97,6 @@ public class YuniKornClient extends BaseClient {
      */
     public List<String> getQueueList(final String queueNameMatching,
                                      final List<String> existingQueueList) {
-
         if (LOG.isDebugEnabled()) {
             LOG.debug("Getting YuniKorn queue list for queueNameMatching=[{}]", queueNameMatching);
         }
@@ -170,7 +167,6 @@ public class YuniKornClient extends BaseClient {
                 }
             }
             return result;
-
         } catch (HadoopException he) {
             throw he;
         } catch (Throwable t) {

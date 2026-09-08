@@ -17,15 +17,15 @@
 
 package org.apache.ranger.db;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-
-import javax.persistence.NoResultException;
-
 import org.apache.ranger.common.db.BaseDao;
 import org.apache.ranger.entity.XXRMSDeletionLog;
 import org.springframework.stereotype.Service;
+
+import javax.persistence.NoResultException;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * DAO for {@link XXRMSDeletionLog}, the persistent record of deleted RMS
@@ -43,7 +43,6 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class XXRMSDeletionLogDao extends BaseDao<XXRMSDeletionLog> {
-
     public XXRMSDeletionLogDao(RangerDaoManagerBase daoManager) {
         super(daoManager);
     }

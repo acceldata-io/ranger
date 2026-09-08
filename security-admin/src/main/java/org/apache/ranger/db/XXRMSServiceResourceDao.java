@@ -104,11 +104,11 @@ public class XXRMSServiceResourceDao extends BaseDao<XXRMSServiceResource> {
         // something else in the same transaction dirtied the context, we do not want
         // to trigger a pre-query flush for a read-only batch lookup.
         List<XXRMSServiceResource> rows = getEntityManager()
-            .createNamedQuery("XXRMSServiceResource.findByIds", tClass)
-            .setParameter("ids", ids)
-            .setHint("eclipselink.read-only", "true")
-            .setFlushMode(javax.persistence.FlushModeType.COMMIT)
-            .getResultList();
+                .createNamedQuery("XXRMSServiceResource.findByIds", tClass)
+                .setParameter("ids", ids)
+                .setHint("eclipselink.read-only", "true")
+                .setFlushMode(javax.persistence.FlushModeType.COMMIT)
+                .getResultList();
         for (XXRMSServiceResource row : rows) {
             sink.put(row.getId(), row);
         }

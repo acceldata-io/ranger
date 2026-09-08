@@ -46,7 +46,6 @@ import java.util.Map;
  * so it can modify ACLs.</p>
  */
 public class ABFSClientConnectionMgr extends BaseClient {
-
     private static final Logger LOG = LoggerFactory.getLogger(ABFSClientConnectionMgr.class);
 
     // Use the JDK's built-in HTTP client transport instead of the Azure SDK's

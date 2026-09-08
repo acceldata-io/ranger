@@ -19,7 +19,6 @@
 package org.apache.ranger.services.abfs;
 
 public final class RangerABFSConstants {
-
     private RangerABFSConstants() {
     }
 

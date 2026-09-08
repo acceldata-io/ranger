@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 
 public class RangerServiceABFS extends RangerBaseService {
-
     private static final Logger LOG = LoggerFactory.getLogger(RangerServiceABFS.class);
 
     public RangerServiceABFS() {

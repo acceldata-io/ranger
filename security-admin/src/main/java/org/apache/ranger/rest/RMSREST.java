@@ -28,11 +28,11 @@ import org.apache.ranger.common.RESTErrorUtil;
 import org.apache.ranger.common.RangerSearchUtil;
 import org.apache.ranger.common.ServiceUtil;
 import org.apache.ranger.db.RangerDaoManager;
-import org.apache.ranger.rms.RangerRMSPollerService;
 import org.apache.ranger.entity.XXService;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.util.RangerPerfTracer;
 import org.apache.ranger.plugin.util.ServiceRMSMappings;
+import org.apache.ranger.rms.RangerRMSPollerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +56,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -113,7 +114,6 @@ public class RMSREST {
             @QueryParam(PARAM_LAST_KNOWN_VERSION) Long lastKnownVersion,
             @QueryParam(PARAM_PLUGIN_ID) String pluginId,
             @Context HttpServletRequest request) {
-
         if (LOG.isDebugEnabled()) {
             LOG.debug("==> RMSREST.getServiceMappings(serviceName={}, lastKnownVersion={}, pluginId={})",
                       serviceName, lastKnownVersion, pluginId);
@@ -183,7 +183,6 @@ public class RMSREST {
             }
 
             return Response.ok(ret).build();
-
         } catch (WebApplicationException excp) {
             throw excp;
         } catch (Exception e) {
@@ -245,16 +244,14 @@ public class RMSREST {
             }
 
             rmsMgr.createOrUpdateMapping(
-                mappingRequest.getHlServiceName(),
-                mappingRequest.getHlResourceElements(),
-                mappingRequest.getLlServiceName(),
-                mappingRequest.getLlResourceElements(),
-                mappingRequest.getLocation()
-            );
+                    mappingRequest.getHlServiceName(),
+                    mappingRequest.getHlResourceElements(),
+                    mappingRequest.getLlServiceName(),
+                    mappingRequest.getLlResourceElements(),
+                    mappingRequest.getLocation());
 
             ret.put("status", "success");
             ret.put("message", "Mapping created/updated successfully");
-
         } catch (WebApplicationException excp) {
             throw excp;
         } catch (Exception e) {
@@ -291,15 +288,13 @@ public class RMSREST {
             }
 
             rmsMgr.deleteMapping(
-                mappingRequest.getHlServiceName(),
-                mappingRequest.getHlResourceElements(),
-                mappingRequest.getLlServiceName(),
-                mappingRequest.getLlResourceElements()
-            );
+                    mappingRequest.getHlServiceName(),
+                    mappingRequest.getHlResourceElements(),
+                    mappingRequest.getLlServiceName(),
+                    mappingRequest.getLlResourceElements());
 
             ret.put("status", "success");
             ret.put("message", "Mapping deleted successfully");
-
         } catch (WebApplicationException excp) {
             throw excp;
         } catch (Exception e) {
@@ -332,7 +327,6 @@ public class RMSREST {
             rmsMgr.fullSync();
             ret.put("status", "success");
             ret.put("message", "Full sync initiated. All RMS mappings cleared.");
-
         } catch (Exception e) {
             LOG.error("Failed to perform full sync", e);
             throw restErrorUtil.createRESTException("Failed to perform full sync: " + e.getMessage());
@@ -373,7 +367,6 @@ public class RMSREST {
             ret.put("mappingVersion", mappingVersion);
             ret.put("hlServiceName", hlServiceName);
             ret.put("status", "success");
-
         } catch (WebApplicationException excp) {
             throw excp;
         } catch (Exception e) {

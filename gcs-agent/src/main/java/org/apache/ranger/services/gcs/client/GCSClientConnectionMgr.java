@@ -36,7 +36,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class GCSClientConnectionMgr extends BaseClient {
-
     private static final Logger LOG = LoggerFactory.getLogger(GCSClientConnectionMgr.class);
 
     public GCSClientConnectionMgr(String svcName, Map<String, String> connectionProperties) {
