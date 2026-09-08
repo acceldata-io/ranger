@@ -53,11 +53,10 @@ import javax.naming.ldap.StartTlsResponse;
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosTicket;
 
-import java.security.PrivilegedExceptionAction;
-
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedExceptionAction;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -446,10 +445,10 @@ public class LdapUserGroupBuilder implements UserGroupSource {
             Subject refreshed = loginKerberos();
             ldapSubject = refreshed;
             LOG.info("Refreshed LDAP Kerberos Subject for principal "
-                + ldapKerberosPrincipal + " (TGT valid until " + describeTgtExpiry(refreshed) + ")");
+                    + ldapKerberosPrincipal + " (TGT valid until " + describeTgtExpiry(refreshed) + ")");
         } catch (Throwable t) {
             LOG.error("Failed to refresh LDAP Kerberos Subject for principal " + ldapKerberosPrincipal
-                + " — next LDAP bind may fail", t);
+                    + " — next LDAP bind may fail", t);
         }
     }
 
@@ -492,13 +491,13 @@ public class LdapUserGroupBuilder implements UserGroupSource {
                 "JavaLoginConfig",
                 new java.security.URIParameter(new java.io.File(ldapKerberosJaasConfigPath).toURI()));
             LOG.info("LdapUserGroupBuilder using external JAAS config " + ldapKerberosJaasConfigPath
-                + " (entry '" + ldapKerberosJaasEntryName + "')");
+                    + " (entry '" + ldapKerberosJaasEntryName + "')");
         } else {
             cfg = defaultInMemoryJaasConfig(ldapKerberosPrincipal, ldapKerberosKeytab);
         }
 
         javax.security.auth.login.LoginContext lc =
-            new javax.security.auth.login.LoginContext(ldapKerberosJaasEntryName, subject, null, cfg);
+                new javax.security.auth.login.LoginContext(ldapKerberosJaasEntryName, subject, null, cfg);
         lc.login();
         return lc.getSubject();
     }
@@ -508,7 +507,7 @@ public class LdapUserGroupBuilder implements UserGroupSource {
     // Samba AD. Override by pointing ranger.usersync.ldap.kerberos.jaas.config at a
     // file with a matching entry name.
     private static javax.security.auth.login.Configuration defaultInMemoryJaasConfig(
-        String principal, String keytab) {
+            String principal, String keytab) {
         final java.util.Map<String, String> options = new java.util.HashMap<>();
         options.put("useKeyTab", "true");
         options.put("keyTab", keytab);
@@ -588,10 +587,10 @@ public class LdapUserGroupBuilder implements UserGroupSource {
             try {
                 ldapSubject = loginKerberos();
                 LOG.info("LdapUserGroupBuilder acquired initial LDAP Subject for principal "
-                    + ldapKerberosPrincipal + " (TGT valid until " + describeTgtExpiry(ldapSubject) + ")");
+                        + ldapKerberosPrincipal + " (TGT valid until " + describeTgtExpiry(ldapSubject) + ")");
             } catch (Throwable t) {
                 LOG.error("LdapUserGroupBuilder failed to acquire initial LDAP Subject for principal "
-                    + ldapKerberosPrincipal + " — will retry on next sync cycle", t);
+                        + ldapKerberosPrincipal + " — will retry on next sync cycle", t);
             }
         }
 
