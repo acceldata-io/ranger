@@ -21,7 +21,7 @@ package org.apache.ranger.plugin.util;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerServiceResource;
 import org.apache.ranger.plugin.util.ServiceRMSMappings.RMSResourceMapping;
@@ -162,17 +162,17 @@ public class RangerRMSMappingCache {
                 // matches the removed GUID; leave any other entries that share
                 // this path intact.
                 pathEntries.removeIf(mappingEntry ->
-                    mappingEntry.getLlResource() != null
-                        && StringUtils.equals(mappingEntry.getLlResource().getGuid(), removedGuid));
+                        mappingEntry.getLlResource() != null
+                            && StringUtils.equals(mappingEntry.getLlResource().getGuid(), removedGuid));
                 if (pathEntries.isEmpty()) {
                     mergedPathMappings.remove(normalizedPath);
                 }
             }
             // Clean up HL mappings that reference removed LL resources
             mergedHlMappings.entrySet().removeIf(e ->
-                e.getValue() != null
-                    && e.getValue().getLlResource() != null
-                    && removedGuidSet.contains(e.getValue().getLlResource().getGuid()));
+                    e.getValue() != null
+                        && e.getValue().getLlResource() != null
+                        && removedGuidSet.contains(e.getValue().getLlResource().getGuid()));
         }
 
         // Add new/updated resources and mappings

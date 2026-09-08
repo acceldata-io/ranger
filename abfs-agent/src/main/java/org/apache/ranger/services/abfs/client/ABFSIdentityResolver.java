@@ -18,7 +18,7 @@
  */
 package org.apache.ranger.services.abfs.client;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.services.abfs.RangerABFSConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

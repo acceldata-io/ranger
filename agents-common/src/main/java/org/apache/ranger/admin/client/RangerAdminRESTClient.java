@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.http.HttpStatus;
 import org.apache.ranger.admin.client.datatype.RESTResponse;
 import org.apache.ranger.audit.provider.MiscUtil;
@@ -46,7 +45,6 @@ import org.apache.ranger.plugin.util.ServicePolicies;
 import org.apache.ranger.plugin.util.ServiceRMSMappings;
 import org.apache.ranger.plugin.util.ServiceTags;
 import org.apache.ranger.plugin.util.URLEncoderUtil;
-import org.glassfish.jersey.client.ClientResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1101,7 +1099,7 @@ public class RangerAdminRESTClient extends AbstractRangerAdminClient {
 
         String relativeURL = "/service/rms/mappings/download/" + serviceName;
 
-        ClientResponse response = null;
+        Response response = null;
 
         if (isSecureMode) {
             if (LOG.isDebugEnabled()) {
@@ -1109,7 +1107,7 @@ public class RangerAdminRESTClient extends AbstractRangerAdminClient {
             }
             final String finalRelativeURL = relativeURL;
             final Map<String, String> finalQueryParams = queryParams;
-            response = MiscUtil.executePrivilegedAction((PrivilegedExceptionAction<ClientResponse>) () -> {
+            response = MiscUtil.executePrivilegedAction((PrivilegedExceptionAction<Response>) () -> {
                 try {
                     return restClient.get(finalRelativeURL, finalQueryParams);
                 } catch (Exception e) {
@@ -1123,14 +1121,14 @@ public class RangerAdminRESTClient extends AbstractRangerAdminClient {
 
         if (response != null) {
             int statusCode = response.getStatus();
-            if (statusCode == HttpServletResponse.SC_OK) {
-                ret = JsonUtilsV2.readResponse(response, ServiceRMSMappings.class);
-            } else if (statusCode == HttpServletResponse.SC_NOT_MODIFIED
-                || statusCode == HttpServletResponse.SC_NO_CONTENT) {
+            if (statusCode == HttpStatus.SC_OK) {
+                ret = JsonUtilsV2.jsonToObj(response.readEntity(String.class), ServiceRMSMappings.class);
+            } else if (statusCode == HttpStatus.SC_NOT_MODIFIED
+                    || statusCode == HttpStatus.SC_NO_CONTENT) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("No RMS mapping changes since last known version: {} (status={})", lastKnownVersion, statusCode);
                 }
-            } else if (statusCode == HttpServletResponse.SC_NOT_FOUND) {
+            } else if (statusCode == HttpStatus.SC_NOT_FOUND) {
                 LOG.warn("RMS endpoint not found - RMS may not be enabled on Ranger Admin");
             } else {
                 LOG.warn("Error getting RMS mappings. statusCode=" + statusCode + ", serviceName=" + serviceName);

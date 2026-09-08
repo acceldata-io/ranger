@@ -20,7 +20,7 @@
 package org.apache.ranger.plugin.service;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.admin.client.RangerAdminClient;
 import org.apache.ranger.authorization.hadoop.config.RangerChainedPluginConfig;
 import org.apache.ranger.authorization.hadoop.config.RangerPluginConfig;
@@ -131,7 +131,7 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
         if (isDbLevel) {
             ret.put(STORAGE_ACCESS_TYPE_READ, parseAccessTypes(config.get(mappingPrefix + "read", HIVE_ACCESS_TYPE_ANY)));
             ret.put(STORAGE_ACCESS_TYPE_WRITE, parseAccessTypes(config.get(mappingPrefix + "write",
-                HIVE_ACCESS_TYPE_CREATE + "," + HIVE_ACCESS_TYPE_DROP + "," + HIVE_ACCESS_TYPE_ALTER)));
+                    HIVE_ACCESS_TYPE_CREATE + "," + HIVE_ACCESS_TYPE_DROP + "," + HIVE_ACCESS_TYPE_ALTER)));
         }
 
         return ret;
@@ -177,7 +177,7 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
 
         try {
             RangerAdminClient adminClient = RangerBasePlugin.createAdminClient(
-                plugin.getPluginContext().getConfig());
+                    plugin.getPluginContext().getConfig());
             RangerPluginConfig config = rootPlugin.getPluginContext().getConfig();
 
             // Defensive: if init() is called more than once on the same instance
@@ -194,8 +194,7 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
                 rootPlugin.getServiceName(),
                 serviceName,
                 adminClient,
-                config
-            );
+                config);
 
             mappingRefresher.startRefresher();
             LOG.info("RMS Mapping Refresher started for service: {}", rootPlugin.getServiceName());
@@ -415,7 +414,7 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
      */
     protected boolean isAccessDetermined(RangerAccessRequest request) {
         Object isAccessDetermined = request.getContext() != null ?
-            request.getContext().get("isAccessDetermined") : null;
+                request.getContext().get("isAccessDetermined") : null;
         return Boolean.TRUE.equals(isAccessDetermined);
     }
 
@@ -447,7 +446,7 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
         }
 
         List<String> hiveAccessTypes = mapStorageAccessToHive(request.getAccessType(),
-            StringUtils.isBlank(mapping.getHiveTableName()));
+                StringUtils.isBlank(mapping.getHiveTableName()));
 
         if (CollectionUtils.isEmpty(hiveAccessTypes)) {
             return null;
@@ -521,7 +520,7 @@ public abstract class RangerRMSChainedPlugin extends RangerChainedPlugin {
      */
     protected RangerAccessResult createDeniedResult(RangerAccessRequest request) {
         RangerAccessResult ret = new RangerAccessResult(
-            RangerPolicy.POLICY_TYPE_ACCESS, serviceName, plugin.getServiceDef(), request);
+                RangerPolicy.POLICY_TYPE_ACCESS, serviceName, plugin.getServiceDef(), request);
         ret.setIsAllowed(false);
         ret.setIsAccessDetermined(true);
         return ret;

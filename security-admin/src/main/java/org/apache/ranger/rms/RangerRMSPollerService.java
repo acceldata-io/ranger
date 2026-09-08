@@ -19,7 +19,7 @@
 
 package org.apache.ranger.rms;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.biz.RMSMgr;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.common.PropertiesUtil;
