@@ -185,7 +185,7 @@
         <dependency>
             <groupId>org.glassfish.hk2.external</groupId>
             <artifactId>jakarta.inject</artifactId>
-            <version>${glassfish.hk2.version}</version>
+            <version>${jakarta.inject-api.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
