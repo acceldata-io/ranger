@@ -21,7 +21,6 @@ package org.apache.ranger.plugin.util;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.apache.commons.lang.StringUtils;
 import org.apache.ranger.admin.client.RangerAdminClient;
 import org.apache.ranger.authorization.hadoop.config.RangerPluginConfig;
 import org.apache.ranger.plugin.service.RangerRMSChainedPlugin;
@@ -29,10 +28,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
@@ -87,7 +86,7 @@ public class RangerRMSMappingRefresher implements Runnable {
             config.getLong(propertyPrefix + ".mapping.source.download.interval", DEFAULT_DOWNLOAD_INTERVAL_MS));
 
         String defaultCacheDir = config.get(propertyPrefix + ".policy.cache.dir",
-            "/etc/ranger/" + serviceName + "/policycache");
+                "/etc/ranger/" + serviceName + "/policycache");
         this.cacheDir = config.get(propertyPrefix + ".mapping.cache.dir", defaultCacheDir);
 
         this.cacheFile = cacheDir + File.separator + serviceName + "_" + hlServiceName + MAPPING_FILE_SUFFIX;
@@ -222,7 +221,6 @@ public class RangerRMSMappingRefresher implements Runnable {
             }
 
             this.lastDownloadTimeMs = System.currentTimeMillis();
-
         } catch (Exception e) {
             LOG.error("Failed to download RMS mappings for service: {}", serviceName, e);
         } finally {

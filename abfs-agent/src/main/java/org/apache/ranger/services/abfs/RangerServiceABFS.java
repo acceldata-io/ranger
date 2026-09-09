@@ -18,7 +18,7 @@
  */
 package org.apache.ranger.services.abfs;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerService;
 import org.apache.ranger.plugin.model.RangerServiceDef;
@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 
 public class RangerServiceABFS extends RangerBaseService {
-
     private static final Logger LOG = LoggerFactory.getLogger(RangerServiceABFS.class);
 
     public RangerServiceABFS() {

@@ -19,7 +19,7 @@
 
 package org.apache.ranger.authorization.hive.metastore;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.MetaStoreEventListener;
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -40,6 +40,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -244,9 +245,9 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
         String location = getTableLocation(table);
         boolean isManaged = isManaged(table);
 
-        LOG.info("onCreateTable: {}.{} (location={}, isManaged={})", 
+        LOG.info("onCreateTable: {}.{} (location={}, isManaged={})",
                  table.getDbName(), table.getTableName(), location, isManaged);
-        
+
         sendNotificationAsync(CHANGE_TYPE_CREATE_TABLE, table.getDbName(), table.getTableName(), location, isManaged);
     }
 
@@ -286,7 +287,7 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
         if (!StringUtils.equals(oldLocation, newLocation)) {
             LOG.info("onAlterTable: {}.{} (location changed: {} -> {})",
                      newTable.getDbName(), newTable.getTableName(), oldLocation, newLocation);
-            sendNotificationAsync(CHANGE_TYPE_ALTER_TABLE, newTable.getDbName(), newTable.getTableName(), 
+            sendNotificationAsync(CHANGE_TYPE_ALTER_TABLE, newTable.getDbName(), newTable.getTableName(),
                                   newLocation, isManaged(newTable));
         }
     }
@@ -306,19 +307,19 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
         return tableType == null || "MANAGED_TABLE".equalsIgnoreCase(tableType);
     }
 
-    private void sendNotificationAsync(String changeType, String databaseName, String tableName, 
+    private void sendNotificationAsync(String changeType, String databaseName, String tableName,
                                         String location, boolean isManaged) {
         executor.submit(() -> {
             try {
                 sendNotification(changeType, databaseName, tableName, location, isManaged);
             } catch (Exception e) {
-                LOG.error("Failed to send RMS notification: changeType={}, database={}, table={}", 
+                LOG.error("Failed to send RMS notification: changeType={}, database={}, table={}",
                           changeType, databaseName, tableName, e);
             }
         });
     }
 
-    private void sendNotification(String changeType, String databaseName, String tableName, 
+    private void sendNotification(String changeType, String databaseName, String tableName,
                                    String location, boolean isManaged) {
         if (StringUtils.isBlank(location)) {
             LOG.debug("Skipping notification: no location for {}.{}", databaseName, tableName);
@@ -327,7 +328,7 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
 
         try {
             String jsonPayload = buildJsonPayload(changeType, databaseName, tableName, location, isManaged);
-            
+
             LOG.debug("Sending RMS notification to {}: {}", rmsUrl, jsonPayload);
 
             URL url = new URL(rmsUrl);
@@ -358,7 +359,7 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
             }
 
             int responseCode = conn.getResponseCode();
-            
+
             if (responseCode >= 200 && responseCode < 300) {
                 LOG.info("RMS notification sent successfully: changeType={}, database={}, table={}, responseCode={}",
                          changeType, databaseName, tableName, responseCode);
@@ -369,32 +370,31 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
             }
 
             conn.disconnect();
-
         } catch (Exception e) {
             LOG.error("Error sending RMS notification: changeType={}, database={}, table={}",
                       changeType, databaseName, tableName, e);
         }
     }
 
-    private String buildJsonPayload(String changeType, String databaseName, String tableName, 
+    private String buildJsonPayload(String changeType, String databaseName, String tableName,
                                      String location, boolean isManaged) {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         sb.append("\"changeType\":\"").append(escapeJson(changeType)).append("\"");
         sb.append(",\"serviceName\":\"").append(escapeJson(hiveServiceName)).append("\"");
         sb.append(",\"databaseName\":\"").append(escapeJson(databaseName)).append("\"");
-        
+
         if (StringUtils.isNotBlank(tableName)) {
             sb.append(",\"tableName\":\"").append(escapeJson(tableName)).append("\"");
         }
-        
+
         if (StringUtils.isNotBlank(location)) {
             sb.append(",\"location\":\"").append(escapeJson(location)).append("\"");
         }
-        
+
         sb.append(",\"isManaged\":").append(isManaged);
         sb.append("}");
-        
+
         return sb.toString();
     }
 
@@ -436,10 +436,14 @@ public class RangerRMSMetaStoreEventListener extends MetaStoreEventListener {
      */
     private SSLSocketFactory createInsecureSocketFactory() {
         try {
-            TrustManager[] trustAllCerts = new TrustManager[]{
+            TrustManager[] trustAllCerts = new TrustManager[] {
                 new X509TrustManager() {
-                    public X509Certificate[] getAcceptedIssuers() { return null; }
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+
                     public void checkClientTrusted(X509Certificate[] certs, String authType) { }
+
                     public void checkServerTrusted(X509Certificate[] certs, String authType) { }
                 }
             };

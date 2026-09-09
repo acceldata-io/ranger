@@ -20,7 +20,6 @@
 package org.apache.ranger.services.yunikorn;
 
 public final class RangerYuniKornConstants {
-
     public static final String SERVICE_TYPE = "yunikorn";
 
     // Resource names (must match ranger-servicedef-yunikorn.json)

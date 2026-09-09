@@ -18,7 +18,7 @@
  */
 package org.apache.ranger.services.abfs.client;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.services.abfs.RangerABFSConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +40,6 @@ import java.util.regex.Pattern;
  * case an {@link IllegalStateException} is thrown.</p>
  */
 public class ABFSIdentityResolver {
-
     private static final Logger LOG = LoggerFactory.getLogger(ABFSIdentityResolver.class);
 
     private static final Pattern GUID_PATTERN = Pattern.compile(

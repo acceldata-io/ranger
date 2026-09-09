@@ -18,9 +18,6 @@
  */
 package org.apache.ranger.entity;
 
-import java.io.Serializable;
-import java.util.Date;
-
 import javax.persistence.Cacheable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -31,6 +28,9 @@ import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
+
+import java.io.Serializable;
+import java.util.Date;
 
 /**
  * Persisted record of a deleted RMS resource mapping. The set of rows in
@@ -82,23 +82,53 @@ public class XXRMSDeletionLog implements Serializable {
         this.llServiceId = llServiceId;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public Date getChangeTimestamp() { return changeTimestamp; }
-    public void setChangeTimestamp(Date changeTimestamp) { this.changeTimestamp = changeTimestamp; }
+    public Long getVersion() {
+        return version;
+    }
 
-    public String getHlResourceGuid() { return hlResourceGuid; }
-    public void setHlResourceGuid(String hlResourceGuid) { this.hlResourceGuid = hlResourceGuid; }
+    public void setVersion(Long version) {
+        this.version = version;
+    }
 
-    public String getLlResourceGuid() { return llResourceGuid; }
-    public void setLlResourceGuid(String llResourceGuid) { this.llResourceGuid = llResourceGuid; }
+    public Date getChangeTimestamp() {
+        return changeTimestamp;
+    }
 
-    public Long getLlServiceId() { return llServiceId; }
-    public void setLlServiceId(Long llServiceId) { this.llServiceId = llServiceId; }
+    public void setChangeTimestamp(Date changeTimestamp) {
+        this.changeTimestamp = changeTimestamp;
+    }
+
+    public String getHlResourceGuid() {
+        return hlResourceGuid;
+    }
+
+    public void setHlResourceGuid(String hlResourceGuid) {
+        this.hlResourceGuid = hlResourceGuid;
+    }
+
+    public String getLlResourceGuid() {
+        return llResourceGuid;
+    }
+
+    public void setLlResourceGuid(String llResourceGuid) {
+        this.llResourceGuid = llResourceGuid;
+    }
+
+    public Long getLlServiceId() {
+        return llServiceId;
+    }
+
+    public void setLlServiceId(Long llServiceId) {
+        this.llServiceId = llServiceId;
+    }
 
     @Override
     public String toString() {

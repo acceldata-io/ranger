@@ -29,7 +29,7 @@ import com.azure.storage.file.datalake.models.PathAccessControl;
 import com.azure.storage.file.datalake.models.PathAccessControlEntry;
 import com.azure.storage.file.datalake.models.PathItem;
 import com.azure.storage.file.datalake.models.RolePermissions;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyItem;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyItemAccess;
@@ -42,11 +42,11 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.LinkedHashSet;
 import java.util.regex.Pattern;
 
 /**
@@ -87,7 +87,6 @@ import java.util.regex.Pattern;
  * </ul>
  */
 public class ABFSAclSyncService {
-
     private static final Logger LOG = LoggerFactory.getLogger(ABFSAclSyncService.class);
 
     private static final String ACTION_DELETE = "delete";
@@ -244,7 +243,7 @@ public class ABFSAclSyncService {
         }
         LOG.info("ABFS per-node ACL applied to {} children under '{}'", count, path);
     }
-    
+
     private void validateAclLimit(String path, List<PathAccessControlEntry> entries) {
         long accessCount = entries.stream()
                 .filter(entry -> !entry.isInDefaultScope())

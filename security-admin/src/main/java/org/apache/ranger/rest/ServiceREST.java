@@ -106,9 +106,9 @@ import org.apache.ranger.service.RangerPolicyService;
 import org.apache.ranger.service.RangerServiceDefService;
 import org.apache.ranger.service.RangerServiceService;
 import org.apache.ranger.service.XUserService;
-import org.apache.ranger.services.s3.RangerS3Constants;
-import org.apache.ranger.services.gcs.RangerGCSConstants;
 import org.apache.ranger.services.abfs.RangerABFSConstants;
+import org.apache.ranger.services.gcs.RangerGCSConstants;
+import org.apache.ranger.services.s3.RangerS3Constants;
 import org.apache.ranger.view.RangerExportPolicyList;
 import org.apache.ranger.view.RangerPluginInfoList;
 import org.apache.ranger.view.RangerPolicyList;
@@ -1796,8 +1796,8 @@ public class ServiceREST {
             bizUtil.blockAuditorRoleUser();
 
             RangerPolicy oldPolicy = (StringUtils.equalsIgnoreCase(RangerS3Constants.S3, policy.getServiceType())
-                || StringUtils.equalsIgnoreCase(RangerGCSConstants.GCS, policy.getServiceType())
-                || StringUtils.equalsIgnoreCase(RangerABFSConstants.ABFS, policy.getServiceType()))
+                    || StringUtils.equalsIgnoreCase(RangerGCSConstants.GCS, policy.getServiceType())
+                    || StringUtils.equalsIgnoreCase(RangerABFSConstants.ABFS, policy.getServiceType()))
                     ? svcStore.getPolicy(policy.getId()) : null;
             ret = svcStore.updatePolicy(policy);
             if (StringUtils.isBlank(policy.getServiceType())) {

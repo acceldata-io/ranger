@@ -324,7 +324,9 @@ public class EmbeddedServiceDefsUtil {
         return getId(tagServiceDef);
     }
 
-    public long getYuniKornServiceDefId() { return getId(yuniKornServiceDef); }
+    public long getYuniKornServiceDefId() {
+        return getId(yuniKornServiceDef);
+    }
 
     public long getGdsServiceDefId() {
         return getId(gdsServiceDef);

@@ -54,7 +54,6 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 public class GCSClientConnectionMgrTest {
-
     private static final String SERVICE_NAME = "testGCSService";
     private static final String BUCKET_NAME  = "test-bucket";
     private static final String PROJECT_ID   = "test-project";

@@ -19,7 +19,7 @@
 
 package org.apache.ranger.rms;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,11 +64,11 @@ public class HMSClientWrapper implements AutoCloseable {
 
     private Object thriftClient;
     private Object transport;
-    private boolean connected = false;
+    private boolean connected;
 
-    private boolean saslEnabled = false;
+    private boolean saslEnabled;
     private String kerberosServerPrincipal;
-    private boolean sslEnabled = false;
+    private boolean sslEnabled;
     private String truststorePath;
     private String truststorePassword;
 
@@ -117,7 +117,6 @@ public class HMSClientWrapper implements AutoCloseable {
             LOG.info("Parsed HMS endpoint: host={}, port={}", host, port);
 
             return connectViaThrift(host, port);
-
         } catch (Exception e) {
             LOG.error("Failed to parse HMS URI: {}", hmsUri, e);
             return false;
@@ -179,7 +178,6 @@ public class HMSClientWrapper implements AutoCloseable {
             connected = true;
             LOG.info("Connected to HMS at {}:{}", host, port);
             return true;
-
         } catch (ClassNotFoundException e) {
             LOG.error("Required Thrift class not found: {}. Ensure libthrift and hive-standalone-metastore-common JARs are in classpath.", e.getMessage());
             cleanupOnFailure();
@@ -223,7 +221,7 @@ public class HMSClientWrapper implements AutoCloseable {
             }
 
             Method getClientSocket = sslFactoryClass.getMethod("getClientSocket",
-                String.class, int.class, int.class, sslParamsClass);
+                    String.class, int.class, int.class, sslParamsClass);
             Object sslTransport = getClientSocket.invoke(null, host, port, DEFAULT_SOCKET_TIMEOUT_MS, sslParams);
             LOG.info("SSL transport created to {}:{}", host, port);
             return sslTransport;
@@ -273,8 +271,7 @@ public class HMSClientWrapper implements AutoCloseable {
                     String.class,          // serverName
                     java.util.Map.class,   // props
                     javax.security.auth.callback.CallbackHandler.class,
-                    ttransportClass        // transport
-                );
+                    ttransportClass);      // transport
                 saslTransport = saslCtor.newInstance(
                     "GSSAPI", null, servicePrincipalName, serverHost, saslProps, null, baseTransport);
             } catch (NoSuchMethodException nsme7) {
@@ -285,14 +282,12 @@ public class HMSClientWrapper implements AutoCloseable {
                     String.class,          // serverName
                     java.util.Map.class,   // props
                     javax.security.auth.callback.CallbackHandler.class,
-                    ttransportClass        // transport
-                );
+                    ttransportClass);      // transport
                 saslTransport = saslCtor.newInstance(
                     "GSSAPI", servicePrincipalName, serverHost, saslProps, null, baseTransport);
             }
             LOG.info("SASL GSSAPI transport created");
             return saslTransport;
-
         } catch (ClassNotFoundException e) {
             LOG.error("TSaslClientTransport not found. Ensure libthrift supports SASL: {}", e.getMessage());
         } catch (Exception e) {
@@ -319,7 +314,6 @@ public class HMSClientWrapper implements AutoCloseable {
             Method doAs = ugiClass.getMethod("doAs", PrivilegedExceptionAction.class);
             Boolean result = (Boolean) doAs.invoke(loginUser, (PrivilegedExceptionAction<Boolean>) () -> connect(hmsUri));
             return Boolean.TRUE.equals(result);
-
         } catch (ClassNotFoundException e) {
             LOG.warn("Hadoop UserGroupInformation not available, falling back to plain connect");
             return connect(hmsUri);

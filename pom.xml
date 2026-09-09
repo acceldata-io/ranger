@@ -47,14 +47,12 @@
         <atlas.version>2.4.0</atlas.version>
         <aws-java-sdk.version>1.12.765</aws-java-sdk.version>
         <aws-java-sdk2.version>2.17.102</aws-java-sdk2.version>
-        <google-cloud-storage.version>2.36.1</google-cloud-storage.version>
-        <google-auth-library.version>1.23.0</google-auth-library.version>
-        <azure-storage-file-datalake.version>12.18.0</azure-storage-file-datalake.version>
-        <azure-identity.version>1.11.4</azure-identity.version>
         <azure-core-http-jdk-httpclient.version>1.0.0-beta.10</azure-core-http-jdk-httpclient.version>
         <!-- jdk-httpclient beta.10 is built against azure-core 1.46.0 (uses
              HttpHeadersAccessHelper, absent in the 1.45.0 the storage SDK pulls). -->
         <azure-core.version>1.46.0</azure-core.version>
+        <azure-identity.version>1.11.4</azure-identity.version>
+        <azure-storage-file-datalake.version>12.18.0</azure-storage-file-datalake.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <cglib.version>2.2.0-b23</cglib.version>
         <checkstyle.failOnViolation>true</checkstyle.failOnViolation>
@@ -104,6 +102,8 @@
         <fasterxml.woodstox.version>5.4.0</fasterxml.woodstox.version>
         <gcp.protobuf-java.version>3.25.5</gcp.protobuf-java.version>
         <glassfish.hk2.version>2.6.1</glassfish.hk2.version>
+        <google-auth-library.version>1.23.0</google-auth-library.version>
+        <google-cloud-storage.version>2.36.1</google-cloud-storage.version>
         <google.auth.library.oauth2.http.version>1.14.0</google.auth.library.oauth2.http.version>
         <google.cloud.kms>2.3.0</google.cloud.kms>
         <google.failureaccess.version>1.0.3</google.failureaccess.version>
@@ -972,6 +972,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <modules>
+                <module>abfs-agent</module>
                 <module>agents-audit</module>
                 <module>agents-common</module>
                 <module>agents-cred</module>
@@ -988,6 +989,7 @@
                 -->
                 <module>distro</module>
                 <module>embeddedwebserver</module>
+                <module>gcs-agent</module>
                 <module>hbase-agent</module>
                 <module>hdfs-agent</module>
                 <module>hive-agent</module>
@@ -1006,11 +1008,9 @@
                 <module>plugin-ozone</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
-                <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>plugin-yunikorn</module>
-                <module>ranger-yunikorn-agent</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
@@ -1025,13 +1025,11 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>s3-agent</module>
-                <module>gcs-agent</module>
-                <module>abfs-agent</module>
                 <module>security-admin</module>
                 <module>tagsync</module>
                 <module>ugsync</module>
@@ -1144,10 +1142,10 @@
                 <module>credentialbuilder</module>
                 <module>plugin-yarn</module>
                 <module>plugin-yunikorn</module>
-                <module>ranger-yunikorn-agent</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
+                <module>ranger-yunikorn-agent</module>
             </modules>
         </profile>
         <profile>
@@ -1190,10 +1188,8 @@
                 <module>common-utils</module>
                 <module>credentialbuilder</module>
                 <module>plugin-solr</module>
-                <module>plugin-atlas</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-util</module>
             </modules>
         </profile>
@@ -1314,6 +1310,7 @@
                 </os>
             </activation>
             <modules>
+                <module>abfs-agent</module>
                 <module>agents-audit</module>
                 <module>agents-common</module>
                 <module>agents-cred</module>
@@ -1330,6 +1327,7 @@
                 -->
                 <module>distro</module>
                 <module>embeddedwebserver</module>
+                <module>gcs-agent</module>
                 <module>hbase-agent</module>
                 <module>hdfs-agent</module>
                 <module>hive-agent</module>
@@ -1348,11 +1346,9 @@
                 <module>plugin-ozone</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
-                <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>plugin-yunikorn</module>
-                <module>ranger-yunikorn-agent</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
@@ -1367,13 +1363,11 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>s3-agent</module>
-                <module>gcs-agent</module>
-                <module>abfs-agent</module>
                 <module>security-admin</module>
                 <module>tagsync</module>
                 <module>ugsync</module>
@@ -1433,11 +1427,9 @@
                 <module>plugin-ozone</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-solr</module>
-                <module>plugin-atlas</module>
                 <module>plugin-trino</module>
                 <module>plugin-yarn</module>
                 <module>plugin-yunikorn</module>
-                <module>ranger-yunikorn-agent</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-authn</module>
                 <module>ranger-common-ha</module>
@@ -1452,10 +1444,10 @@
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-solr-plugin-shim</module>
-                <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-tools</module>
                 <module>ranger-util</module>
                 <module>ranger-yarn-plugin-shim</module>
+                <module>ranger-yunikorn-agent</module>
                 <module>security-admin</module>
                 <module>tagsync</module>
                 <module>ugsync</module>

@@ -19,6 +19,9 @@
 package org.apache.ranger.services.gcs;
 
 public class RangerGCSConstants {
+    private RangerGCSConstants() {
+        // to block instantiation
+    }
 
     public static final String GCS             = "gcs";
     public static final String USER_NAME                = "username";

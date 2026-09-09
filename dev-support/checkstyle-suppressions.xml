@@ -62,6 +62,7 @@
   <suppress files="PatchForHiveServiceDefUpdate_J10017" checks="TypeName"/>
   <suppress files="PatchForHiveServiceDefUpdate_J10027" checks="TypeName"/>
   <suppress files="PatchForHiveServiceDefUpdate_J10030" checks="TypeName"/>
+  <suppress files="PatchForHiveServiceDefUpdate_J10066" checks="TypeName"/>
   <suppress files="PatchForKafkaServiceDefUpdate_J10015" checks="TypeName"/>
   <suppress files="PatchForKafkaServiceDefUpdate_J10025" checks="TypeName"/>
   <suppress files="PatchForKafkaServiceDefUpdate_J10033" checks="TypeName"/>

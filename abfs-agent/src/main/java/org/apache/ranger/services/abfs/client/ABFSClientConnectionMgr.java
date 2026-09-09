@@ -25,7 +25,7 @@ import com.azure.identity.ClientSecretCredentialBuilder;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.azure.storage.file.datalake.DataLakeServiceClient;
 import com.azure.storage.file.datalake.DataLakeServiceClientBuilder;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.services.abfs.RangerABFSConstants;
 import org.slf4j.Logger;
@@ -46,7 +46,6 @@ import java.util.Map;
  * so it can modify ACLs.</p>
  */
 public class ABFSClientConnectionMgr extends BaseClient {
-
     private static final Logger LOG = LoggerFactory.getLogger(ABFSClientConnectionMgr.class);
 
     // Use the JDK's built-in HTTP client transport instead of the Azure SDK's

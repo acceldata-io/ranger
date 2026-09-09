@@ -19,13 +19,13 @@
 
 package org.apache.ranger.rms;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.biz.RMSMgr;
-import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.common.PropertiesUtil;
+import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.rms.HMSClientWrapper.DatabaseInfo;
-import org.apache.ranger.rms.HMSClientWrapper.TableInfo;
 import org.apache.ranger.rms.HMSClientWrapper.NotificationEventInfo;
+import org.apache.ranger.rms.HMSClientWrapper.TableInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,12 +34,13 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+
 import java.net.URI;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -159,7 +160,7 @@ public class RangerRMSPollerService {
     private boolean hmsSslEnabled;
     private String hmsTruststorePath;
     private String hmsTruststorePassword;
-    private boolean kerberosLoginAttempted = false;
+    private boolean kerberosLoginAttempted;
 
     private int fullSyncParallelism;
     private int fullSyncBatchSize;
@@ -180,7 +181,7 @@ public class RangerRMSPollerService {
     // Only ever touched from the single-threaded poll executor thread, so plain
     // fields are safe (no cross-thread visibility guarantees needed).
     private static final int MIN_CONSECUTIVE_EMPTY_POLLS = 3;
-    private int consecutiveEmptyPolls = 0;
+    private int consecutiveEmptyPolls;
     private long consecutiveEmptyPollsBaseEventId = -1L;
 
     @PostConstruct
@@ -315,7 +316,7 @@ public class RangerRMSPollerService {
 
     private void startPolling() {
         LOG.info("Starting RMS HMS polling with interval: {}ms", pollingIntervalMs);
-        
+
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "RMS-HMS-Poller");
             t.setDaemon(true);
@@ -403,7 +404,7 @@ public class RangerRMSPollerService {
 
             // Fetch notification events
             LOG.info("Fetching HMS notifications from eventId {} to {}", lastEventId.get(), currentEventId);
-            
+
             try {
                 List<NotificationEventInfo> events = client.getNextNotification(lastEventId.get(), 1000);
 
@@ -466,7 +467,6 @@ public class RangerRMSPollerService {
                         lastEventId.get(), currentEventId, e);
             }
             LOG.debug("<== pollHMS() processed events up to eventId={}", lastEventId.get());
-
         } catch (Throwable t) {
             // Catching Throwable (not just Exception) because scheduleAtFixedRate
             // suppresses all future runs if the task escapes with an uncaught
@@ -632,7 +632,6 @@ public class RangerRMSPollerService {
             // isFullyFailed() (checked by the caller) additionally guards the
             // fullSyncCompleted flag; consistent semantics between the two.
             bulkSuccess = stats.attempted > 0 && !stats.isFullyFailed();
-
         } finally {
             rmsMgr.endBulkFullSync(bulkSuccess);
             if (executor != null) {
@@ -765,7 +764,7 @@ public class RangerRMSPollerService {
         String dbName = event.dbName;
         String tableName = event.tableName;
 
-        LOG.debug("Processing event: type={}, db={}, table={}, eventId={}", 
+        LOG.debug("Processing event: type={}, db={}, table={}, eventId={}",
                   eventType, dbName, tableName, event.eventId);
 
         try {
@@ -810,7 +809,7 @@ public class RangerRMSPollerService {
         DatabaseInfo db = client.getDatabase(dbName);
         if (db != null) {
             String location = db.locationUri;
-            
+
             if (StringUtils.isNotBlank(location) && isSupportedLocation(location)) {
                 processCreateDatabase(dbName, location);
             }
@@ -832,7 +831,7 @@ public class RangerRMSPollerService {
         DatabaseInfo db = client.getDatabase(dbName);
         if (db != null) {
             String location = db.locationUri;
-            
+
             if (StringUtils.isNotBlank(location) && isSupportedLocation(location)) {
                 processCreateDatabase(dbName, location);
             }
@@ -997,12 +996,12 @@ public class RangerRMSPollerService {
         try {
             URI uri = new URI(location);
             String scheme = uri.getScheme();
-            
+
             if (StringUtils.isBlank(scheme)) {
                 // No scheme means local or HDFS default
                 return supportedUriSchemes.contains("hdfs");
             }
-            
+
             return supportedUriSchemes.contains(scheme.toLowerCase());
         } catch (Exception e) {
             LOG.warn("Failed to parse location URI: {}", location);
@@ -1034,7 +1033,6 @@ public class RangerRMSPollerService {
             }
 
             return hdfsServiceName;
-
         } catch (Exception e) {
             LOG.error("Failed to parse location URI: {}", location, e);
             return null;
@@ -1078,7 +1076,6 @@ public class RangerRMSPollerService {
             }
 
             return createHdfsResource(uri);
-
         } catch (Exception e) {
             LOG.error("Failed to create storage resource for location: {}", location, e);
             return null;

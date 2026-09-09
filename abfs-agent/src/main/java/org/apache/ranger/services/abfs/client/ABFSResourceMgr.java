@@ -23,7 +23,7 @@ import com.azure.storage.file.datalake.DataLakeServiceClient;
 import com.azure.storage.file.datalake.models.FileSystemItem;
 import com.azure.storage.file.datalake.models.ListPathsOptions;
 import com.azure.storage.file.datalake.models.PathItem;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ranger.plugin.client.HadoopException;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.apache.ranger.plugin.util.TimedEventUtil;
@@ -38,6 +38,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 public class ABFSResourceMgr {
+    private ABFSResourceMgr() {
+        // to block instantiation
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(ABFSResourceMgr.class);
 
@@ -107,7 +110,6 @@ public class ABFSResourceMgr {
                     return names;
                 };
                 resultList = TimedEventUtil.timedTask(callable, timeLookupMs, TimeUnit.MILLISECONDS);
-
             } else if (RangerABFSConstants.RELATIVE_PATH.equals(resource)) {
                 final List<String> selectedContainers = getSelectedValues(resourceMap, RangerABFSConstants.CONTAINER);
                 if (selectedContainers.isEmpty() || selectedContainers.contains("*")) {

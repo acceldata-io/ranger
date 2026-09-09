@@ -282,7 +282,7 @@ public class RangerKeyStoreProvider extends KeyProvider {
         }
 
         logger.info("Loaded {} old->new key version mappings from ranger.kms.kts.mapping",
-            oldToNewVersionMapping.size());
+                oldToNewVersionMapping.size());
     }
 
     public static Configuration getDBKSConf() {
