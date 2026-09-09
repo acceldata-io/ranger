@@ -20,15 +20,18 @@
 package org.apache.ranger.services.yunikorn.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.api.client.WebResource;
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.client.HadoopException;
 import org.apache.ranger.services.yunikorn.RangerYuniKornConstants;
 import org.apache.ranger.services.yunikorn.client.json.model.YuniKornQueueResponse;
+import org.glassfish.jersey.client.ClientProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -123,14 +126,14 @@ public class YuniKornClient extends BaseClient {
         String endpoint = url.trim().replaceAll("/+$", "")
                 + String.format(RangerYuniKornConstants.REST_PATH_QUEUES_FMT, partition);
 
-        Client       client   = Client.create();
-        client.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        client.setReadTimeout(READ_TIMEOUT_MS);
-        ClientResponse response = null;
+        Client client = ClientBuilder.newClient()
+                .property(ClientProperties.CONNECT_TIMEOUT, CONNECT_TIMEOUT_MS)
+                .property(ClientProperties.READ_TIMEOUT, READ_TIMEOUT_MS);
+        Response response = null;
 
         try {
-            WebResource resource = client.resource(endpoint);
-            response = resource.accept(EXPECTED_MIME_TYPE).get(ClientResponse.class);
+            WebTarget target = client.target(endpoint);
+            response = target.request(EXPECTED_MIME_TYPE).get();
 
             if (LOG.isDebugEnabled()) {
                 LOG.debug("GET {} -> status {}", endpoint, response == null ? "null" : response.getStatus());
@@ -146,7 +149,7 @@ public class YuniKornClient extends BaseClient {
                 throw hdpException;
             }
 
-            String json = response.getEntity(String.class);
+            String json = response.readEntity(String.class);
             ObjectMapper mapper = new ObjectMapper();
             YuniKornQueueResponse root = mapper.readValue(json, YuniKornQueueResponse.class);
 
@@ -180,13 +183,13 @@ public class YuniKornClient extends BaseClient {
             if (response != null) {
                 response.close();
             }
-            client.destroy();
+            client.close();
         }
     }
 
-    private static String safeReadEntity(ClientResponse response) {
+    private static String safeReadEntity(Response response) {
         try {
-            return response.getEntity(String.class);
+            return response.readEntity(String.class);
         } catch (Throwable t) {
             return "";
         }
