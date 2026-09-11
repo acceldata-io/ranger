@@ -20,7 +20,11 @@
 package org.apache.ranger.db;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.persistence.NoResultException;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
@@ -43,6 +47,69 @@ public class XXRMSServiceResourceDao extends BaseDao<XXRMSServiceResource> {
 	public XXRMSServiceResourceDao(RangerDaoManagerBase daoManager) {
 		super(daoManager);
 		_daoManager = daoManager;
+	}
+
+	/**
+	 * Maximum number of ids per batched IN-list query. EclipseLink and most
+	 * RDBMSs cap parameter list sizes (Oracle famously at 1000); chunking
+	 * keeps the implementation portable without a per-vendor branch.
+	 */
+	private static final int FIND_BY_IDS_BATCH_SIZE = 500;
+
+	/**
+	 * Batched id-keyed lookup. Returns a map of id -> entity for every id
+	 * that exists; missing ids are simply absent from the result. Avoids
+	 * the N+1 calls that arise from looping on getById() during delta and
+	 * full-mapping builds in {@code RMSMgr}.
+	 */
+	@SuppressWarnings("unchecked")
+	public Map<Long, XXRMSServiceResource> findByIds(Collection<Long> ids) {
+		if (ids == null || ids.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<Long, XXRMSServiceResource> ret = new HashMap<>(ids.size() * 2);
+		List<Long> batch = new ArrayList<>(FIND_BY_IDS_BATCH_SIZE);
+		for (Long id : ids) {
+			if (id == null) {
+				continue;
+			}
+			batch.add(id);
+			if (batch.size() >= FIND_BY_IDS_BATCH_SIZE) {
+				loadByIdsBatch(batch, ret);
+				batch.clear();
+			}
+		}
+		if (!batch.isEmpty()) {
+			loadByIdsBatch(batch, ret);
+		}
+		return ret;
+	}
+
+	@SuppressWarnings("unchecked")
+	private void loadByIdsBatch(List<Long> ids, Map<Long, XXRMSServiceResource> sink) {
+		// eclipselink.read-only: don't register fetched entities in the UnitOfWork.
+		// Without this, EclipseLink runs UnitOfWorkImpl.calculateChanges() on every
+		// query — an O(N²) walk of the persistence context that dominates wall-clock
+		// on cold full-download builds at scale (empirically: batch 3160 iterates
+		// ~1.58M attached entities per query for a 790K-mapping repository).
+		//
+		// Safe here because assembleMappings only reads the entities' getters; it
+		// never mutates or persists them, and the enclosing transaction is
+		// @Transactional(readOnly=true).
+		//
+		// jpa.query.flush-mode COMMIT is a defensive belt-and-suspenders: even if
+		// something else in the same transaction dirtied the context, we do not want
+		// to trigger a pre-query flush for a read-only batch lookup.
+		List<XXRMSServiceResource> rows = getEntityManager()
+				.createNamedQuery("XXRMSServiceResource.findByIds", tClass)
+				.setParameter("ids", ids)
+				.setHint("eclipselink.read-only", "true")
+				.setFlushMode(javax.persistence.FlushModeType.COMMIT)
+				.getResultList();
+		for (XXRMSServiceResource row : rows) {
+			sink.put(row.getId(), row);
+		}
 	}
 
 	public XXRMSServiceResource findByGuid(String guid) {
