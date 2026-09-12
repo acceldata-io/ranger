@@ -251,6 +251,27 @@
     </properties>
     <dependencyManagement>
         <dependencies>
+            <!-- Imported first so they also govern the Netty and Jackson artifacts that
+                 arrive transitively through the Solr, HBase and Hadoop client chains and
+                 get packaged into ranger-admin and ranger-solr-plugin. The version
+                 properties alone only reach the coordinates Ranger declares itself,
+                 which leaves older copies (Netty 4.1.93/4.1.108/4.1.123, Jackson
+                 2.12.x/2.18.x/2.19.2) bundled into the built artifacts. Being first,
+                 these also win over the explicit jackson-databind entry below. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${fasterxml.jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty-all.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.glassfish.jersey</groupId>
                 <artifactId>jersey-bom</artifactId>
