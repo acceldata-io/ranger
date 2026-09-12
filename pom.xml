@@ -129,7 +129,7 @@
         <httpcomponents.httpcore.version>4.4.14</httpcomponents.httpcore.version>
         <httpcomponents.httpmime.version>4.5.13</httpcomponents.httpmime.version>
         <io.opentelemetry-semconv.version>1.26.0-alpha</io.opentelemetry-semconv.version>
-        <io.opentelemetry.version>1.40.0</io.opentelemetry.version>
+        <io.opentelemetry.version>1.62.0</io.opentelemetry.version>
         <io.reactivex.rxjava.version>1.3.8</io.reactivex.rxjava.version>
         <jacoco.version>0.8.13</jacoco.version>
         <jakarta.activation-api.version>1.2.2</jakarta.activation-api.version>
