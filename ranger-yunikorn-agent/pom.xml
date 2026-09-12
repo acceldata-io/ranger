@@ -51,7 +51,7 @@
         <!-- Pinned versions for reproducibility. Ranger's parent POM does not
              manage these, so the agent stays in control of its own classpath. -->
         <fabric8.version>6.13.4</fabric8.version>
-        <jackson.version>2.16.1</jackson.version>
+        <jackson.version>2.18.9</jackson.version>
 
         <!-- This module requires Java 11 (fabric8 kubernetes-client + modern
              language level). The reactor targets Java 8 by default; override the
