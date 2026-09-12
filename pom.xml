@@ -194,7 +194,7 @@
         <native-maven-plugin.version>1.0-alpha-8</native-maven-plugin.version>
         <net.minidev.asm.version>1.0.2</net.minidev.asm.version>
         <netty-all.version>4.1.137.Final</netty-all.version>
-        <nimbus-jose-jwt.version>10.0.1</nimbus-jose-jwt.version>
+        <nimbus-jose-jwt.version>10.0.2</nimbus-jose-jwt.version>
         <noggit.version>0.8</noggit.version>
         <odp.release.version>3.4.3.0-SNAPSHOT</odp.release.version>
         <orc.core.version>1.6.7</orc.core.version>
