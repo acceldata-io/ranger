@@ -46,12 +46,12 @@
              (excludeSubProjects=false) — it validates the .java license headers
              and applies those excludes — so license coverage is unchanged. -->
         <checkstyle.skip>true</checkstyle.skip>
-        <commons.lang3.version>3.14.0</commons.lang3.version>
+        <commons.lang3.version>3.19.0</commons.lang3.version>
 
         <!-- Pinned versions for reproducibility. Ranger's parent POM does not
              manage these, so the agent stays in control of its own classpath. -->
         <fabric8.version>6.13.4</fabric8.version>
-        <jackson.version>2.16.1</jackson.version>
+        <jackson.version>2.18.9</jackson.version>
 
         <!-- This module requires Java 11 (fabric8 kubernetes-client + modern
              language level). The reactor targets Java 8 by default; override the
@@ -61,7 +61,7 @@
         <javac.target.version>11</javac.target.version>
 
         <junit.version>5.10.2</junit.version>
-        <log4j2.version>2.23.1</log4j2.version>
+        <log4j2.version>2.25.5</log4j2.version>
 
         <main.class>io.acceldata.yunikorn.ranger.RangerYuniKornAgent</main.class>
         <maven.compiler.source>11</maven.compiler.source>
