@@ -61,7 +61,7 @@
         <javac.target.version>11</javac.target.version>
 
         <junit.version>5.10.2</junit.version>
-        <log4j2.version>2.23.1</log4j2.version>
+        <log4j2.version>2.25.5</log4j2.version>
 
         <main.class>io.acceldata.yunikorn.ranger.RangerYuniKornAgent</main.class>
         <maven.compiler.source>11</maven.compiler.source>
