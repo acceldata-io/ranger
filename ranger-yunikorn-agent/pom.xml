@@ -46,7 +46,7 @@
              (excludeSubProjects=false) — it validates the .java license headers
              and applies those excludes — so license coverage is unchanged. -->
         <checkstyle.skip>true</checkstyle.skip>
-        <commons.lang3.version>3.14.0</commons.lang3.version>
+        <commons.lang3.version>3.19.0</commons.lang3.version>
 
         <!-- Pinned versions for reproducibility. Ranger's parent POM does not
              manage these, so the agent stays in control of its own classpath. -->
