@@ -85,9 +85,15 @@ Mac / full `-Pall` caveats (pre-existing, not introduced by this backport):
 - `unixauthnative` needs Linux `shadow.h`; skip that module on macOS.
 - `ambari-python-wrap` may be missing; a `python3` PATH shim works if the build invokes it.
 
+A full `-Pall` run against published ODP artifacts uses:
+
+```bash
+mvn -Pall clean compile package install -Dodp.release.version=3.3.6.5-1012
+```
+
 ---
 
-## Follow-up test fixes (uncommitted at the time this note was written)
+## Follow-up test fixes
 
 These are not part of the six cherry-picks. They were needed so CI/local tests pass on **2026-09-15**.
 
@@ -131,6 +137,23 @@ Fix:
 
 - Use Derby `10.15.2.0`, which is compatible with Java 11.
 - Use `org.apache.derby.iapi.jdbc.AutoloadedDriver` in the KMS and KMS-plugin test helpers and `dbks-site.xml` fixtures.
+
+### 5. Hive 4.1 `HiveOperationType` coverage (`TestAllHiveOperationInRanger`)
+
+Hive 4.1 added catalog, data-connector, Iceberg branch/tag, `PREPARE`/`EXECUTE`, and `ABORT_COMPACTION` operations. `RangerHiveOperationType` did not list them, so `checkHiveOperationTypeMatch` failed on `CREATECATALOG`.
+
+Fix (`58ec99816`): add the missing enum values and map them in `RangerHiveAuthorizer` to CREATE / ALTER / DROP / USE (catalog ops follow the database pattern).
+
+### 6. Knox plugin tests (`KnoxRangerTest`)
+
+`setupSuite` failed with `ClassNotFoundException: com.cloudera.api.swagger.client.ApiException`. `knox-agent` pulled `gateway-discovery-cm` onto the test classpath while excluding `cloudera-manager-api-swagger`, so Knox’s ServiceLoader initialized `ClouderaManagerClusterConfigurationMonitor`.
+
+Fix: drop the unused `gateway-discovery-cm` test dependency.
+
+Also:
+
+- Solr mock `pathInfo` is `/solr/gettingstarted/select` (Knox 2.0 rewrite keeps the `/solr` prefix).
+- Test `logback.xml` date pattern uses `.SSS` instead of `,SSS` (Logback 1.3+ treats the comma as a timezone).
 
 ---
 
