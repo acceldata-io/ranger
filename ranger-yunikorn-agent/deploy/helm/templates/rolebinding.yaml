@@ -1,0 +1,19 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "agent.fullname" . }}
+  # Binding lives in the YuniKorn namespace (where the Role is) so the SA
+  # in the agent's namespace can access the ConfigMap there.
+  namespace: {{ .Values.yunikorn.namespace | quote }}
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace | quote }}
+roleRef:
+  kind: Role
+  name: {{ include "agent.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
