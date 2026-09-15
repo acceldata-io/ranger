@@ -106,6 +106,7 @@ These are not part of the six cherry-picks. They were needed so CI/local tests p
 | 5 | Hive 4.1 `HiveOperationType` mapping | **No** — Hive 4.1 ops (`CREATECATALOG`, …) not listed in the Hive plugin |
 | 6 | `KnoxRangerTest` CM discovery / Solr path | **No** — Knox 2.0 test classpath and rewrite, not authz-embedded |
 | 7 | `TestServiceDBStore` S3 IAM merge tests | **No** — tests lagged `extractIAMOnlyStatements(Set<String>)` and AWS SDK 2.17 |
+| 8 | `TestServiceREST` policy CRUD NPEs | **No** — S3/GCS/ABFS post-CRUD sync required `serviceType`; not authz-embedded |
 
 ### 1. `RangerJSONAuditWriterTest.checkCreateWriterWhenReuseFlagSetWithoutFileSystem`
 
@@ -175,6 +176,14 @@ Also:
 **Not caused by the backport.** Production `extractIAMOnlyStatements` already takes `Set<String> rangerManagedResources` (union of snapshot + current Ranger ARNs). The tests still passed a second `List<PolicyStatement>`. AWS SDK 2.17.102 (this tree) has no `NoSuchBucketPolicyException`; `getBucketPolicy()` treats a generic `S3Exception` with error code `NoSuchBucketPolicy`.
 
 Fix: pass resource-ARN sets into `extractIAMOnlyStatements`, and mock missing policies with `S3Exception` (`errorCode=NoSuchBucketPolicy`).
+
+### 8. `TestServiceREST` policy create / update / delete NPEs (`security-admin`)
+
+Eight tests (`test16createPolicyFalse`, `test17updatePolicyFalse`, `test18deletePolicyFalse`, import override cases, `test72updatePolicyWithPolicyIdIsNull`, delete-by-GUID) failed with NPE at `throw restErrorUtil.createRESTException(excp.getMessage())`.
+
+**Not caused by the backport.** After persist, `ServiceREST` threw `IllegalStateException("Policy serviceType is missing")` whenever `policy.serviceType` was blank, then ran S3/GCS/ABFS IAM/ACL sync. Test policies (and many HDFS-style payloads) leave `serviceType` unset. The mocked `restErrorUtil` returns null, so `throw null` became the NPE.
+
+Fix: drop the blank-`serviceType` hard fail. Cloud sync already uses `StringUtils.equalsIgnoreCase`, which is false for a missing type, so S3/GCS/ABFS paths are skipped and other services still create/update/delete.
 
 ---
 
