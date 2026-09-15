@@ -84,6 +84,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @RunWith(MockitoJUnitRunner.class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
@@ -2932,11 +2934,11 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		rangerStmt1.setAction(java.util.Arrays.asList("s3:PutObject"));
 
 		List<org.apache.ranger.s3.PolicyStatement> iamStatements = java.util.Arrays.asList(iamStmt1);
-		List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(rangerStmt1);
+		java.util.Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList(rangerStmt1.getResource()));
 
 		// Execute
 		List<org.apache.ranger.s3.PolicyStatement> result = 
-			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerStatements);
+			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerManagedResources);
 
 		// Assert: IAM statement should be preserved
 		Assert.assertEquals(1, result.size());
@@ -2962,11 +2964,11 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		rangerStmt1.setAction(java.util.Arrays.asList("s3:GetObject"));
 
 		List<org.apache.ranger.s3.PolicyStatement> iamStatements = java.util.Arrays.asList(iamStmt1, iamStmt2);
-		List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(rangerStmt1);
+		java.util.Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList(rangerStmt1.getResource()));
 
 		// Execute
 		List<org.apache.ranger.s3.PolicyStatement> result = 
-			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerStatements);
+			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerManagedResources);
 
 		// Assert: only IAM-only statement should be preserved
 		Assert.assertEquals(1, result.size());
@@ -2982,11 +2984,11 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		rangerStmt1.setEffect("Allow");
 		rangerStmt1.setResource("arn:aws:s3:::ranger-bucket/*");
 		rangerStmt1.setAction(java.util.Arrays.asList("s3:GetObject"));
-		List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(rangerStmt1);
+		java.util.Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList(rangerStmt1.getResource()));
 
 		// Execute
 		List<org.apache.ranger.s3.PolicyStatement> result = 
-			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerStatements);
+			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerManagedResources);
 
 		// Assert: result should be empty
 		Assert.assertEquals(0, result.size());
@@ -3001,11 +3003,11 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		stmt1.setAction(java.util.Arrays.asList("s3:GetObject"));
 
 		List<org.apache.ranger.s3.PolicyStatement> iamStatements = java.util.Arrays.asList(stmt1);
-		List<org.apache.ranger.s3.PolicyStatement> rangerStatements = java.util.Arrays.asList(stmt1);
+		java.util.Set<String> rangerManagedResources = new java.util.HashSet<>(java.util.Arrays.asList(stmt1.getResource()));
 
 		// Execute
 		List<org.apache.ranger.s3.PolicyStatement> result = 
-			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerStatements);
+			serviceDBStore.extractIAMOnlyStatements(iamStatements, rangerManagedResources);
 
 		// Assert: no IAM-only statements
 		Assert.assertEquals(0, result.size());
@@ -3016,7 +3018,7 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		// Setup: mock S3Client with no existing policy
 		software.amazon.awssdk.services.s3.S3Client s3Client = Mockito.mock(software.amazon.awssdk.services.s3.S3Client.class);
 		Mockito.when(s3Client.getBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest.class)))
-			.thenThrow(software.amazon.awssdk.services.s3.model.NoSuchBucketPolicyException.class);
+			.thenThrow(noSuchBucketPolicyException());
 
 		org.apache.ranger.s3.PolicyStatement rangerStmt = new org.apache.ranger.s3.PolicyStatement();
 		rangerStmt.setEffect("Allow");
@@ -3137,7 +3139,7 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 
 		// Mock S3 getBucketPolicy to return no existing policy
 		Mockito.when(s3Client.getBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest.class)))
-			.thenThrow(software.amazon.awssdk.services.s3.model.NoSuchBucketPolicyException.class);
+			.thenThrow(noSuchBucketPolicyException());
 		
 		// Mock S3 putBucketPolicy
 		Mockito.when(s3Client.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class)))
@@ -3199,7 +3201,7 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 
 		// Mock S3 getBucketPolicy to return no existing policy
 		Mockito.when(s3Client.getBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest.class)))
-			.thenThrow(software.amazon.awssdk.services.s3.model.NoSuchBucketPolicyException.class);
+			.thenThrow(noSuchBucketPolicyException());
 		
 		// Mock S3 putBucketPolicy
 		Mockito.when(s3Client.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class)))
@@ -3280,7 +3282,7 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 
 		// Mock S3 getBucketPolicy to return no existing policy
 		Mockito.when(s3Client.getBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.GetBucketPolicyRequest.class)))
-			.thenThrow(software.amazon.awssdk.services.s3.model.NoSuchBucketPolicyException.class);
+			.thenThrow(noSuchBucketPolicyException());
 		
 		// Mock S3 putBucketPolicy
 		Mockito.when(s3Client.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class)))
@@ -3309,5 +3311,15 @@ public void test47getMetricByTypeDenyconditions() throws Exception {
 		// Assert: putBucketPolicy should never be called
 		Mockito.verify(s3Client, Mockito.never())
 			.putBucketPolicy(Mockito.any(software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest.class));
+	}
+
+	private static S3Exception noSuchBucketPolicyException() {
+		return (S3Exception) S3Exception.builder()
+				.statusCode(404)
+				.awsErrorDetails(AwsErrorDetails.builder()
+						.errorCode("NoSuchBucketPolicy")
+						.errorMessage("The bucket policy does not exist")
+						.build())
+				.build();
 	}
 }

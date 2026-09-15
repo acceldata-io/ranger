@@ -97,6 +97,16 @@ mvn -Pall clean compile package install -Dodp.release.version=3.3.6.5-1012
 
 These are not part of the six cherry-picks. They were needed so CI/local tests pass on **2026-09-15**.
 
+| # | Fix | Related to authz-embedded backport? |
+| --- | --- | --- |
+| 1 | `RangerJSONAuditWriterTest` | **No** — pre-existing ODP-7588 assertion vs NPE guard |
+| 2 | Tag `EXPIRES_ON` fixture dates | **No** — fixtures expired after 2026-06-15 (RANGER-5647) |
+| 3 | Relaxed `TestEmbeddedAuthorizer` GDS assertions | **Yes** — 2.8 authz-embedded fixtures vs 2.5 GDS matcher / missing RANGER-5340 |
+| 4 | KMS Derby driver / version | **No** — ODP-2807 Derby 10.17 is Java 19; this tree builds on JDK 11 |
+| 5 | Hive 4.1 `HiveOperationType` mapping | **No** — Hive 4.1 ops (`CREATECATALOG`, …) not listed in the Hive plugin |
+| 6 | `KnoxRangerTest` CM discovery / Solr path | **No** — Knox 2.0 test classpath and rewrite, not authz-embedded |
+| 7 | `TestServiceDBStore` S3 IAM merge tests | **No** — tests lagged `extractIAMOnlyStatements(Set<String>)` and AWS SDK 2.17 |
+
 ### 1. `RangerJSONAuditWriterTest.checkCreateWriterWhenReuseFlagSetWithoutFileSystem`
 
 **Not caused by the backport** (`agents-audit` is unchanged vs `58c564f48`). ODP-7588 (`a81ea9d99`) added an NPE guard that creates a new log file when `fileSystem` is null, but the test still expected `logJSON` to return `false` (old NPE path).
@@ -154,6 +164,17 @@ Also:
 
 - Solr mock `pathInfo` is `/solr/gettingstarted/select` (Knox 2.0 rewrite keeps the `/solr` prefix).
 - Test `logback.xml` date pattern uses `.SSS` instead of `,SSS` (Logback 1.3+ treats the comma as a timezone).
+
+### 7. `TestServiceDBStore` S3 IAM merge tests (`security-admin`)
+
+`testCompile` failed with:
+
+- `List<PolicyStatement> cannot be converted to Set<String>` on `extractIAMOnlyStatements`
+- `cannot find symbol NoSuchBucketPolicyException`
+
+**Not caused by the backport.** Production `extractIAMOnlyStatements` already takes `Set<String> rangerManagedResources` (union of snapshot + current Ranger ARNs). The tests still passed a second `List<PolicyStatement>`. AWS SDK 2.17.102 (this tree) has no `NoSuchBucketPolicyException`; `getBucketPolicy()` treats a generic `S3Exception` with error code `NoSuchBucketPolicy`.
+
+Fix: pass resource-ARN sets into `extractIAMOnlyStatements`, and mock missing policies with `S3Exception` (`errorCode=NoSuchBucketPolicy`).
 
 ---
 
