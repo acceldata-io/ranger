@@ -91,7 +91,7 @@
           "read": { "permission": "read", "access":  { "decision": "ALLOW", "policy": { "id": 3, "version": 2 } } }
         },
         "ds1-r-user": {
-          "read": { "permission": "read", "access":  { "decision": "ALLOW", "policy": { "id": 41, "version": 1 } } }
+          "read": { "permission": "read", "access":  { "decision": "NOT_DETERMINED", "policy": { "id": 41, "version": 1 } } }
         }
       }
     }
@@ -106,7 +106,7 @@
           "read": { "permission": "read", "access":  { "decision": "ALLOW", "policy": { "id": 3, "version": 2 } } }
         },
         "ds2-r-user": {
-          "read": { "permission": "read", "access":  { "decision": "ALLOW", "policy": { "id": 42, "version": 1 } } }
+          "read": { "permission": "read", "access":  { "decision": "NOT_DETERMINED", "policy": { "id": 42, "version": 1 } } }
         }
       }
     }

@@ -89,9 +89,6 @@
       "users": {
         "all-tbl-r-user": {
           "select": { "permission": "select", "access":  { "decision": "ALLOW", "policy": { "id": 3, "version": 2 } } }
-        },
-        "ds1-r-user": {
-          "select": { "permission": "select", "access":  { "decision": "ALLOW", "policy": { "id": 41, "version": 1 } } }
         }
       }
     }
@@ -104,9 +101,6 @@
       "users": {
         "all-tbl-r-user": {
           "select": { "permission": "select", "access":  { "decision": "ALLOW", "policy": { "id": 3, "version": 2 } } }
-        },
-        "ds2-r-user": {
-          "select": { "permission": "select", "access":  { "decision": "ALLOW", "policy": { "id": 42, "version": 1 } } }
         }
       }
     }
@@ -131,9 +125,6 @@
       "users": {
         "all-tbl-r-user": {
           "select": { "permission": "select", "access":  { "decision": "ALLOW", "policy": { "id": 3, "version": 2 } } }
-        },
-        "ds3-r-user": {
-          "select": { "permission": "select", "access":  { "decision": "ALLOW", "policy": { "id": 43, "version": 1 } }, "dataMask": null }
         }
       }
     }

@@ -79,8 +79,13 @@ public class RangerJSONAuditWriterTest {
         jsonAuditWriter.fileSystem = null;
         jsonAuditWriter.auditPath = null;
 
-        assertFalse(jsonAuditWriter.logJSON(Collections.singleton("This event will not be logged!")));
+        // append is not possible without a FileSystem, so a new log file is created instead of failing with an NPE
+        assertTrue(jsonAuditWriter.logJSON(Collections.singleton("This event will be logged to a new file!")));
         assertFalse(jsonAuditWriter.reUseLastLogFile);
+
+        // cleanup
+        jsonAuditWriter.fileSystem.deleteOnExit(jsonAuditWriter.auditPath);
+        jsonAuditWriter.closeWriter();
     }
 
     @Test
