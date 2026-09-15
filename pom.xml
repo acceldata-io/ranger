@@ -122,7 +122,7 @@
         <commons.text.version>1.10.0</commons.text.version>
         <curator.test.version>5.4.0</curator.test.version>
         <curator.version>5.4.0</curator.version>
-        <derby.version>10.17.1.0</derby.version>
+        <derby.version>10.15.2.0</derby.version>
         <dnsjava.version>3.6.2</dnsjava.version>
         <eclipse.jpa.version>2.7.12</eclipse.jpa.version>
         <elasticsearch.version>7.17.29</elasticsearch.version>
@@ -286,6 +286,8 @@
                 <module>jisql</module>
                 <module>agents-audit</module>
                 <module>agents-common</module>
+                <module>authz-api</module>
+                <module>authz-embedded</module>
                 <module>agents-cred</module>
                 <module>intg</module>
                 <module>agents-installer</module>
@@ -597,6 +599,8 @@
                 <module>jisql</module>
                 <module>agents-audit</module>
                 <module>agents-common</module>
+                <module>authz-api</module>
+                <module>authz-embedded</module>
                 <module>agents-cred</module>
                 <module>intg</module>
                 <module>agents-installer</module>
@@ -677,6 +681,8 @@
                 <module>jisql</module>
                 <module>agents-audit</module>
                 <module>agents-common</module>
+                <module>authz-api</module>
+                <module>authz-embedded</module>
                 <module>agents-cred</module>
                 <module>intg</module>
                 <module>agents-installer</module>

@@ -56,7 +56,7 @@
 
   <property>
     <name>ranger.ks.jpa.jdbc.driver</name>
-    <value>org.apache.derby.jdbc.EmbeddedDriver</value>
+    <value>org.apache.derby.iapi.jdbc.AutoloadedDriver</value>
     <description>
       Driver used for database
     </description>    

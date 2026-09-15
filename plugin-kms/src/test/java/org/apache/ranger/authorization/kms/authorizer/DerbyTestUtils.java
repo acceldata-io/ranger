@@ -27,7 +27,7 @@ public final class DerbyTestUtils {
 
     public static void startDerby() throws Exception {
         // Start Apache Derby
-        Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
+        Class.forName("org.apache.derby.iapi.jdbc.AutoloadedDriver").newInstance();
 
         Properties props = new Properties();
         Connection conn = DriverManager.getConnection("jdbc:derby:memory:derbyDB;create=true", props);

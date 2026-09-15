@@ -299,7 +299,7 @@ public class KnoxRangerTest {
         driver.getMock("SOLR")
         .expect()
         .method("GET")
-        .pathInfo("/gettingstarted/select")
+        .pathInfo("/solr/gettingstarted/select")
         .queryParam("q", "author_s:William+Shakespeare")
         .respond()
         .status(HttpStatus.SC_OK)
