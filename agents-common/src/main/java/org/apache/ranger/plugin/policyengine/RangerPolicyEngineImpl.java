@@ -29,6 +29,7 @@ import org.apache.ranger.authorization.utils.StringUtil;
 import org.apache.ranger.plugin.contextenricher.RangerTagForEval;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerServiceDef;
+import org.apache.ranger.plugin.model.validation.RangerServiceDefHelper;
 import org.apache.ranger.plugin.policyengine.gds.GdsAccessResult;
 import org.apache.ranger.plugin.policyevaluator.RangerPolicyEvaluator;
 import org.apache.ranger.plugin.policyresourcematcher.RangerPolicyResourceMatcher.MatchType;
@@ -374,6 +375,21 @@ public class RangerPolicyEngineImpl implements RangerPolicyEngine {
 				}
 			}
 			ret = policyEngine.getServiceDef();
+		}
+		return ret;
+	}
+
+	@Override
+	public RangerServiceDefHelper getServiceDefHelper() {
+		final RangerServiceDefHelper ret;
+
+		try (RangerReadWriteLock.RangerLock readLock = policyEngine.getReadLock()) {
+			if (LOG.isDebugEnabled()) {
+				if (readLock.isLockingEnabled()) {
+					LOG.debug("Acquired lock - " + readLock);
+				}
+			}
+			ret = policyEngine.getServiceDefHelper();
 		}
 		return ret;
 	}
