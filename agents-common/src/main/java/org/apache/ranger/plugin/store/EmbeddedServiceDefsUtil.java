@@ -49,7 +49,8 @@ public class EmbeddedServiceDefsUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedServiceDefsUtil.class);
 
 
-	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,abfs,yunikorn,polaris";
+	// following servicedef list should be reviewed/updated whenever a new embedded service-def is added
+	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,abfs,yunikorn,polaris,xstore";
 	private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
 	private Set<String> supportedServiceDefs;
 	public static final String EMBEDDED_SERVICEDEF_TAG_NAME  = "tag";
@@ -81,7 +82,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String EMBEDDED_SERVICEDEF_GCS_NAME = "gcs";
 	public static final String EMBEDDED_SERVICEDEF_YUNIKORN_NAME  = "yunikorn";
 	public static final String EMBEDDED_SERVICEDEF_POLARIS_NAME = "polaris";
-
+	public static final String EMBEDDED_SERVICEDEF_XSTORE_NAME  = "xstore";
 	public static final String PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS = "ranger.service.store.create.embedded.service-defs";
 
 	public static final String HDFS_IMPL_CLASS_NAME  = "org.apache.ranger.services.hdfs.RangerServiceHdfs";
@@ -133,6 +134,7 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef yuniKornServiceDef;
 	private RangerServiceDef polarisServiceDef;
 	private RangerServiceDef gcsServiceDef;
+	private RangerServiceDef xstoreServiceDef;
 	private RangerServiceDef tagServiceDef;
 	private RangerServiceDef gdsServiceDef;
 
@@ -185,6 +187,7 @@ public class EmbeddedServiceDefsUtil {
 			yuniKornServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YUNIKORN_NAME);
 			polarisServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_POLARIS_NAME);
 			gcsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GCS_NAME);
+			xstoreServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_XSTORE_NAME);
 			tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
 			gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
 

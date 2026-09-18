@@ -38,7 +38,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.NewCookie;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
@@ -397,10 +396,10 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 	}
 
 	private void buildUserGroupInfo() throws Throwable {
-		if(LOG.isDebugEnabled() && authenticationType != null && AUTH_KERBEROS.equalsIgnoreCase(authenticationType) && SecureClientLogin.isKerberosCredentialExists(principal, keytab)) {
+		if(LOG.isDebugEnabled() && AUTH_KERBEROS.equalsIgnoreCase(authenticationType) && SecureClientLogin.isKerberosCredentialExists(principal, keytab)) {
 			LOG.debug(String.format("==> Kerberos Environment : Principal is %s and Keytab is %s", principal, keytab));
 		}
-		if (authenticationType != null && AUTH_KERBEROS.equalsIgnoreCase(authenticationType) && SecureClientLogin.isKerberosCredentialExists(principal, keytab)) {
+		if (AUTH_KERBEROS.equalsIgnoreCase(authenticationType) && SecureClientLogin.isKerberosCredentialExists(principal, keytab)) {
 			LOG.info(String.format("Using principal: %s and keytab: %s", principal, keytab));
 			Subject sub = SecureClientLogin.loginUserFromKeytab(principal, keytab, nameRules);
 			Boolean isInitDone = Subject.doAs(sub, new PrivilegedAction<Boolean>() {
@@ -677,12 +676,14 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 				Map<String, String> curGroupAttrs  = curGroup.getOtherAttrsMap();
 				String curGroupDN                  = MapUtils.isEmpty(curGroupAttrs) ? groupName : curGroupAttrs.get(UgsyncCommonConstants.FULL_NAME);
 				String newSyncSource               = newGroupAttrs.get(UgsyncCommonConstants.SYNC_SOURCE);
+				boolean needsVisibilityRestore     = isHidden(curGroup.getIsVisible());
 
 				if (isStartupFlag && !isSyncSourceValidationEnabled && (!StringUtils.equalsIgnoreCase(curSyncSource, newSyncSource))) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("[" + groupName + "]: SyncSource updated to " + newSyncSource + ", previous value: " + curSyncSource);
 					}
 					curGroup = setOtherAttributes(curGroup, newSyncSource, newGroupAttrs, newGroupAttrsStr);
+					restoreVisibility(curGroup, groupName);
 					deltaGroups.put(groupName, curGroup);
 					noOfModifiedGroups++;
 					groupNameMap.put(groupDN, groupName);
@@ -708,10 +709,17 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 							}
 						}
 						curGroup = setOtherAttributes(curGroup, newSyncSource, newGroupAttrs, newGroupAttrsStr);
+						restoreVisibility(curGroup, groupName);
 						deltaGroups.put(groupName, curGroup);
 						noOfModifiedGroups++;
 						groupNameMap.put(groupDN, groupName);
 
+					} else if (needsVisibilityRestore) {
+						// Soft-deleted group reappeared in sync source with no other attribute changes.
+						restoreVisibility(curGroup, groupName);
+						deltaGroups.put(groupName, curGroup);
+						noOfModifiedGroups++;
+						groupNameMap.put(groupDN, groupName);
 					} else if (LOG.isDebugEnabled()) {
 						if (!StringUtils.equalsIgnoreCase(curSyncSource, newSyncSource)) {
 							LOG.debug("[" + groupName + "]: Different sync source exists, update skipped!");
@@ -772,12 +780,14 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 				Map<String, String> curUserAttrs = curUser.getOtherAttrsMap();
 				String curUserDN                 = MapUtils.isEmpty(curUserAttrs) ? userName : curUserAttrs.get(UgsyncCommonConstants.FULL_NAME);
 				String newSyncSource             = newUserAttrs.get(UgsyncCommonConstants.SYNC_SOURCE);
+				boolean needsVisibilityRestore   = isHidden(curUser.getIsVisible());
 				if (isStartupFlag && !isSyncSourceValidationEnabled && (!StringUtils.equalsIgnoreCase(curSyncSource, newSyncSource))) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("[" + userName + "]: SyncSource updated to " + newSyncSource + ", previous value: " + curSyncSource);
 					}
 					curUser = setOtherAttributes(curUser, newSyncSource, newUserAttrs, newUserAttrsStr);
 					curUser.setUserSource(SOURCE_EXTERNAL);
+					restoreVisibility(curUser, userName);
 					deltaUsers.put(userName, curUser);
 					noOfModifiedGroups++;
 					userNameMap.put(userDN, userName);
@@ -804,6 +814,13 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 						}
 						curUser = setOtherAttributes(curUser, newSyncSource, newUserAttrs, newUserAttrsStr);
 						curUser.setUserSource(SOURCE_EXTERNAL);
+						restoreVisibility(curUser, userName);
+						deltaUsers.put(userName, curUser);
+						noOfModifiedUsers++;
+						userNameMap.put(userDN, userName);
+					} else if (needsVisibilityRestore) {
+						// Soft-deleted user reappeared in sync source with no other attribute changes.
+						restoreVisibility(curUser, userName);
 						deltaUsers.put(userName, curUser);
 						noOfModifiedUsers++;
 						userNameMap.put(userDN, userName);
@@ -1725,9 +1742,10 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 			if (StringUtils.isNotEmpty(groupDN) && !sourceGroups.containsKey(groupDN)
 					&& StringUtils.equalsIgnoreCase(groupOtherAttrs.get(UgsyncCommonConstants.SYNC_SOURCE), currentSyncSource)
 					&& StringUtils.equalsIgnoreCase(groupOtherAttrs.get(UgsyncCommonConstants.LDAP_URL), ldapUrl)) {
-				if (ISHIDDEN.equals(groupInfo.getIsVisible())) {
-				groupInfo.setIsVisible(ISHIDDEN);
-				deletedGroups.put(groupInfo.getName(), groupInfo);
+				if (!ISHIDDEN.equals(groupInfo.getIsVisible())) {
+					groupInfo.setIsVisible(ISHIDDEN);
+					deletedGroups.put(groupInfo.getName(), groupInfo);
+					LOG.info("group " + groupInfo.getName() + " marked for delete ");
 				} else {
 					LOG.info("group " + groupInfo.getName() + " already marked for delete ");
 				}
@@ -1846,9 +1864,10 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 			if (StringUtils.isNotEmpty(userDN) && !sourceUsers.containsKey(userDN)
 					&& StringUtils.equalsIgnoreCase(userOtherAttrs.get(UgsyncCommonConstants.SYNC_SOURCE), currentSyncSource)
 					&& StringUtils.equalsIgnoreCase(userOtherAttrs.get(UgsyncCommonConstants.LDAP_URL), ldapUrl)) {
-				if (userInfo.getIsVisible() != ISHIDDEN) {
-				userInfo.setIsVisible(ISHIDDEN);
-				deletedUsers.put(userInfo.getName(), userInfo);
+				if (!ISHIDDEN.equals(userInfo.getIsVisible())) {
+					userInfo.setIsVisible(ISHIDDEN);
+					deletedUsers.put(userInfo.getName(), userInfo);
+					LOG.info("user " + userInfo.getName() + " marked for delete ");
 				} else {
 					LOG.info("user " + userInfo.getName() + " already marked for delete ");
 				}
@@ -1941,10 +1960,59 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 		return ret;
 	}
 
+	private static boolean isHidden(String isVisible) {
+		return !ISVISIBLE.equals(isVisible);
+	}
+
+	private void restoreVisibility(XUserInfo userInfo, String userName) {
+		if (userInfo != null && isHidden(userInfo.getIsVisible())) {
+			userInfo.setIsVisible(ISVISIBLE);
+			LOG.info("[" + userName + "]: Visibility restored to Visible (was soft-deleted)");
+		}
+	}
+
+	private void restoreVisibility(XGroupInfo groupInfo, String groupName) {
+		if (groupInfo != null && isHidden(groupInfo.getIsVisible())) {
+			groupInfo.setIsVisible(ISVISIBLE);
+			LOG.info("[" + groupName + "]: Visibility restored to Visible (was soft-deleted)");
+		}
+	}
+
 	//Only for testing purpose
 	protected void setUserSyncNameValidationEnabled(String isNameValidationEnabled) {
 		config.setProperty(UserGroupSyncConfig.UGSYNC_NAME_VALIDATION_ENABLED, isNameValidationEnabled);
 		this.isUserSyncNameValidationEnabled = config.isUserSyncNameValidationEnabled();
+	}
+
+	// Only for testing purpose
+	protected void setCachesForTest(Map<String, XUserInfo> users, Map<String, XGroupInfo> groups,
+			Map<String, String> userDnToName, Map<String, String> groupDnToName) {
+		this.userCache = users != null ? users : new HashMap<>();
+		this.groupCache = groups != null ? groups : new HashMap<>();
+		this.userNameMap = userDnToName != null ? userDnToName : new HashMap<>();
+		this.groupNameMap = groupDnToName != null ? groupDnToName : new HashMap<>();
+		this.deltaUsers = new HashMap<>();
+		this.deltaGroups = new HashMap<>();
+		this.noOfNewUsers = 0;
+		this.noOfNewGroups = 0;
+		this.noOfModifiedUsers = 0;
+		this.noOfModifiedGroups = 0;
+		this.isStartupFlag = false;
+		this.isSyncSourceValidationEnabled = true;
+		this.policyMgrUserName = "rangerusersync";
+		this.isUserSyncNameValidationEnabled = false;
+	}
+
+	// Only for testing purpose
+	protected Map<String, XUserInfo> computeUserDeltaForTest(Map<String, Map<String, String>> sourceUsers) {
+		computeUserDelta(sourceUsers);
+		return deltaUsers;
+	}
+
+	// Only for testing purpose
+	protected Map<String, XGroupInfo> computeGroupDeltaForTest(Map<String, Map<String, String>> sourceGroups) {
+		computeGroupDelta(sourceGroups);
+		return deltaGroups;
 	}
 
 	// This will throw RuntimeException if Server is not Active
