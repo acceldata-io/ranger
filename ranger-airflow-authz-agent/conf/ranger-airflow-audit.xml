@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!--
+  Copyright 2026 Acceldata Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+-->
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+	<property>
+		<name>xasecure.audit.is.enabled</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.solr</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.solr.async.max.queue.size</name>
+		<value>1048576</value>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.solr.async.max.flush.interval.ms</name>
+		<value>1000</value>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.solr.urls</name>
+		<value></value>
+		<description>Solr collection URL, e.g. http://solr:8983/solr/ranger_audits</description>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.hdfs</name>
+		<value>false</value>
+	</property>
+</configuration>
