@@ -299,6 +299,7 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>plugin-ozone</module>
@@ -610,6 +611,7 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>plugin-ozone</module>
@@ -690,6 +692,7 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>plugin-ozone</module>
