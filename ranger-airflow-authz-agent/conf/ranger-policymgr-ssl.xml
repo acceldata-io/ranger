@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!--
+  Copyright 2026 Acceldata Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+-->
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+	<property>
+		<name>xasecure.policymgr.clientssl.keystore</name>
+		<value></value>
+		<description>Java keystore for 2-way SSL to Ranger Admin. Leave blank for HTTP.</description>
+	</property>
+	<property>
+		<name>xasecure.policymgr.clientssl.truststore</name>
+		<value></value>
+		<description>Java truststore trusting Ranger Admin's certificate.</description>
+	</property>
+	<property>
+		<name>xasecure.policymgr.clientssl.keystore.credential.file</name>
+		<value></value>
+	</property>
+	<property>
+		<name>xasecure.policymgr.clientssl.truststore.credential.file</name>
+		<value></value>
+	</property>
+</configuration>
