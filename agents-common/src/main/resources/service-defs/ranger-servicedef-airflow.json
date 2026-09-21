@@ -1,0 +1,256 @@
+{
+	"name": "airflow",
+	"displayName": "airflow",
+	"implClass": "org.apache.ranger.services.airflow.RangerServiceAirflow",
+	"label": "Airflow",
+	"description": "Apache Airflow control-plane authorization",
+	"guid": "",
+	"options": {
+		"enableDenyAndExceptionsInPolicies": "true"
+	},
+	"resources":
+	[
+		{
+			"itemId": 1,
+			"name": "dag",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"{\"singleValue\":false}",
+			"label": "DAG",
+			"description": "Airflow dag_id. Wildcards supported, e.g. etl_*"
+		},
+
+		{
+			"itemId": 2,
+			"name": "connection",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Connection",
+			"description": "Airflow conn_id. Wildcards supported, e.g. prod_*",
+			"accessTypeRestrictions": ["read", "create", "edit", "delete"]
+		},
+
+		{
+			"itemId": 3,
+			"name": "variable",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Variable",
+			"description": "Airflow variable key. Wildcards supported, e.g. *_token",
+			"accessTypeRestrictions": ["read", "create", "edit", "delete"]
+		},
+
+		{
+			"itemId": 4,
+			"name": "pool",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Pool",
+			"description": "Airflow pool name",
+			"accessTypeRestrictions": ["read", "create", "edit", "delete"]
+		},
+
+		{
+			"itemId": 5,
+			"name": "asset",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Asset",
+			"description": "Airflow asset id. Coarse-grained in this release",
+			"accessTypeRestrictions": ["read", "create", "edit", "delete"]
+		},
+
+		{
+			"itemId": 6,
+			"name": "asset_alias",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Asset alias",
+			"description": "Airflow asset alias id. Coarse-grained in this release",
+			"accessTypeRestrictions": ["read", "create", "edit", "delete"]
+		},
+
+		{
+			"itemId": 7,
+			"name": "config",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":true },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Config section",
+			"description": "airflow.cfg section name, e.g. smtp. Use * for the whole configuration",
+			"accessTypeRestrictions": ["read"]
+		},
+
+		{
+			"itemId": 8,
+			"name": "view",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":true },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "UI view",
+			"description": "Airflow UI view: audit_logs_all, cluster_activity, docs, import_errors, import_errors_all, jobs, plugins, providers, triggers, website",
+			"accessTypeRestrictions": ["read"]
+		},
+
+		{
+			"itemId": 9,
+			"name": "custom_view",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"mandatory": true,
+			"lookupSupported": false,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard":true, "ignoreCase":false },
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Plugin view",
+			"description": "Resource name of a plugin-contributed view. Wildcards supported",
+			"accessTypeRestrictions": ["read", "create", "edit", "delete"]
+		}
+	],
+
+	"accessTypes":
+	[
+		{ "itemId": 1, "name": "read",   "label": "read",   "category": "READ" },
+		{ "itemId": 2, "name": "create", "label": "create", "category": "CREATE" },
+		{ "itemId": 3, "name": "edit",   "label": "edit",   "category": "UPDATE" },
+		{ "itemId": 4, "name": "delete", "label": "delete", "category": "DELETE" },
+
+		{ "itemId": 5,  "name": "trigger",            "label": "trigger",            "category": "CREATE" },
+		{ "itemId": 6,  "name": "read_run",           "label": "read run",           "category": "READ" },
+		{ "itemId": 7,  "name": "edit_run",           "label": "edit run",           "category": "UPDATE" },
+		{ "itemId": 8,  "name": "delete_run",         "label": "delete run",         "category": "DELETE" },
+		{ "itemId": 9,  "name": "read_task",          "label": "read task",          "category": "READ" },
+		{ "itemId": 10, "name": "read_task_instance", "label": "read task instance", "category": "READ" },
+		{ "itemId": 11, "name": "clear_task",         "label": "clear task",         "category": "UPDATE" },
+		{ "itemId": 12, "name": "read_logs",          "label": "read logs",          "category": "READ" },
+		{ "itemId": 13, "name": "read_code",          "label": "read code",          "category": "READ" },
+		{ "itemId": 14, "name": "read_xcom",          "label": "read xcom",          "category": "READ" },
+		{ "itemId": 15, "name": "edit_xcom",          "label": "edit xcom",          "category": "UPDATE" },
+		{ "itemId": 16, "name": "read_audit_log",     "label": "read audit log",     "category": "READ" },
+		{ "itemId": 17, "name": "read_dependencies",  "label": "read dependencies",  "category": "READ" },
+		{ "itemId": 18, "name": "read_warning",       "label": "read warning",       "category": "READ" },
+		{ "itemId": 19, "name": "read_version",       "label": "read version",       "category": "READ" },
+		{ "itemId": 20, "name": "read_hitl",          "label": "read approval",      "category": "READ" },
+		{ "itemId": 21, "name": "respond_hitl",       "label": "respond to approval","category": "UPDATE" }
+	],
+
+	"configs":
+	[
+		{
+			"itemId": 1,
+			"name": "airflow.url",
+			"type": "string",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"{\"TextFieldWithIcon\":true, \"info\": \"Airflow api-server base URL, e.g. https://airflow.example.com:8080. Used by resource lookup; not required for policy enforcement.\"}",
+			"label": "Airflow API URL"
+		},
+
+		{
+			"itemId": 2,
+			"name": "ranger.plugin.audit.filters",
+			"type": "string",
+			"subType": "",
+			"mandatory": false,
+			"validationRegEx":"",
+			"validationMessage": "",
+			"uiHint":"",
+			"label": "Ranger Default Audit Filters",
+			"defaultValue": "[]"
+		}
+	],
+
+	"contextEnrichers":
+	[
+
+	],
+
+	"policyConditions":
+	[
+
+	]
+}
