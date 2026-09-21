@@ -75,6 +75,7 @@
                             <include>org.xerial.snappy:snappy-java</include>
                             <include>org.apache.httpcomponents:httpmime:jar:${httpcomponents.httpmime.version}</include>
                             <include>org.apache.hadoop:hadoop-hdfs:jar:${hadoop.version}</include>
+                            <include>org.apache.hadoop:hadoop-hdfs-client:jar:${hadoop.version}</include>
                             <include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:jar:${fasterxml.jackson.version}</include>
                             <include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:jar:${fasterxml.jackson.version}</include>
                             <include>org.apache.kerby:kerb-core:jar:${kerby.version}</include>
@@ -236,6 +237,7 @@
                     <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
                     <include>org.apache.commons:commons-lang3</include>
                     <include>org.apache.commons:commons-configuration2</include>
+                    <include>commons-io:commons-io</include>
                     <include>commons-collections:commons-collections</include>
                     <include>commons-logging:commons-logging</include>
                     <include>org.slf4j:slf4j-api</include>
