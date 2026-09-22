@@ -13,6 +13,7 @@ package io.acceldata.airflow.ranger;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequestImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResourceImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResult;
@@ -45,6 +46,15 @@ public final class AuthzServer implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AuthzServer.class);
 
     static final String AGENT_VERSION = "1.0.0";
+
+    /**
+     * v1 endpoints this build actually implements. The client checks this rather
+     * than inferring the endpoint set from {@code contract_version} alone, so a
+     * build that predates {@code /v1/filter} is detected at startup instead of
+     * on the first grid load. Add {@code "filter"} in M2.
+     */
+    static final List<String> CAPABILITIES = List.of("authorize");
+
     private static final int MAX_CHECKS = 1000;
     private static final long UNMAPPED_LOG_INTERVAL_MS = 3_600_000L;
 
@@ -149,7 +159,11 @@ public final class AuthzServer implements AutoCloseable {
                 if (!requireSecret(req, resp)) {
                     return;
                 }
-                writeJson(resp, 404, "{\"error\":\"not_implemented\"}");
+                // 501, not 404: 404 is indistinguishable from a path typo, and the
+                // client needs to tell "this agent is too old for filter" apart
+                // from "I built the URL wrong". /v1/info advertises the same fact
+                // up front via CAPABILITIES.
+                writeJson(resp, 501, "{\"error\":\"not_implemented\"}");
                 return;
             }
             writeJson(resp, 404, "{\"error\":\"not_found\"}");
@@ -183,7 +197,14 @@ public final class AuthzServer implements AutoCloseable {
             }
             try {
                 String user = IdentityNormalizer.normalize(body.user);
-                List<Decision> decisions = new ArrayList<>(body.checks.size());
+
+                // Pass 1 - map every check before evaluating any of them. Unknown
+                // vocabulary fails the whole request, and it has to fail before the
+                // engine runs: RangerDefaultAuditHandler writes a record per
+                // evaluation, so mapping and evaluating in one loop leaves audit
+                // rows behind for a request that returned no decisions, and
+                // duplicates them when the client retries.
+                List<AccessMapper.Result> mappings = new ArrayList<>(body.checks.size());
                 for (Check check : body.checks) {
                     AccessMapper.Result mapped = AccessMapper.map(
                             check.resource_type, check.method, check.access_entity);
@@ -192,6 +213,15 @@ public final class AuthzServer implements AutoCloseable {
                                 new ErrorBody("unknown_vocabulary", mapped.detail)));
                         return;
                     }
+                    mappings.add(mapped);
+                }
+
+                // Pass 2 - evaluate. Past this point every check produces a
+                // decision and an audit record, and the response is always 200.
+                List<Decision> decisions = new ArrayList<>(body.checks.size());
+                for (int i = 0; i < body.checks.size(); i++) {
+                    Check check = body.checks.get(i);
+                    AccessMapper.Result mapped = mappings.get(i);
                     String id = check.id == null ? "" : check.id;
                     if (mapped.status == AccessMapper.Status.UNMAPPED) {
                         warnUnmapped(mapped.detail);
@@ -215,12 +245,34 @@ public final class AuthzServer implements AutoCloseable {
 
     private RangerAccessRequestImpl buildRequest(String user, RequestContext ctx,
                                                  AccessMapper.Result mapped, String key) {
+        boolean anyResource = key == null || key.isBlank();
+
         RangerAccessResourceImpl resource = new RangerAccessResourceImpl();
-        if (key != null && !key.isBlank()) {
+        if (!anyResource) {
             resource.setValue(mapped.resourceType, key.strip());
         }
         RangerAccessRequestImpl request = new RangerAccessRequestImpl(
                 resource, mapped.accessType, user, Collections.emptySet(), null);
+
+        if (anyResource) {
+            // An omitted key means "any resource of this type", and it needs the
+            // matching scope widened to work.
+            //
+            // Note RangerAccessResourceImpl.setValue(name, null) *removes* the key,
+            // so there is no way to express "any" as a resource value -- the
+            // resource simply carries no keys. Against a policy scoped to a prefix
+            // (dag=etl_*) RangerDefaultPolicyResourceMatcher.getMatchType then
+            // returns DESCENDANT, and under the default SELF scope
+            // RangerDefaultPolicyEvaluator counts DESCENDANT as no match. A user
+            // holding read on etl_* would be denied the class-level read and the
+            // list page would come back empty.
+            //
+            // SELF_OR_DESCENDANTS makes any match type other than NONE count,
+            // which is what the contract's "omitting key means any" requires.
+            request.setResourceMatchingScope(
+                    RangerAccessRequest.ResourceMatchingScope.SELF_OR_DESCENDANTS);
+        }
+
         if (ctx != null) {
             request.setClientIPAddress(ctx.client_ip);
             request.setRemoteIPAddress(ctx.client_ip);
@@ -273,6 +325,14 @@ public final class AuthzServer implements AutoCloseable {
         info.ranger_service = engine.serviceName();
         info.service_def_version = engine.serviceDefVersion();
         info.supported_airflow = config.supportedAirflow();
+        info.capabilities = CAPABILITIES;
+        // Absent means no user store has been downloaded, which means group-based
+        // policies cannot match. The enricher is added implicitly by
+        // RangerBasePlugin.setPolicies because use.rangerGroups is set, but the
+        // download itself still depends on usersync having run, so this is the
+        // field to check first when a group policy appears to be ignored.
+        long userStoreVersion = engine.userStoreVersion();
+        info.user_store_version = userStoreVersion < 0 ? null : userStoreVersion;
         return info;
     }
 
@@ -359,6 +419,8 @@ public final class AuthzServer implements AutoCloseable {
         public String ranger_service;
         public Integer service_def_version;
         public String supported_airflow;
+        public List<String> capabilities;
+        public Long user_store_version;
     }
 
     public static final class ReadyBody {

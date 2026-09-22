@@ -17,6 +17,7 @@ import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyItem;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyItemAccess;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyResource;
 import org.apache.ranger.plugin.model.RangerServiceDef;
+import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequestImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResourceImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResult;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,6 +57,53 @@ class RangerAuthzEngineTest {
         } finally {
             engine.close();
         }
+    }
+
+    @Test
+    @DisplayName("omitted key means any: a prefix-scoped grant allows the class-level read")
+    void anyResourceAllowedByPrefixPolicy() throws Exception {
+        RangerAuthzEngine engine = new RangerAuthzEngine(inMemoryPlugin());
+        try {
+            // No dag key at all -- "may alice read any DAG?". She holds read on
+            // etl_* only, and per the contract that MUST be allowed.
+            RangerAccessRequestImpl any = keylessRequest("alice", "read");
+            any.setResourceMatchingScope(RangerAccessRequest.ResourceMatchingScope.SELF_OR_DESCENDANTS);
+            assertThat(engine.evaluate(any).getIsAllowed())
+                    .as("alice holds read on etl_*, so an any-resource read must be allowed")
+                    .isTrue();
+
+            // bob holds nothing, so the same question must still deny.
+            RangerAccessRequestImpl bobAny = keylessRequest("bob", "read");
+            bobAny.setResourceMatchingScope(RangerAccessRequest.ResourceMatchingScope.SELF_OR_DESCENDANTS);
+            assertThat(engine.evaluate(bobAny).getIsAllowed()).isFalse();
+        } finally {
+            engine.close();
+        }
+    }
+
+    @Test
+    @DisplayName("regression: the default SELF scope denies the any-resource read")
+    void anyResourceDeniedUnderDefaultScope() throws Exception {
+        RangerAuthzEngine engine = new RangerAuthzEngine(inMemoryPlugin());
+        try {
+            // Documents why AuthzServer widens the scope. A keyless resource can
+            // only produce MatchType.DESCENDANT against dag=etl_*, and under the
+            // default SELF scope RangerDefaultPolicyEvaluator counts that as no
+            // match. If this assertion ever flips, Ranger's matching semantics
+            // changed and the widening in buildRequest should be revisited.
+            assertThat(engine.evaluate(keylessRequest("alice", "read")).getIsAllowed()).isFalse();
+        } finally {
+            engine.close();
+        }
+    }
+
+    private static RangerAccessRequestImpl keylessRequest(String user, String access) {
+        RangerAccessRequestImpl req = new RangerAccessRequestImpl(
+                new RangerAccessResourceImpl(), access, user, Collections.emptySet(), null);
+        req.setClientIPAddress("10.4.2.19");
+        req.setRequestData("/api/v2/dags");
+        req.setClusterName("odp-dev");
+        return req;
     }
 
     private static RangerAccessRequestImpl request(String user, String dag, String access) {
@@ -92,11 +141,28 @@ class RangerAuthzEngineTest {
         item.setAccesses(Collections.singletonList(new RangerPolicyItemAccess("trigger", true)));
         policy.setPolicyItems(Collections.singletonList(item));
 
+        // Prefix-scoped read. This is the policy shape that makes the "any"
+        // question meaningful: alice can read some DAGs but not all of them.
+        RangerPolicy prefixPolicy = new RangerPolicy();
+        prefixPolicy.setId(48L);
+        prefixPolicy.setName("alice-read-etl-prefix");
+        prefixPolicy.setService("odp_airflow");
+        prefixPolicy.setIsEnabled(true);
+        prefixPolicy.setIsAuditEnabled(true);
+        prefixPolicy.setPolicyType(RangerPolicy.POLICY_TYPE_ACCESS);
+        Map<String, RangerPolicyResource> prefixResources = new HashMap<>();
+        prefixResources.put("dag", new RangerPolicyResource("etl_*"));
+        prefixPolicy.setResources(prefixResources);
+        RangerPolicyItem prefixItem = new RangerPolicyItem();
+        prefixItem.setUsers(Collections.singletonList("alice"));
+        prefixItem.setAccesses(Collections.singletonList(new RangerPolicyItemAccess("read", true)));
+        prefixPolicy.setPolicyItems(Collections.singletonList(prefixItem));
+
         ServicePolicies policies = new ServicePolicies();
         policies.setServiceName("odp_airflow");
         policies.setServiceDef(def);
         policies.setPolicyVersion(118L);
-        policies.setPolicies(Collections.singletonList(policy));
+        policies.setPolicies(Arrays.asList(policy, prefixPolicy));
 
         RangerPolicyEngineOptions options = new RangerPolicyEngineOptions();
         options.disablePolicyRefresher = true;

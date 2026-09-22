@@ -74,6 +74,11 @@ public final class RangerAuthzEngine implements AuthzEngine {
     }
 
     @Override
+    public long userStoreVersion() {
+        return plugin.getUserStoreVersion();
+    }
+
+    @Override
     public RangerAccessResult evaluate(RangerAccessRequest request) {
         return plugin.isAccessAllowed(request);
     }
