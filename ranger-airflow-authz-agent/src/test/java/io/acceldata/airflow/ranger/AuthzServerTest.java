@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -148,6 +149,64 @@ class AuthzServerTest {
         assertThat(d.path("reason").asText()).isEqualTo("no_matching_policy");
         RangerAccessRequest seen = engine.lastRequest.get();
         assertThat(seen.getResource().getValue("connection")).isNull();
+        assertThat(seen.getResourceMatchingScope())
+                .as("an omitted key must widen the matching scope, or a prefix-scoped "
+                        + "policy yields MatchType.DESCENDANT and the engine denies")
+                .isEqualTo(RangerAccessRequest.ResourceMatchingScope.SELF_OR_DESCENDANTS);
+    }
+
+    @Test
+    @DisplayName("a specific key keeps the default SELF matching scope")
+    void specificKeyUsesSelfScope() throws Exception {
+        String payload = "{"
+                + "\"user\":\"alice\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags/etl_sales\"},"
+                + "\"checks\":[{\"id\":\"0\",\"resource_type\":\"dag\",\"method\":\"GET\",\"key\":\"etl_sales\"}]"
+                + "}";
+        post("/v1/authorize", "Bearer " + TOKEN, payload, 200);
+        RangerAccessRequest seen = engine.lastRequest.get();
+        assertThat(seen.getResource().getValue("dag")).isEqualTo("etl_sales");
+        assertThat(seen.getResourceMatchingScope())
+                .isEqualTo(RangerAccessRequest.ResourceMatchingScope.SELF);
+    }
+
+    @Test
+    @DisplayName("422 on unknown vocabulary evaluates nothing, so no audit records are written")
+    void unknownVocabularyEvaluatesNothing() throws Exception {
+        String payload = "{"
+                + "\"user\":\"alice\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags\"},"
+                + "\"checks\":["
+                + "{\"id\":\"0\",\"resource_type\":\"dag\",\"method\":\"GET\",\"key\":\"etl_sales\"},"
+                + "{\"id\":\"1\",\"resource_type\":\"dag\",\"method\":\"GET\",\"key\":\"etl_costs\"},"
+                + "{\"id\":\"2\",\"resource_type\":\"sandwich\",\"method\":\"GET\"}"
+                + "]}";
+        JsonNode err = post("/v1/authorize", "Bearer " + TOKEN, payload, 422);
+        assertThat(err.path("error").asText()).isEqualTo("unknown_vocabulary");
+        assertThat(engine.evaluations.get())
+                .as("checks before the bad one must not reach the engine, or they "
+                        + "leave audit rows for a request that returned no decisions")
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("filter is 501 while unimplemented, and info says so up front")
+    void filterNotImplemented() throws Exception {
+        JsonNode err = post("/v1/filter", "Bearer " + TOKEN, "{}", 501);
+        assertThat(err.path("error").asText()).isEqualTo("not_implemented");
+
+        JsonNode info = get("/v1/info", "Bearer " + TOKEN, 200);
+        assertThat(info.path("capabilities").isArray()).isTrue();
+        assertThat(info.path("capabilities").toString()).isEqualTo("[\"authorize\"]");
+        assertThat(info.path("user_store_version").asLong()).isEqualTo(9L);
+    }
+
+    @Test
+    @DisplayName("info omits user_store_version when no user store has been downloaded")
+    void infoOmitsUserStoreVersionWhenAbsent() throws Exception {
+        engine.userStoreVersion = -1L;
+        JsonNode info = get("/v1/info", "Bearer " + TOKEN, 200);
+        assertThat(info.has("user_store_version")).isFalse();
     }
 
     private Path writeProps() throws Exception {
@@ -203,17 +262,21 @@ class AuthzServerTest {
         volatile String reason = "policies not loaded";
         volatile boolean allow = true;
         volatile long policyId = 47;
+        volatile long userStoreVersion = 9L;
         final AtomicReference<RangerAccessRequest> lastRequest = new AtomicReference<>();
+        final AtomicInteger evaluations = new AtomicInteger();
 
         @Override public boolean isReady() { return ready; }
         @Override public String notReadyReason() { return reason; }
         @Override public long policyVersion() { return 118L; }
         @Override public String serviceName() { return "odp_airflow"; }
         @Override public Integer serviceDefVersion() { return 3; }
+        @Override public long userStoreVersion() { return userStoreVersion; }
         @Override public void close() {}
 
         @Override
         public RangerAccessResult evaluate(RangerAccessRequest request) {
+            evaluations.incrementAndGet();
             lastRequest.set(request);
             RangerAccessResult result = new RangerAccessResult(
                     RangerPolicy.POLICY_TYPE_ACCESS, "odp_airflow", null, request);

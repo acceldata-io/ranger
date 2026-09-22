@@ -93,9 +93,18 @@ access on any resource of this type?* — used by endpoints that ask a class-lev
 question, such as whether a list page may be opened at all. It does **not** mean
 `*`, and a user holding `read` on `dev_*` alone MUST be allowed an "any" read.
 
-> Implementation note for M1: this is Ranger's null-resource-value matching, the same
-> mechanism the Hive plugin uses for `SHOW DATABASES`. Verify the exact behaviour
-> against the engine during the vertical slice before relying on it.
+Resolved in M1. The mechanism is *not* a null resource value —
+`RangerAccessResourceImpl.setValue(name, null)` removes the key, so "any" cannot be
+expressed as a value. The agent instead sends a resource carrying no keys and sets
+`ResourceMatchingScope.SELF_OR_DESCENDANTS` on the request. Against a prefix-scoped
+policy such as `dag=etl_*` the matcher returns `MatchType.DESCENDANT`, which the
+default `SELF` scope discards and `SELF_OR_DESCENDANTS` accepts.
+
+> Consequence for the client: because the widened scope accepts any non-`NONE` match,
+> an explicit **deny** policy on a single resource also matches the class-level
+> question. A denied "any" therefore means "not permitted on everything", not "not
+> permitted on anything". The client MUST NOT turn a denied "any" into a hard 403 on a
+> list page — it opens the page and lets `/v1/filter` trim the rows.
 
 ### `context`
 
@@ -222,7 +231,9 @@ api-server MUST NOT serve traffic while this returns 503.
   "contract_version": "v1",
   "ranger_service": "odp_airflow",
   "service_def_version": 3,
-  "supported_airflow": ">=3.2,<3.3"
+  "supported_airflow": ">=3.2,<3.3",
+  "capabilities": ["authorize"],
+  "user_store_version": 9
 }
 ```
 
@@ -230,6 +241,22 @@ The client calls this at startup and **refuses to start** if `contract_version` 
 one it implements, or if the running Airflow version falls outside `supported_airflow`.
 A mismatched pair would not fail on its own — it would quietly authorize the wrong
 thing, which is the worst outcome this system can produce.
+
+`capabilities` lists the endpoints this build implements. `contract_version` pins the
+*shape* of the API; `capabilities` says which parts of it exist yet. The client MUST
+check `capabilities` before using an endpoint and MUST NOT infer the endpoint set from
+`contract_version` alone — otherwise a client that needs `filter` starts cleanly against
+an agent that lacks it and fails on the first grid load. Values: `authorize` (M1),
+`filter` (M2).
+
+`user_store_version` is the version of the downloaded Ranger user store, and is
+**absent when no user store has been downloaded**. Group resolution depends on it: the
+agent never takes groups from the caller, so until a user store arrives, every request
+is evaluated with an empty group set and group-based policies silently fail to match.
+The enricher is added implicitly by `RangerBasePlugin` because
+`ranger.plugin.airflow.use.rangerGroups` is set, but the download still requires
+usersync to have populated the store in Ranger Admin. Check this field first when a
+group policy appears to be ignored.
 
 ---
 
@@ -241,6 +268,7 @@ thing, which is the worst outcome this system can produce.
 | `/v1/filter` | **Exactly one** per call, never one per key |
 | status endpoints | None |
 | any 401 | None — the claimed user is untrusted |
+| any 422 | None — mapping completes for every check before evaluation begins |
 
 A filter call's non-permitted keys are **not** access attempts. Nobody tried to open
 the DAGs they cannot see; a page was loaded and Airflow asked about everything. Writing
@@ -318,6 +346,7 @@ endpoint surfaces in the logs without flooding them. It is never permitted, and 
 | 400 | Malformed JSON, missing required field, list too long |
 | 401 | Missing, malformed or incorrect `Authorization` header (section 1) |
 | 422 | Unknown `resource_type`, `method`, or `access_entity` |
+| 501 | Endpoint defined by this contract but not implemented by this build (see `capabilities`) |
 | 503 | Engine not ready |
 | 500 | Anything unexpected |
 

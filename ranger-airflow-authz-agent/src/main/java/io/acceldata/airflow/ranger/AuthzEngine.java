@@ -29,6 +29,14 @@ public interface AuthzEngine extends AutoCloseable {
 
     Integer serviceDefVersion();
 
+    /**
+     * Version of the downloaded Ranger user store, or a negative value when no
+     * user store has been downloaded. Group-based policies cannot match until
+     * this is non-negative, so it is reported on {@code /v1/info} as a
+     * diagnostic.
+     */
+    long userStoreVersion();
+
     RangerAccessResult evaluate(RangerAccessRequest request);
 
     @Override
