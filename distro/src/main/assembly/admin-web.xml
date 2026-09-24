@@ -202,6 +202,9 @@
           <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
           <include>org.bouncycastle:bcpkix-jdk18on:jar:${org.bouncycastle.bcpkix-jdk18on}</include>
           <include>com.google.protobuf:protobuf-java:jar:${protobuf-java.version}</include>
+          <include>org.apache.ratis:ratis-common:jar:${ratis.version}</include>
+          <include>org.apache.ratis:ratis-thirdparty-misc:jar:${ratis-thirdparty.version}</include>
+          <include>io.opentelemetry:opentelemetry-sdk-trace:jar:${io.opentelemetry.version}</include>
         </includes>
       </binaries>
     </moduleSet>
