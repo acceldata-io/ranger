@@ -213,8 +213,8 @@
         <presto.version>333</presto.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protobuf-java.version>3.25.5</protobuf-java.version>
-        <ratis-thirdparty.version>0.7.0</ratis-thirdparty.version>
-        <ratis.version>2.1.0</ratis.version>
+        <ratis-thirdparty.version>1.0.11</ratis-thirdparty.version>
+        <ratis.version>3.2.1</ratis.version>
         <reload4j.version>1.2.19</reload4j.version>
         <scala.binary.version>2.12</scala.binary.version>
         <scala.version>2.12.10</scala.version>
