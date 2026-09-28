@@ -1,0 +1,44 @@
+/*
+ * Copyright 2026 Acceldata Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.acceldata.airflow.ranger;
+
+import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
+import org.apache.ranger.plugin.policyengine.RangerAccessResult;
+
+/**
+ * The policy engine the HTTP layer talks to. Production wraps
+ * {@code RangerBasePlugin}; tests substitute a fake.
+ */
+public interface AuthzEngine extends AutoCloseable {
+
+    boolean isReady();
+
+    String notReadyReason();
+
+    long policyVersion();
+
+    String serviceName();
+
+    Integer serviceDefVersion();
+
+    /**
+     * Version of the downloaded Ranger user store, or a negative value when no
+     * user store has been downloaded. Group-based policies cannot match until
+     * this is non-negative, so it is reported on {@code /v1/info} as a
+     * diagnostic.
+     */
+    long userStoreVersion();
+
+    RangerAccessResult evaluate(RangerAccessRequest request);
+
+    @Override
+    void close();
+}
