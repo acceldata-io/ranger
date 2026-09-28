@@ -26,7 +26,16 @@
 			"validationMessage": "",
 			"uiHint":"{\"singleValue\":false}",
 			"label": "DAG",
-			"description": "Airflow dag_id. Wildcards supported, e.g. etl_*"
+			"description": "Airflow dag_id. Wildcards supported, e.g. etl_*",
+			"accessTypeRestrictions": [
+				"read", "edit", "delete",
+				"trigger", "read_run", "edit_run", "delete_run",
+				"read_task", "read_task_instance", "clear_task",
+				"read_logs", "read_code",
+				"read_xcom", "edit_xcom",
+				"read_audit_log", "read_dependencies", "read_warning", "read_version",
+				"read_hitl", "respond_hitl"
+			]
 		},
 
 		{
