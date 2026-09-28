@@ -168,6 +168,31 @@ public final class AccessMapper {
         return resourceType != null && RESOURCE_TYPES.contains(resourceType.strip());
     }
 
+    /**
+     * The closed vocabularies, exposed so that callers can derive facts about the
+     * mapping rather than restate them. {@code ServiceDefConsistencyTest} walks
+     * the cross product of these three to work out which Ranger access types are
+     * reachable for each resource, and asserts the service-def's
+     * {@code accessTypeRestrictions} match. All three sets are immutable.
+     *
+     * <p>Package-private deliberately. Nothing in {@code src/main} needs these --
+     * {@link #map} consults the sets directly -- and the only caller is the test
+     * beside this class. Making them public would advertise them as part of the
+     * agent's API and invite a second consumer of the vocabulary, which is the
+     * duplication this is meant to prevent.
+     */
+    static Set<String> resourceTypes() {
+        return RESOURCE_TYPES;
+    }
+
+    static Set<String> methods() {
+        return METHODS;
+    }
+
+    static Set<String> accessEntities() {
+        return ACCESS_ENTITIES;
+    }
+
     @Override
     public String toString() {
         return Objects.toString(DAG_TABLE.size());
