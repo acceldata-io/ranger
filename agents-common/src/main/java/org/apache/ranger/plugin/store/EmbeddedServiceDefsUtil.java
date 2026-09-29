@@ -294,6 +294,8 @@ public class EmbeddedServiceDefsUtil {
 
 	public long getGcsServiceDefId() { return getId(gcsServiceDef); }
 
+	public long getXstoreServiceDefId() { return getId(xstoreServiceDef); }
+
 	public RangerServiceDef getEmbeddedServiceDef(String defType) throws Exception {
 		RangerServiceDef serviceDef=null;
 		if(StringUtils.isNotEmpty(defType)){
