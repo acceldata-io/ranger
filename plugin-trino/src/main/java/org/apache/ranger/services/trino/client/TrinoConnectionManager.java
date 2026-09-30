@@ -38,68 +38,68 @@ public class TrinoConnectionManager
 
     public TrinoClient getTrinoConnection(final String serviceName, final String serviceType, final Map<String, String> configs)
     {
-        TrinoClient trinoClient = null;
+        if (serviceType == null) {
+            LOG.error("Asset not found with name " + serviceName, new Throwable());
 
-        if (serviceType != null) {
-            trinoClient = trinoConnectionCache.get(serviceName);
+            return null;
+        }
 
-            if (trinoClient == null) {
-                if (configs != null) {
-                    final Callable<TrinoClient> connectTrino = new Callable<TrinoClient>() {
-                        @Override
-                        public TrinoClient call()
-                                throws Exception
-                        {
-                            return new TrinoClient(serviceName, configs);
-                        }
-                    };
+        // a cached connection is handed back as-is: probing it with a query here would double the
+        // round trips of every lookup. Callers invalidate it via resetTrinoConnection() if it is stale
+        TrinoClient trinoClient = trinoConnectionCache.get(serviceName);
 
-                    try {
-                        trinoClient = TimedEventUtil.timedTask(connectTrino, 5, TimeUnit.SECONDS);
-                    }
-                    catch (Exception e) {
-                        LOG.error("Error connecting to Trino repository: " + serviceName + " using config: " + configs, e);
-                    }
+        if (trinoClient != null) {
+            return trinoClient;
+        }
 
-                    TrinoClient oldClient = null;
+        if (configs == null) {
+            LOG.error("Connection Config not defined for asset :" + serviceName, new Throwable());
 
-                    if (trinoClient != null) {
-                        oldClient = trinoConnectionCache.putIfAbsent(serviceName, trinoClient);
-                    }
-                    else {
-                        oldClient = trinoConnectionCache.get(serviceName);
-                    }
+            return null;
+        }
 
-                    if (oldClient != null) {
-                        if (trinoClient != null) {
-                            trinoClient.close();
-                        }
-
-                        trinoClient = oldClient;
-                    }
-
-                    repoConnectStatusMap.put(serviceName, true);
-                }
-                else {
-                    LOG.error("Connection Config not defined for asset :" + serviceName, new Throwable());
-                }
+        final Callable<TrinoClient> connectTrino = new Callable<TrinoClient>() {
+            @Override
+            public TrinoClient call()
+                    throws Exception
+            {
+                return new TrinoClient(serviceName, configs);
             }
-            else {
-                try {
-                    trinoClient.getCatalogList("*", null);
-                }
-                catch (Exception e) {
-                    trinoConnectionCache.remove(serviceName);
-                    trinoClient.close();
+        };
 
-                    trinoClient = getTrinoConnection(serviceName, serviceType, configs);
-                }
+        try {
+            trinoClient = TimedEventUtil.timedTask(connectTrino, 5, TimeUnit.SECONDS);
+        }
+        catch (Exception e) {
+            // lookup surfaces a failure here as an empty result, so log the cause in full
+            LOG.error("Error connecting to Trino repository: " + serviceName, e);
+
+            trinoClient = null;
+        }
+
+        if (trinoClient != null) {
+            TrinoClient oldClient = trinoConnectionCache.putIfAbsent(serviceName, trinoClient);
+
+            if (oldClient != null) {
+                trinoClient.close();
+
+                trinoClient = oldClient;
             }
         }
         else {
-            LOG.error("Asset not found with name " + serviceName, new Throwable());
+            // another thread may have connected in the meantime
+            trinoClient = trinoConnectionCache.get(serviceName);
         }
 
+        repoConnectStatusMap.put(serviceName, trinoClient != null);
+
         return trinoClient;
+    }
+
+    public void resetTrinoConnection(final String serviceName, final TrinoClient staleClient)
+    {
+        if (staleClient != null && trinoConnectionCache.remove(serviceName, staleClient)) {
+            staleClient.close();
+        }
     }
 }
