@@ -15,6 +15,7 @@ package org.apache.ranger.services.trino.client;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.client.HadoopConfigHolder;
 import org.apache.ranger.plugin.client.HadoopException;
@@ -28,16 +29,18 @@ import java.io.Closeable;
 import java.security.PrivilegedAction;
 import java.sql.Connection;
 import java.sql.Driver;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class TrinoClient
         extends BaseClient implements Closeable
@@ -49,6 +52,15 @@ public class TrinoClient
     private static final String ERR_MSG = "You can still save the repository and start creating "
             + "policies, but you would not be able to use autocomplete for "
             + "resource names. Check ranger_admin.log for more info.";
+
+    private static final String JDBC_DRIVER_CLASS_NAME_PROP = "jdbc.driverClassName";
+    private static final String JDBC_URL_PROP = "jdbc.url";
+    private static final String DEFAULT_DRIVER_CLASS_NAME = "io.trino.jdbc.TrinoDriver";
+    private static final String TRINO_SSL_PROP = "ssl";
+    private static final String LIKE_ESCAPE_CHAR = "\\";
+
+    // the Trino driver spins up an http client per instance, so share one per driver class
+    private static final ConcurrentMap<String, Driver> DRIVERS = new ConcurrentHashMap<>();
 
     private Connection con;
 
@@ -85,117 +97,257 @@ public class TrinoClient
     private void initConnection()
     {
         Properties prop = getConfigHolder().getRangerSection();
-        String driverClassName = prop.getProperty("jdbc.driverClassName");
-        String url = prop.getProperty("jdbc.url");
-        Properties trinoProperties = new Properties();
-        String decryptedPwd = null;
+        String driverClassName = StringUtils.trimToNull(prop.getProperty(JDBC_DRIVER_CLASS_NAME_PROP));
+        String url = StringUtils.trimToNull(prop.getProperty(JDBC_URL_PROP));
 
-        try {
-            decryptedPwd = PasswordUtils.decryptPassword(getConfigHolder().getPassword());
-        }
-        catch (Exception ex) {
-            LOG.info("Password decryption failed");
+        if (url == null) {
+            String msgDesc = "initConnection: " + JDBC_URL_PROP + " is not configured. "
+                    + "Expected a value of the form jdbc:trino://<host>:<port>.";
+            HadoopException hdpException = new HadoopException(msgDesc);
 
-            decryptedPwd = null;
-        }
-        finally {
-            if (decryptedPwd == null) {
-                decryptedPwd = prop.getProperty(HadoopConfigHolder.RANGER_LOGIN_PASSWORD);
-            }
-        }
-
-        trinoProperties.put(TRINO_USER_NAME_PROP, prop.getProperty(HadoopConfigHolder.RANGER_LOGIN_USER_NAME_PROP));
-
-        if (prop.getProperty(HadoopConfigHolder.RANGER_LOGIN_PASSWORD) != null) {
-            trinoProperties.put(TRINO_PASSWORD_PROP, decryptedPwd);
-        }
-
-        if (driverClassName != null) {
-            try {
-                Driver driver = (Driver) Class.forName(driverClassName).newInstance();
-                DriverManager.registerDriver(driver);
-            }
-            catch (SQLException e) {
-                String msgDesc = "initConnection: Caught SQLException while registering the Trino driver.";
-                HadoopException hdpException = new HadoopException(msgDesc, e);
-
-                hdpException.generateResponseDataMap(false, getMessage(e), msgDesc + ERR_MSG, null, null);
-
-                throw hdpException;
-            }
-            catch (IllegalAccessException ilae) {
-                String msgDesc = "initConnection: Class or its nullary constructor might not accessible.";
-                HadoopException hdpException = new HadoopException(msgDesc, ilae);
-
-                hdpException.generateResponseDataMap(false, getMessage(ilae), msgDesc + ERR_MSG, null, null);
-
-                throw hdpException;
-            }
-            catch (InstantiationException ie) {
-                String msgDesc = "initConnection: Class may not have its nullary constructor or may be the instantiation fails for some other reason.";
-                HadoopException hdpException = new HadoopException(msgDesc, ie);
-
-                hdpException.generateResponseDataMap(false, getMessage(ie), msgDesc + ERR_MSG, null, null);
-
-                throw hdpException;
-            }
-            catch (ExceptionInInitializerError eie) {
-                String msgDesc = "initConnection: Got ExceptionInInitializerError, The initialization provoked by this method fails.";
-                HadoopException hdpException = new HadoopException(msgDesc, eie);
-
-                hdpException.generateResponseDataMap(false, getMessage(eie), msgDesc + ERR_MSG, null, null);
-
-                throw hdpException;
-            }
-            catch (SecurityException se) {
-                String msgDesc = "initConnection: unable to initiate connection to Trino instance,"
-                        + " The caller's class loader is not the same as or an ancestor "
-                        + "of the class loader for the current class and invocation of "
-                        + "s.checkPackageAccess() denies access to the package of this class.";
-                HadoopException hdpException = new HadoopException(msgDesc, se);
-
-                hdpException.generateResponseDataMap(false, getMessage(se), msgDesc + ERR_MSG, null, null);
-
-                throw hdpException;
-            }
-            catch (Throwable t) {
-                String msgDesc = "initConnection: Unable to connect to Trino instance, "
-                        + "please provide valid value of field : {jdbc.driverClassName}.";
-                HadoopException hdpException = new HadoopException(msgDesc, t);
-
-                hdpException.generateResponseDataMap(false, getMessage(t), msgDesc + ERR_MSG, null, null);
-
-                throw hdpException;
-            }
-        }
-
-        try {
-            con = DriverManager.getConnection(url, trinoProperties);
-        }
-        catch (SQLException e) {
-            String msgDesc = "Unable to connect to Trino instance.";
-            HadoopException hdpException = new HadoopException(msgDesc, e);
-
-            hdpException.generateResponseDataMap(false, getMessage(e), msgDesc + ERR_MSG, null, null);
+            hdpException.generateResponseDataMap(false, msgDesc, msgDesc + ERR_MSG, null, JDBC_URL_PROP);
 
             throw hdpException;
         }
-        catch (SecurityException se) {
-            String msgDesc = "Unable to connect to Trino instance.";
-            HadoopException hdpException = new HadoopException(msgDesc, se);
 
-            hdpException.generateResponseDataMap(false, getMessage(se), msgDesc + ERR_MSG, null, null);
+        if (driverClassName == null) {
+            driverClassName = DEFAULT_DRIVER_CLASS_NAME;
+        }
+
+        Driver driver = getDriver(driverClassName);
+        Properties trinoProperties = buildConnectionProperties(prop, url);
+        Connection connection;
+
+        try {
+            connection = driver.connect(url, trinoProperties);
+        }
+        catch (SQLException e) {
+            String msgDesc = "Unable to connect to Trino instance at [" + url + "].";
+            HadoopException hdpException = new HadoopException(msgDesc, e);
+
+            hdpException.generateResponseDataMap(false, getMessage(e), msgDesc + ERR_MSG, null, JDBC_URL_PROP);
 
             throw hdpException;
         }
         catch (Throwable t) {
-            String msgDesc = "initConnection: Unable to connect to Trino instance, ";
+            String msgDesc = "initConnection: Unable to connect to Trino instance at [" + url + "]: " + t;
             HadoopException hdpException = new HadoopException(msgDesc, t);
 
-            hdpException.generateResponseDataMap(false, getMessage(t), msgDesc + ERR_MSG, null, null);
+            hdpException.generateResponseDataMap(false, msgDesc, msgDesc + ERR_MSG, null, JDBC_URL_PROP);
 
             throw hdpException;
         }
+
+        if (connection == null) {
+            String msgDesc = "initConnection: Trino driver [" + driverClassName + "] does not accept the URL [" + url + "].";
+            HadoopException hdpException = new HadoopException(msgDesc);
+
+            hdpException.generateResponseDataMap(false, msgDesc, msgDesc + ERR_MSG, null, JDBC_URL_PROP);
+
+            throw hdpException;
+        }
+
+        con = connection;
+    }
+
+    private Driver getDriver(String driverClassName)
+    {
+        Driver ret = DRIVERS.get(driverClassName);
+
+        if (ret == null) {
+            try {
+                Driver driver = (Driver) Class.forName(driverClassName).newInstance();
+                Driver existing = DRIVERS.putIfAbsent(driverClassName, driver);
+
+                ret = existing != null ? existing : driver;
+            }
+            catch (Throwable t) {
+                // covers ClassNotFoundException, InstantiationException, IllegalAccessException,
+                // ExceptionInInitializerError, SecurityException and UnsupportedClassVersionError
+                String msgDesc = "initConnection: Unable to load the Trino JDBC driver [" + driverClassName + "]: " + t;
+                HadoopException hdpException = new HadoopException(msgDesc, t);
+
+                hdpException.generateResponseDataMap(false, msgDesc, msgDesc + ERR_MSG, null, JDBC_DRIVER_CLASS_NAME_PROP);
+
+                throw hdpException;
+            }
+        }
+
+        return ret;
+    }
+
+    private Properties buildConnectionProperties(Properties prop, String url)
+    {
+        Properties ret = new Properties();
+        // Trino fails the connection outright if a property is supplied both in the URL and here
+        Map<String, String> urlProperties = getUrlProperties(url);
+        String userName = StringUtils.trimToNull(prop.getProperty(HadoopConfigHolder.RANGER_LOGIN_USER_NAME_PROP));
+
+        if (userName != null && !urlProperties.containsKey(TRINO_USER_NAME_PROP)) {
+            ret.put(TRINO_USER_NAME_PROP, userName);
+        }
+
+        String password = getDecryptedPassword(prop);
+
+        if (password != null && !urlProperties.containsKey(TRINO_PASSWORD_PROP)) {
+            if (isSecureUrl(url, urlProperties)) {
+                ret.put(TRINO_PASSWORD_PROP, password);
+            }
+            else {
+                LOG.warn("Ignoring the password configured for service [" + getSerivceName() + "]: Trino requires TLS for "
+                        + "username/password authentication. Either enable SSL in " + JDBC_URL_PROP
+                        + " (for example jdbc:trino://<host>:<port>?SSL=true) or clear the password.");
+            }
+        }
+
+        return ret;
+    }
+
+    private String getDecryptedPassword(Properties prop)
+    {
+        String ret = null;
+
+        try {
+            ret = PasswordUtils.decryptPassword(getConfigHolder().getPassword());
+        }
+        catch (Exception ex) {
+            LOG.info("Password decryption failed");
+
+            ret = null;
+        }
+        finally {
+            if (ret == null) {
+                ret = prop.getProperty(HadoopConfigHolder.RANGER_LOGIN_PASSWORD);
+            }
+        }
+
+        // Trino rejects an empty password with "Connection property password value is empty"
+        return StringUtils.isEmpty(ret) ? null : ret;
+    }
+
+    private static Map<String, String> getUrlProperties(String url)
+    {
+        Map<String, String> ret = new HashMap<>();
+        int queryStart = url.indexOf('?');
+
+        if (queryStart > -1) {
+            for (String param : url.substring(queryStart + 1).split("&")) {
+                int separator = param.indexOf('=');
+                String name = (separator > -1 ? param.substring(0, separator) : param).trim();
+
+                if (!name.isEmpty()) {
+                    ret.put(name.toLowerCase(), separator > -1 ? param.substring(separator + 1).trim() : "");
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    private static boolean isSecureUrl(String url, Map<String, String> urlProperties)
+    {
+        return StringUtils.containsIgnoreCase(url, "https://") || Boolean.parseBoolean(urlProperties.get(TRINO_SSL_PROP));
+    }
+
+    /**
+     * Builds the LIKE clause for a resource name typed into the Ranger policy form, where '*' is the
+     * wildcard. Trino uses SQL LIKE semantics, so '*' has to become '%' and any literal '%' or '_'
+     * has to be escaped.
+     */
+    private static String getLikeClause(String needle)
+    {
+        if (needle == null || needle.isEmpty() || needle.equals("*")) {
+            return "";
+        }
+
+        StringBuilder pattern = new StringBuilder();
+
+        for (int i = 0; i < needle.length(); i++) {
+            char c = needle.charAt(i);
+
+            switch (c) {
+                case '*':
+                    pattern.append('%');
+                    break;
+                case '%':
+                case '_':
+                case '\\':
+                    pattern.append('\\').append(c);
+                    break;
+                case '\'':
+                    pattern.append("''");
+                    break;
+                default:
+                    pattern.append(c);
+                    break;
+            }
+        }
+
+        return " LIKE '" + pattern + "%' ESCAPE '" + LIKE_ESCAPE_CHAR + "'";
+    }
+
+    private static boolean hasWildcard(List<String> values)
+    {
+        if (values != null) {
+            for (String value : values) {
+                if (value != null && value.indexOf('*') > -1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Replaces wildcard entries with the names they match. Policies routinely hold a parent value of
+     * '*', which cannot be used directly in SHOW SCHEMAS FROM "..." / SHOW TABLES FROM "..."."...".
+     */
+    private static List<String> expand(List<String> patterns, List<String> available)
+    {
+        List<String> ret = new ArrayList<>();
+
+        for (String pattern : patterns) {
+            if (pattern == null) {
+                continue;
+            }
+
+            if (pattern.indexOf('*') < 0) {
+                if (!ret.contains(pattern)) {
+                    ret.add(pattern);
+                }
+
+                continue;
+            }
+
+            for (String value : available) {
+                if (FilenameUtils.wildcardMatch(value, pattern) && !ret.contains(value)) {
+                    ret.add(value);
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    private List<String> expandCatalogs(List<String> catalogs)
+            throws HadoopException
+    {
+        return hasWildcard(catalogs) ? expand(catalogs, getCatalogs(null, null)) : catalogs;
+    }
+
+    private List<String> expandSchemas(String catalog, List<String> schemas)
+            throws HadoopException
+    {
+        return hasWildcard(schemas) ? expand(schemas, getSchemas(null, Collections.singletonList(catalog), null)) : schemas;
+    }
+
+    private List<String> expandTables(String catalog, String schema, List<String> tables)
+            throws HadoopException
+    {
+        return hasWildcard(tables)
+                ? expand(tables, getTables(null, Collections.singletonList(catalog), Collections.singletonList(schema), null))
+                : tables;
     }
 
     private List<String> getCatalogs(String needle, List<String> catalogs)
@@ -206,14 +358,10 @@ public class TrinoClient
         if (con != null) {
             Statement stat = null;
             ResultSet rs = null;
-            String sql = "SHOW CATALOGS";
+            // Cannot use a prepared statement for this as trino does not support that
+            String sql = "SHOW CATALOGS" + getLikeClause(needle);
 
             try {
-                if (needle != null && !needle.isEmpty() && !needle.equals("*")) {
-                    // Cannot use a prepared statement for this as trino does not support that
-                    sql += " LIKE '" + StringEscapeUtils.escapeSql(needle) + "%'";
-                }
-
                 stat = con.createStatement();
                 rs = stat.executeQuery(sql);
 
@@ -232,6 +380,8 @@ public class TrinoClient
                 HadoopException hdpException = new HadoopException(msgDesc, sqlt);
 
                 hdpException.generateResponseDataMap(false, getMessage(sqlt), msgDesc + ERR_MSG, null, null);
+
+                throw hdpException;
             }
             catch (SQLException se) {
                 String msg = "Unable to execute SQL [" + sql + "]. ";
@@ -277,67 +427,46 @@ public class TrinoClient
             throws HadoopException
     {
         List<String> ret = new ArrayList<>();
-        if (con != null) {
-            Statement stat = null;
-            ResultSet rs = null;
-            String sql = null;
 
-            try {
-                if (catalogs != null && !catalogs.isEmpty()) {
-                    for (String catalog : catalogs) {
-                        sql = "SHOW SCHEMAS FROM \"" + StringEscapeUtils.escapeSql(catalog) + "\"";
+        if (con != null && catalogs != null && !catalogs.isEmpty()) {
+            String likeClause = getLikeClause(needle);
+            String lastSql = null;
+            SQLException lastError = null;
 
-                        try {
-                            if (needle != null && !needle.isEmpty() && !needle.equals("*")) {
-                                sql += " LIKE '" + StringEscapeUtils.escapeSql(needle) + "%'";
-                            }
+            for (String catalog : expandCatalogs(catalogs)) {
+                Statement stat = null;
+                ResultSet rs = null;
+                String sql = "SHOW SCHEMAS FROM \"" + StringEscapeUtils.escapeSql(catalog) + "\"" + likeClause;
 
-                            stat = con.createStatement();
-                            rs = stat.executeQuery(sql);
+                try {
+                    stat = con.createStatement();
+                    rs = stat.executeQuery(sql);
 
-                            while (rs.next()) {
-                                String schema = rs.getString(1);
+                    while (rs.next()) {
+                        String schema = rs.getString(1);
 
-                                if (schemas != null && schemas.contains(schema)) {
-                                    continue;
-                                }
-
-                                ret.add(schema);
-                            }
+                        if (schemas != null && schemas.contains(schema)) {
+                            continue;
                         }
-                        finally {
-                            close(rs);
-                            close(stat);
 
-                            rs = null;
-                            stat = null;
-                        }
+                        ret.add(schema);
                     }
                 }
-            }
-            catch (SQLTimeoutException sqlt) {
-                String msgDesc = "Time Out, Unable to execute SQL [" + sql + "].";
-                HadoopException hdpException = new HadoopException(msgDesc, sqlt);
+                catch (SQLException sqle) {
+                    // a catalog the lookup user cannot read must not fail the whole lookup
+                    LOG.warn("Unable to execute SQL [" + sql + "].", sqle);
 
-                hdpException.generateResponseDataMap(false, getMessage(sqlt), msgDesc + ERR_MSG, null, null);
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("<== TrinoClient.getSchemas() Error : ", sqlt);
+                    lastSql = sql;
+                    lastError = sqle;
                 }
-
-                throw hdpException;
-            }
-            catch (SQLException sqle) {
-                String msgDesc = "Unable to execute SQL [" + sql + "].";
-                HadoopException hdpException = new HadoopException(msgDesc, sqle);
-
-                hdpException.generateResponseDataMap(false, getMessage(sqle), msgDesc + ERR_MSG, null, null);
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("<== TrinoClient.getSchemas() Error : ", sqle);
+                finally {
+                    close(rs);
+                    close(stat);
                 }
+            }
 
-                throw hdpException;
+            if (ret.isEmpty() && lastError != null) {
+                throw newQueryException("TrinoClient.getSchemas()", lastSql, lastError);
             }
         }
 
@@ -361,6 +490,8 @@ public class TrinoClient
                 }
                 catch (HadoopException he) {
                     LOG.error("<== TrinoClient.getSchemaList() :Unable to get the Schema List", he);
+
+                    throw he;
                 }
 
                 return ret;
@@ -374,69 +505,49 @@ public class TrinoClient
             throws HadoopException
     {
         List<String> ret = new ArrayList<>();
-        if (con != null) {
-            Statement stat = null;
-            ResultSet rs = null;
-            String sql = null;
 
-            if (catalogs != null && !catalogs.isEmpty() && schemas != null && !schemas.isEmpty()) {
-                try {
-                    for (String catalog : catalogs) {
-                        for (String schema : schemas) {
-                            sql = "SHOW tables FROM \"" + StringEscapeUtils.escapeSql(catalog) + "\".\"" + StringEscapeUtils.escapeSql(schema) + "\"";
+        if (con != null && catalogs != null && !catalogs.isEmpty() && schemas != null && !schemas.isEmpty()) {
+            String likeClause = getLikeClause(needle);
+            String lastSql = null;
+            SQLException lastError = null;
 
-                            try {
-                                if (needle != null && !needle.isEmpty() && !needle.equals("*")) {
-                                    sql += " LIKE '" + StringEscapeUtils.escapeSql(needle) + "%'";
-                                }
+            for (String catalog : expandCatalogs(catalogs)) {
+                for (String schema : expandSchemas(catalog, schemas)) {
+                    Statement stat = null;
+                    ResultSet rs = null;
+                    String sql = "SHOW tables FROM \"" + StringEscapeUtils.escapeSql(catalog) + "\".\""
+                            + StringEscapeUtils.escapeSql(schema) + "\"" + likeClause;
 
-                                stat = con.createStatement();
-                                rs = stat.executeQuery(sql);
+                    try {
+                        stat = con.createStatement();
+                        rs = stat.executeQuery(sql);
 
-                                while (rs.next()) {
-                                    String table = rs.getString(1);
+                        while (rs.next()) {
+                            String table = rs.getString(1);
 
-                                    if (tables != null && tables.contains(table)) {
-                                        continue;
-                                    }
-
-                                    ret.add(table);
-                                }
+                            if (tables != null && tables.contains(table)) {
+                                continue;
                             }
-                            finally {
-                                close(rs);
-                                close(stat);
 
-                                rs = null;
-                                stat = null;
-                            }
+                            ret.add(table);
                         }
                     }
-                }
-                catch (SQLTimeoutException sqlt) {
-                    String msgDesc = "Time Out, Unable to execute SQL [" + sql + "].";
-                    HadoopException hdpException = new HadoopException(msgDesc, sqlt);
+                    catch (SQLException sqle) {
+                        // a schema the lookup user cannot read must not fail the whole lookup
+                        LOG.warn("Unable to execute SQL [" + sql + "].", sqle);
 
-                    hdpException.generateResponseDataMap(false, getMessage(sqlt), msgDesc + ERR_MSG, null, null);
-
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("<== TrinoClient.getTables() Error : ", sqlt);
+                        lastSql = sql;
+                        lastError = sqle;
                     }
-
-                    throw hdpException;
-                }
-                catch (SQLException sqle) {
-                    String msgDesc = "Unable to execute SQL [" + sql + "].";
-                    HadoopException hdpException = new HadoopException(msgDesc, sqle);
-
-                    hdpException.generateResponseDataMap(false, getMessage(sqle), msgDesc + ERR_MSG, null, null);
-
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("<== TrinoClient.getTables() Error : ", sqle);
+                    finally {
+                        close(rs);
+                        close(stat);
                     }
-
-                    throw hdpException;
                 }
+            }
+
+            if (ret.isEmpty() && lastError != null) {
+                throw newQueryException("TrinoClient.getTables()", lastSql, lastError);
             }
         }
 
@@ -474,83 +585,75 @@ public class TrinoClient
             throws HadoopException
     {
         List<String> ret = new ArrayList<>();
-        if (con != null) {
-            String regex = null;
-            ResultSet rs = null;
-            String sql = null;
-            Statement stat = null;
 
-            if (needle != null && !needle.isEmpty()) {
-                regex = needle;
-            }
+        if (con != null && catalogs != null && !catalogs.isEmpty() && schemas != null && !schemas.isEmpty()
+                && tables != null && !tables.isEmpty()) {
+            String regex = needle != null && !needle.isEmpty() ? needle : null;
+            String lastSql = null;
+            SQLException lastError = null;
 
-            if (catalogs != null && !catalogs.isEmpty() && schemas != null && !schemas.isEmpty() && tables != null && !tables.isEmpty()) {
-                try {
-                    for (String catalog : catalogs) {
-                        for (String schema : schemas) {
-                            for (String table : tables) {
-                                sql = "SHOW COLUMNS FROM \"" + StringEscapeUtils.escapeSql(catalog) + "\"." +
-                                    "\"" + StringEscapeUtils.escapeSql(schema) + "\"." +
-                                    "\"" + StringEscapeUtils.escapeSql(table) + "\"";
+            for (String catalog : expandCatalogs(catalogs)) {
+                for (String schema : expandSchemas(catalog, schemas)) {
+                    for (String table : expandTables(catalog, schema, tables)) {
+                        Statement stat = null;
+                        ResultSet rs = null;
+                        String sql = "SHOW COLUMNS FROM \"" + StringEscapeUtils.escapeSql(catalog) + "\"." +
+                            "\"" + StringEscapeUtils.escapeSql(schema) + "\"." +
+                            "\"" + StringEscapeUtils.escapeSql(table) + "\"";
 
-                                try {
-                                    stat = con.createStatement();
-                                    rs = stat.executeQuery(sql);
+                        try {
+                            stat = con.createStatement();
+                            rs = stat.executeQuery(sql);
 
-                                    while (rs.next()) {
-                                        String column = rs.getString(1);
+                            while (rs.next()) {
+                                String column = rs.getString(1);
 
-                                        if (columns != null && columns.contains(column)) {
-                                            continue;
-                                        }
-
-                                        if (regex == null) {
-                                            ret.add(column);
-                                        }
-                                        else if (FilenameUtils.wildcardMatch(column, regex)) {
-                                            ret.add(column);
-                                        }
-                                    }
+                                if (columns != null && columns.contains(column)) {
+                                    continue;
                                 }
-                                finally {
-                                    close(rs);
-                                    close(stat);
 
-                                    stat = null;
-                                    rs = null;
+                                if (regex == null || FilenameUtils.wildcardMatch(column, regex)) {
+                                    ret.add(column);
                                 }
                             }
                         }
+                        catch (SQLException sqle) {
+                            // a table the lookup user cannot read must not fail the whole lookup
+                            LOG.warn("Unable to execute SQL [" + sql + "].", sqle);
+
+                            lastSql = sql;
+                            lastError = sqle;
+                        }
+                        finally {
+                            close(rs);
+                            close(stat);
+                        }
                     }
                 }
-                catch (SQLTimeoutException sqlt) {
-                    String msgDesc = "Time Out, Unable to execute SQL [" + sql + "].";
-                    HadoopException hdpException = new HadoopException(msgDesc, sqlt);
+            }
 
-                    hdpException.generateResponseDataMap(false, getMessage(sqlt), msgDesc + ERR_MSG, null, null);
-
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("<== TrinoClient.getColumns() Error : ", sqlt);
-                    }
-
-                    throw hdpException;
-                }
-                catch (SQLException sqle) {
-                    String msgDesc = "Unable to execute SQL [" + sql + "].";
-                    HadoopException hdpException = new HadoopException(msgDesc, sqle);
-
-                    hdpException.generateResponseDataMap(false, getMessage(sqle), msgDesc + ERR_MSG, null, null);
-
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("<== TrinoClient.getColumns() Error : ", sqle);
-                    }
-
-                    throw hdpException;
-                }
+            if (ret.isEmpty() && lastError != null) {
+                throw newQueryException("TrinoClient.getColumns()", lastSql, lastError);
             }
         }
 
         return ret;
+    }
+
+    private HadoopException newQueryException(String context, String sql, SQLException sqle)
+    {
+        String msgDesc = sqle instanceof SQLTimeoutException
+                ? "Time Out, Unable to execute SQL [" + sql + "]."
+                : "Unable to execute SQL [" + sql + "].";
+        HadoopException hdpException = new HadoopException(msgDesc, sqle);
+
+        hdpException.generateResponseDataMap(false, getMessage(sqle), msgDesc + ERR_MSG, null, null);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== " + context + " Error : ", sqle);
+        }
+
+        return hdpException;
     }
 
     public List<String> getColumnList(String needle, List<String> catalogs, List<String> schemas, List<String> tables, List<String> columns)
@@ -605,6 +708,11 @@ public class TrinoClient
                 String msg = "Connection test successful";
 
                 generateResponseDataMap(status, msg, msg, null, null, resp);
+            }
+            else {
+                String msg = "Unable to retrieve any catalogs using given parameters.";
+
+                generateResponseDataMap(status, msg, msg + ERR_MSG, null, null, resp);
             }
         }
         catch (Exception e) {
