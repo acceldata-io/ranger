@@ -26,6 +26,9 @@
     <artifactId>ranger</artifactId>
     <version>2.5.0.3.3.6.6-SNAPSHOT</version>
     <description>Security for Enforcing Enterprise Policies</description>
+    <modules>
+        <module>plugin-gravitino</module>
+    </modules>
     <packaging>pom</packaging>
     <name>ranger</name>
     <url>http://ranger.apache.org/</url>
@@ -72,6 +75,12 @@
         <java.version.required>1.8</java.version.required>
         <javac.source.version>1.8</javac.source.version>
         <javac.target.version>1.8</javac.target.version>
+        <!--
+          Many Ranger scripts historically use `ambari-python-wrap` (Ambari helper).
+          For local builds (and non-Ambari environments), default to python3.
+          You can override at build time with: -Dpython.command.invoker=ambari-python-wrap
+        -->
+        <python.command.invoker>python3</python.command.invoker>
         <distMgmtStagingId>apache.staging.https</distMgmtStagingId>
         <distMgmtStagingName>Apache Release Distribution Repository</distMgmtStagingName>
         <distMgmtStagingUrl>https://repository.apache.org/service/local/staging/deploy/maven2</distMgmtStagingUrl>
@@ -339,8 +348,6 @@
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
                 -->
-                <module>unixauthpam</module>
-                <module>unixauthnative</module>
                 <module>distro</module>
             </modules>
         </profile>
@@ -822,7 +829,47 @@
             <name>jetbrains-intellij-dependencies</name>
             <url>https://packages.jetbrains.team/maven/p/ij/intellij-dependencies</url>
         </repository>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>repo.maven.apache.org</url>
+        </repository>
     </repositories>
+    <!-- Plugins resolve against pluginRepositories, never repositories. Without this
+         block every plugin and its transitive closure comes from Maven Central, which
+         is both rate limited (HTTP 429) from shared CI egress IPs and the dominant
+         share of build traffic. Listing the Acceldata proxies here keeps plugin
+         resolution off Central even when no mirror settings.xml is in play, such as
+         local builds or when the Nexus mirror is disabled. -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>acceldata plugin repo</id>
+            <name>acceldata plugin repo</name>
+            <url>https://repo1.acceldata.dev/repository/odp-central/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>acceldata staging plugin repo</id>
+            <name>acceldata staging plugin repo</name>
+            <url>https://repo1.acceldata.dev/repository/odp-staging-central/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </pluginRepository>
+    </pluginRepositories>
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -963,17 +1010,17 @@
                 <groupId>org.glassfish.jaxb</groupId>
                 <artifactId>jaxb-runtime</artifactId>
                 <version>${jaxb.api.version}</version>
-	</dependency>
-	<dependency>
-    <groupId>com.sun.jersey</groupId>
-    <artifactId>jersey-bundle</artifactId>
-    <version>1.19.4</version>
-</dependency>
-	<dependency>
-    <groupId>com.sun.xml.bind</groupId>
-    <artifactId>jaxb-impl</artifactId>
-    <version>2.3.3</version>
-</dependency>
+            </dependency>
+            <dependency>
+            <groupId>com.sun.jersey</groupId>
+            <artifactId>jersey-bundle</artifactId>
+            <version>1.19.4</version>
+            </dependency>
+                <dependency>
+                <groupId>com.sun.xml.bind</groupId>
+                <artifactId>jaxb-impl</artifactId>
+                <version>2.3.3</version>
+            </dependency>
             <dependency>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>

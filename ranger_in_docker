@@ -21,7 +21,7 @@
 # ./dev-support/ranger-docker/README.md
 #
 # Using this command, you should be able to build and run Apache Ranger
-# within few minites (in a docker container)
+# within few minutes (in a docker container)
 #
 # Pre Request:
 #
@@ -36,7 +36,7 @@
 # By default, the script will check if a ranger image does not exists and will do ranger build and docker image build.
 #
 # Also, you can force rebuild of ranger using local maven and java based build
-# instead of building it using Docker based buid by setting DOCKER_MAVEN_BUILD=1.
+# instead of building it using Docker based build by setting DOCKER_MAVEN_BUILD=1.
 #
 # Also, you can optionally start services by setting ENABLED_RANGER_SERVICES env variables
 # by defining comma separated optional services as following:
