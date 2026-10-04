@@ -53,9 +53,10 @@ public final class AuthzServer implements AutoCloseable {
      * build that predates {@code /v1/filter} is detected at startup instead of
      * on the first grid load. Add {@code "filter"} in M2.
      */
-    static final List<String> CAPABILITIES = List.of("authorize");
+    static final List<String> CAPABILITIES = List.of("authorize", "filter");
 
     private static final int MAX_CHECKS = 1000;
+    private static final int MAX_KEYS   = 5000;
     private static final long UNMAPPED_LOG_INTERVAL_MS = 3_600_000L;
 
     private final AgentConfig config;
@@ -159,11 +160,7 @@ public final class AuthzServer implements AutoCloseable {
                 if (!requireSecret(req, resp)) {
                     return;
                 }
-                // 501, not 404: 404 is indistinguishable from a path typo, and the
-                // client needs to tell "this agent is too old for filter" apart
-                // from "I built the URL wrong". /v1/info advertises the same fact
-                // up front via CAPABILITIES.
-                writeJson(resp, 501, "{\"error\":\"not_implemented\"}");
+                handleFilter(req, resp);
                 return;
             }
             writeJson(resp, 404, "{\"error\":\"not_found\"}");
@@ -244,6 +241,129 @@ public final class AuthzServer implements AutoCloseable {
                 writeJson(resp, 500, "{\"error\":\"internal\"}");
             }
         }
+
+        /**
+         * One question shape, many candidate keys, the permitted subset out.
+         *
+         * <p>Audited as a single event, never one per key: the keys that do not
+         * pass are not access attempts. A page was opened and Airflow asked
+         * about everything on it, so recording hundreds of denials would be
+         * both voluminous and untrue.
+         */
+        private void handleFilter(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            if (!engine.isReady()) {
+                writeJson(resp, 503, mapper.writeValueAsString(
+                        new ReadyBody(false, engine.notReadyReason())));
+                return;
+            }
+            FilterRequest body;
+            try {
+                body = mapper.readValue(req.getInputStream(), FilterRequest.class);
+            } catch (Exception e) {
+                writeJson(resp, 400, "{\"error\":\"bad_request\",\"message\":\"malformed JSON\"}");
+                return;
+            }
+            String problem = validateFilter(body);
+            if (problem != null) {
+                writeJson(resp, 400, mapper.writeValueAsString(new ErrorBody("bad_request", problem)));
+                return;
+            }
+            try {
+                long start = System.nanoTime();
+                String user = IdentityNormalizer.normalize(body.user);
+
+                // Map once: every key in a filter call shares one resource type,
+                // method and access entity.
+                AccessMapper.Result mapped = AccessMapper.map(
+                        body.resource_type, body.method, body.access_entity);
+                if (mapped.status == AccessMapper.Status.UNKNOWN_VOCABULARY) {
+                    writeJson(resp, 422, mapper.writeValueAsString(
+                            new ErrorBody("unknown_vocabulary", mapped.detail)));
+                    return;
+                }
+
+                FilterResponse out = new FilterResponse();
+                out.policy_version = engine.policyVersion();
+                out.evaluated = body.keys.size();
+
+                if (mapped.status == AccessMapper.Status.UNMAPPED) {
+                    // Nothing is permitted, and there is no Ranger access type to
+                    // evaluate against, so there is no result to summarise either.
+                    warnUnmapped(mapped.detail);
+                    out.allowed_keys = Collections.emptyList();
+                    out.elapsed_ms = elapsedMs(start);
+                    writeJson(resp, 200, mapper.writeValueAsString(out));
+                    return;
+                }
+
+                List<String> allowedKeys = new ArrayList<>();
+                RangerAccessRequestImpl representative = null;
+                RangerAccessResult representativeResult = null;
+
+                for (String key : body.keys) {
+                    if (key == null || key.isBlank()) {
+                        continue;
+                    }
+                    RangerAccessRequestImpl rangerReq =
+                            buildRequest(user, body.context, mapped, key);
+                    RangerAccessResult result = engine.evaluateNoAudit(rangerReq);
+                    boolean allowed = result != null && result.getIsAllowed();
+                    if (allowed) {
+                        allowedKeys.add(key);
+                    }
+                    // Prefer an allowed result so the summary's policy id points
+                    // at a policy that actually granted something.
+                    if (representativeResult == null || (allowed && !representativeResult.getIsAllowed())) {
+                        representative = rangerReq;
+                        representativeResult = result;
+                    }
+                }
+
+                String summary = String.format("filter: %s evaluated=%d allowed=%d",
+                        body.context == null || body.context.request_uri == null
+                                ? "-" : body.context.request_uri,
+                        out.evaluated, allowedKeys.size());
+                engine.auditFilterSummary(representative, representativeResult,
+                        !allowedKeys.isEmpty(), summary);
+
+                out.allowed_keys = allowedKeys;
+                out.elapsed_ms = elapsedMs(start);
+                writeJson(resp, 200, mapper.writeValueAsString(out));
+            } catch (Exception e) {
+                LOG.error("filter failed", e);
+                writeJson(resp, 500, "{\"error\":\"internal\"}");
+            }
+        }
+    }
+
+    private static long elapsedMs(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
+    }
+
+    private static String validateFilter(FilterRequest body) {
+        if (body == null) {
+            return "request body is required";
+        }
+        if (body.user == null || body.user.isBlank()) {
+            return "user is required";
+        }
+        if (body.context == null || body.context.client_ip == null || body.context.client_ip.isBlank()
+                || body.context.request_uri == null || body.context.request_uri.isBlank()) {
+            return "context.client_ip and context.request_uri are required";
+        }
+        if (body.resource_type == null || body.resource_type.isBlank()) {
+            return "resource_type is required";
+        }
+        if (body.method == null || body.method.isBlank()) {
+            return "method is required";
+        }
+        if (body.keys == null || body.keys.isEmpty()) {
+            return "keys must contain at least one entry";
+        }
+        if (body.keys.size() > MAX_KEYS) {
+            return "keys exceeds " + MAX_KEYS;
+        }
+        return null;
     }
 
     private RangerAccessRequestImpl buildRequest(String user, RequestContext ctx,
@@ -395,6 +515,22 @@ public final class AuthzServer implements AutoCloseable {
         public String method;
         public String access_entity;
         public String key;
+    }
+
+    public static final class FilterRequest {
+        public String user;
+        public RequestContext context;
+        public String resource_type;
+        public String method;
+        public String access_entity;
+        public List<String> keys;
+    }
+
+    public static final class FilterResponse {
+        public long policy_version;
+        public List<String> allowed_keys;
+        public int evaluated;
+        public long elapsed_ms;
     }
 
     public static final class AuthorizeResponse {

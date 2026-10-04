@@ -280,8 +280,21 @@ the DAGs they cannot see; a page was loaded and Airflow asked about everything. 
 those as denials would be both voluminous and false.
 
 The single filter record carries the resource type and access type, the user, the
-context, `requestData` of the form `filter: evaluated=812 allowed=5`, and a result of
-Allowed when at least one key passed, Denied when none did.
+context, and a result of Allowed when at least one key passed, Denied when none did.
+Its `requestData` takes the form:
+
+```
+filter: /api/v2/dags evaluated=812 allowed=5
+```
+
+The request URI leads, because `requestData` is where every other record carries it
+and §05.2 of the scope check requires it on all of them — a summary record that
+dropped the URI would be the one audit row a reviewer could not place.
+
+A summary that denied everything reports no policy id. The representative result it
+is built from is chosen from an allowed key where one exists, so an Allowed summary
+names a policy that actually granted something rather than whichever key happened to
+be evaluated last.
 
 Every record carries the real end-user principal, the real `client_ip`, the
 `request_uri`, the cluster name, and the deciding policy id where one exists.

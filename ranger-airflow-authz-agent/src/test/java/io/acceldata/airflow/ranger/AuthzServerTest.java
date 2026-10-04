@@ -232,6 +232,76 @@ class AuthzServerTest {
         return "http://127.0.0.1:" + server.boundPort();
     }
 
+    @Test
+    @DisplayName("filter returns the permitted subset and audits the call exactly once")
+    void filterReturnsSubsetAndAuditsOnce() throws Exception {
+        engine.allowedKeys = Set.of("etl_0001", "etl_0002");
+
+        String body = "{\"user\":\"spark@CORP.EXAMPLE\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags\"},"
+                + "\"resource_type\":\"dag\",\"method\":\"GET\","
+                + "\"keys\":[\"etl_0001\",\"finance_0001\",\"etl_0002\",\"mktg_0001\"]}";
+        JsonNode out = post("/v1/filter", "Bearer " + TOKEN, body, 200);
+
+        assertThat(out.path("allowed_keys")).hasSize(2);
+        assertThat(out.path("allowed_keys").toString()).contains("etl_0001").contains("etl_0002");
+        assertThat(out.path("evaluated").asInt()).isEqualTo(4);
+        assertThat(out.path("policy_version").asLong()).isEqualTo(118L);
+
+        // One evaluation per key, none of them audited individually...
+        assertThat(engine.unauditedEvaluations.get()).isEqualTo(4);
+        assertThat(engine.evaluations.get()).isZero();
+        // ...and exactly one summary record for the whole call.
+        assertThat(engine.auditSummaries.get()).isEqualTo(1);
+        assertThat(engine.lastSummaryAllowed.get()).isTrue();
+        assertThat(engine.lastSummary.get()).isEqualTo("filter: /api/v2/dags evaluated=4 allowed=2");
+    }
+
+    @Test
+    @DisplayName("filter denying every key still audits once, as a denial")
+    void filterDenyingEverythingAuditsOnce() throws Exception {
+        engine.allowedKeys = Set.of();
+
+        String body = "{\"user\":\"spark\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags\"},"
+                + "\"resource_type\":\"dag\",\"method\":\"GET\",\"keys\":[\"etl_0001\",\"etl_0002\"]}";
+        JsonNode out = post("/v1/filter", "Bearer " + TOKEN, body, 200);
+
+        assertThat(out.path("allowed_keys")).isEmpty();
+        assertThat(engine.auditSummaries.get()).isEqualTo(1);
+        assertThat(engine.lastSummaryAllowed.get()).isFalse();
+    }
+
+    @Test
+    @DisplayName("filter rejects unknown vocabulary with 422 and writes no audit record")
+    void filterUnknownVocabulary() throws Exception {
+        String body = "{\"user\":\"spark\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/x\"},"
+                + "\"resource_type\":\"teapot\",\"method\":\"GET\",\"keys\":[\"a\"]}";
+        post("/v1/filter", "Bearer " + TOKEN, body, 422);
+
+        assertThat(engine.unauditedEvaluations.get()).isZero();
+        assertThat(engine.auditSummaries.get()).isZero();
+    }
+
+    @Test
+    @DisplayName("filter requires the shared secret and a non-empty key list")
+    void filterInputGuards() throws Exception {
+        String body = "{\"user\":\"spark\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags\"},"
+                + "\"resource_type\":\"dag\",\"method\":\"GET\",\"keys\":[]}";
+        post("/v1/filter", null, body, 401);
+        post("/v1/filter", "Bearer " + TOKEN, body, 400);
+        assertThat(engine.auditSummaries.get()).isZero();
+    }
+
+    @Test
+    @DisplayName("info advertises the filter capability")
+    void infoAdvertisesFilter() throws Exception {
+        JsonNode info = get("/v1/info", "Bearer " + TOKEN, 200);
+        assertThat(info.path("capabilities").toString()).contains("authorize").contains("filter");
+    }
+
     private JsonNode get(String path, String auth, int expected) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URI(base() + path).toURL().openConnection();
         conn.setRequestMethod("GET");
@@ -269,8 +339,14 @@ class AuthzServerTest {
         volatile boolean allow = true;
         volatile long policyId = 47;
         volatile long userStoreVersion = 9L;
+        /** When non-null, only these resource values are permitted. */
+        volatile Set<String> allowedKeys = null;
         final AtomicReference<RangerAccessRequest> lastRequest = new AtomicReference<>();
         final AtomicInteger evaluations = new AtomicInteger();
+        final AtomicInteger unauditedEvaluations = new AtomicInteger();
+        final AtomicInteger auditSummaries = new AtomicInteger();
+        final AtomicReference<String> lastSummary = new AtomicReference<>();
+        final AtomicReference<Boolean> lastSummaryAllowed = new AtomicReference<>();
 
         @Override public boolean isReady() { return ready; }
         @Override public String notReadyReason() { return reason; }
@@ -283,15 +359,46 @@ class AuthzServerTest {
         @Override
         public RangerAccessResult evaluate(RangerAccessRequest request) {
             evaluations.incrementAndGet();
+            return decide(request);
+        }
+
+        @Override
+        public RangerAccessResult evaluateNoAudit(RangerAccessRequest request) {
+            unauditedEvaluations.incrementAndGet();
+            return decide(request);
+        }
+
+        @Override
+        public void auditFilterSummary(RangerAccessRequest request, RangerAccessResult result,
+                                       boolean allowed, String requestData) {
+            auditSummaries.incrementAndGet();
+            lastSummary.set(requestData);
+            lastSummaryAllowed.set(allowed);
+        }
+
+        private RangerAccessResult decide(RangerAccessRequest request) {
             lastRequest.set(request);
             RangerAccessResult result = new RangerAccessResult(
                     RangerPolicy.POLICY_TYPE_ACCESS, "odp_airflow", null, request);
-            result.setIsAllowed(allow);
+            boolean permitted = allowedKeys == null ? allow : allowedKeys.contains(keyOf(request));
+            result.setIsAllowed(permitted);
             result.setIsAccessDetermined(true);
-            if (policyId > 0) {
+            if (permitted && policyId > 0) {
                 result.setPolicyId(policyId);
             }
             return result;
+        }
+
+        private static String keyOf(RangerAccessRequest request) {
+            if (request == null || request.getResource() == null) {
+                return null;
+            }
+            java.util.Map<String, Object> values = request.getResource().getAsMap();
+            if (values == null || values.isEmpty()) {
+                return null;
+            }
+            Object first = values.values().iterator().next();
+            return first == null ? null : first.toString();
         }
     }
 }
