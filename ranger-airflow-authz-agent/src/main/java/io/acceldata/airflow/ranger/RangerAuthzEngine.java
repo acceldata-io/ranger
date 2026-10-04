@@ -10,6 +10,7 @@
 
 package io.acceldata.airflow.ranger;
 
+import org.apache.ranger.audit.model.AuthzAuditEvent;
 import org.apache.ranger.plugin.audit.RangerDefaultAuditHandler;
 import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
@@ -28,12 +29,14 @@ public final class RangerAuthzEngine implements AuthzEngine {
 
     private static final Logger LOG = LoggerFactory.getLogger(RangerAuthzEngine.class);
 
-    private final RangerBasePlugin plugin;
+    private final RangerBasePlugin          plugin;
+    private final RangerDefaultAuditHandler auditHandler;
 
     public RangerAuthzEngine(AgentConfig config) {
         Objects.requireNonNull(config, "config");
         this.plugin = new RangerBasePlugin(config.serviceType(), config.appId());
-        this.plugin.setResultProcessor(new RangerDefaultAuditHandler(plugin.getConfig()));
+        this.auditHandler = new RangerDefaultAuditHandler(plugin.getConfig());
+        this.plugin.setResultProcessor(auditHandler);
         this.plugin.init();
         LOG.info("RangerBasePlugin started serviceType={} appId={} serviceName={}",
                 config.serviceType(), config.appId(), plugin.getServiceName());
@@ -42,6 +45,7 @@ public final class RangerAuthzEngine implements AuthzEngine {
     /** Visible for tests that inject an in-memory plugin. */
     RangerAuthzEngine(RangerBasePlugin plugin) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this.auditHandler = null;
     }
 
     @Override
@@ -89,6 +93,34 @@ public final class RangerAuthzEngine implements AuthzEngine {
     @Override
     public RangerAccessResult evaluate(RangerAccessRequest request) {
         return plugin.isAccessAllowed(request);
+    }
+
+    @Override
+    public RangerAccessResult evaluateNoAudit(RangerAccessRequest request) {
+        // A null result processor is how RangerBasePlugin is told to skip
+        // auditing for one evaluation.
+        return plugin.isAccessAllowed(request, null);
+    }
+
+    @Override
+    public void auditFilterSummary(RangerAccessRequest request, RangerAccessResult result,
+                                   boolean allowed, String requestData) {
+        if (auditHandler == null || result == null) {
+            return;
+        }
+        AuthzAuditEvent event = auditHandler.getAuthzEvents(result);
+        if (event == null) {
+            // Audit is switched off for this resource by an audit filter.
+            return;
+        }
+        event.setAccessResult((short) (allowed ? 1 : 0));
+        event.setRequestData(requestData);
+        if (!allowed) {
+            // A representative result only carries a policy id when something
+            // matched; a summary that denied everything must not claim one.
+            event.setPolicyId(-1L);
+        }
+        auditHandler.logAuthzAudit(event);
     }
 
     @Override

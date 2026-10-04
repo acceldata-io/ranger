@@ -39,6 +39,32 @@ public interface AuthzEngine extends AutoCloseable {
 
     RangerAccessResult evaluate(RangerAccessRequest request);
 
+    /**
+     * Evaluate without writing an audit record.
+     *
+     * <p>Only the filter path uses this. A filter call evaluates hundreds of
+     * keys for one user action, and the contract requires exactly one audit
+     * record for the call — the non-permitted keys are not access attempts,
+     * so recording them would be both voluminous and false. The caller
+     * follows up with {@link #auditFilterSummary}.
+     */
+    RangerAccessResult evaluateNoAudit(RangerAccessRequest request);
+
+    /**
+     * Write the single audit record summarising a filter call.
+     *
+     * @param request     a representative request, carrying the user, resource
+     *                    type, access type and request context
+     * @param result      a representative result; prefer one that was allowed,
+     *                    so the recorded policy id points at a policy that
+     *                    actually granted something
+     * @param allowed     true when at least one key passed
+     * @param requestData replaces the request URI, e.g.
+     *                    {@code filter: /api/v2/dags evaluated=812 allowed=5}
+     */
+    void auditFilterSummary(RangerAccessRequest request, RangerAccessResult result,
+                            boolean allowed, String requestData);
+
     @Override
     void close();
 }
