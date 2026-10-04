@@ -58,6 +58,9 @@ public class AirflowClient extends BaseClient {
     private static final int CONNECT_TIMEOUT_MS = 5_000;
     private static final int READ_TIMEOUT_MS    = 10_000;
 
+    /** Wall-clock budget for one lookup, across every page it walks. */
+    private static final long LOOKUP_BUDGET_MS = 10_000L;
+
     private static final String ERR_TAIL =
             " You can still save the repository and start creating policies, but you "
             + "would not be able to use autocomplete for resource names. "
@@ -325,7 +328,22 @@ public class AirflowClient extends BaseClient {
             String base = url.trim().replaceAll("/+$", "");
             List<String> all = new ArrayList<String>();
 
+            // Per-request timeouts bound one HTTP call, not the paginated total:
+            // MAX_PAGES pages at READ_TIMEOUT_MS each is a Ranger policy form
+            // hung for most of two minutes. Bound the whole walk and return what
+            // we have -- for autocomplete, partial suggestions beat an error.
+            //
+            // Deliberately not TimedEventUtil.timedTask, which other plugins use
+            // here: its timeout is commented out upstream and it simply calls
+            // through, so it would add a Callable and bound nothing.
+            long deadline = System.currentTimeMillis() + LOOKUP_BUDGET_MS;
+
             for (int page = 0; page < RangerAirflowConstants.MAX_PAGES; page++) {
+                if (System.currentTimeMillis() > deadline) {
+                    LOG.warn("Airflow lookup for {} exceeded its {} ms budget after {} name(s); "
+                            + "returning a partial list", path, LOOKUP_BUDGET_MS, all.size());
+                    break;
+                }
                 int offset = page * RangerAirflowConstants.PAGE_LIMIT;
                 String endpoint = base + path;
                 WebResource resource = client.resource(endpoint)
