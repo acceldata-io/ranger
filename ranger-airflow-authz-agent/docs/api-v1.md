@@ -270,6 +270,11 @@ group policy appears to be ignored.
 | any 401 | None — the claimed user is untrusted |
 | any 422 | None — mapping completes for every check before evaluation begins |
 
+A per-check `unmapped_access` denial is a 200, not a 422, so it **is**
+audited. The agent evaluates a synthetic access type `unmapped_access` (not in
+the service-def) so the default audit handler fires; the HTTP `reason` stays
+`unmapped_access` even though the engine result is `no_matching_policy`.
+
 A filter call's non-permitted keys are **not** access attempts. Nobody tried to open
 the DAGs they cannot see; a page was loaded and Airflow asked about everything. Writing
 those as denials would be both voluminous and false.
