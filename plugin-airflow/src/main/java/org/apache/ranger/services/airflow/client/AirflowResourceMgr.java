@@ -79,18 +79,16 @@ public final class AirflowResourceMgr {
         }
 
         AirflowClient client = AirflowConnectionMgr.getAirflowClient(serviceName, configs);
-        synchronized (client) {
-            if (RangerAirflowConstants.RESOURCE_DAG.equals(resourceName)) {
-                return client.getDagList(userInput, existing);
-            }
-            if (RangerAirflowConstants.RESOURCE_CONNECTION.equals(resourceName)) {
-                return client.getConnectionList(userInput, existing);
-            }
-            if (RangerAirflowConstants.RESOURCE_VARIABLE.equals(resourceName)) {
-                return client.getVariableList(userInput, existing);
-            }
-            return client.getPoolList(userInput, existing);
+        if (RangerAirflowConstants.RESOURCE_DAG.equals(resourceName)) {
+            return client.getDagList(userInput, existing);
         }
+        if (RangerAirflowConstants.RESOURCE_CONNECTION.equals(resourceName)) {
+            return client.getConnectionList(userInput, existing);
+        }
+        if (RangerAirflowConstants.RESOURCE_VARIABLE.equals(resourceName)) {
+            return client.getVariableList(userInput, existing);
+        }
+        return client.getPoolList(userInput, existing);
     }
 
     private static boolean isHttpLookupResource(String resourceName) {
