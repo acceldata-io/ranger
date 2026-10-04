@@ -319,6 +319,12 @@ public class AirflowClient extends BaseClient {
                     if (pageIds.rawCount < RangerAirflowConstants.PAGE_LIMIT) {
                         break;
                     }
+                    if (page == RangerAirflowConstants.MAX_PAGES - 1) {
+                        LOG.warn("Airflow lookup for {} hit the {}-page cap ({} names); later entries will not autocomplete",
+                                path,
+                                RangerAirflowConstants.MAX_PAGES,
+                                RangerAirflowConstants.MAX_PAGES * RangerAirflowConstants.PAGE_LIMIT);
+                    }
                 } finally {
                     if (response != null) {
                         response.close();
