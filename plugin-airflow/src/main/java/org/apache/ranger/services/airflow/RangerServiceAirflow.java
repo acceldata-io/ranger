@@ -26,6 +26,7 @@ import org.apache.ranger.plugin.model.RangerService;
 import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.service.RangerBaseService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
+import org.apache.ranger.services.airflow.client.AirflowResourceMgr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,24 +41,16 @@ import org.slf4j.LoggerFactory;
  * by {@code ranger-airflow-authz-agent}, a colocated process that embeds
  * {@code RangerBasePlugin} alongside each Airflow api-server.
  *
- * <p>Resource lookup is not implemented in this release: the service-def declares
- * {@code lookupSupported:false} on every resource, so the policy form accepts
- * free-text values and wildcards rather than offering autocomplete.
+ * <p>Resource lookup talks to the Airflow api-server (YuniKorn-shaped HTTP
+ * client) so the policy form can autocomplete DAG ids, connections, variables,
+ * pools, and built-in views. Put {@code airflow.url}, {@code username} and
+ * {@code password} on the service. Ranger already seeds that username onto the
+ * default {@code all - *} policies, which is what the list APIs need once
+ * Ranger is the Airflow auth manager.
  */
 public class RangerServiceAirflow extends RangerBaseService {
 
     private static final Logger LOG = LoggerFactory.getLogger(RangerServiceAirflow.class);
-
-    private static final String KEY_CONNECTIVITY_STATUS = "connectivityStatus";
-    private static final String KEY_MESSAGE             = "message";
-    private static final String KEY_DESCRIPTION         = "description";
-
-    private static final String MSG_LOOKUP_UNSUPPORTED =
-            "Resource lookup is not implemented for the Airflow plugin in this release.";
-    private static final String MSG_NO_CONNECTIVITY_CHECK =
-            "The Airflow plugin does not contact Airflow to validate this service. "
-            + "Policy enforcement does not require connectivity from Ranger Admin; "
-            + "the authorization agent colocated with each api-server pulls policies instead.";
 
     public RangerServiceAirflow() {
         super();
@@ -69,21 +62,25 @@ public class RangerServiceAirflow extends RangerBaseService {
     }
 
     /**
-     * Ranger Admin has no connection to validate: the plugin is a policy consumer,
-     * not a client of Airflow. Report success with an explanation rather than
-     * attempting a check that cannot be meaningful.
+     * Test Connection: obtain a JWT from {@code POST /auth/token} and list DAGs.
      */
     @Override
     public Map<String, Object> validateConfig() throws Exception {
-        Map<String, Object> ret = new HashMap<>();
+        Map<String, Object> ret = new HashMap<String, Object>();
+        String serviceName = getServiceName();
 
         if (LOG.isDebugEnabled()) {
-            LOG.debug("==> RangerServiceAirflow.validateConfig service=[{}]", getServiceName());
+            LOG.debug("==> RangerServiceAirflow.validateConfig service=[{}]", serviceName);
         }
 
-        ret.put(KEY_CONNECTIVITY_STATUS, true);
-        ret.put(KEY_MESSAGE, MSG_NO_CONNECTIVITY_CHECK);
-        ret.put(KEY_DESCRIPTION, MSG_NO_CONNECTIVITY_CHECK);
+        if (configs != null) {
+            try {
+                ret = AirflowResourceMgr.validateConfig(serviceName, configs);
+            } catch (Exception e) {
+                LOG.error("<== RangerServiceAirflow.validateConfig failed", e);
+                throw e;
+            }
+        }
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("<== RangerServiceAirflow.validateConfig response={}", ret);
@@ -91,16 +88,29 @@ public class RangerServiceAirflow extends RangerBaseService {
         return ret;
     }
 
-    /**
-     * Always empty. Airflow resource ids are free-text in this release; see the
-     * class comment. Returning an empty list leaves the policy form usable rather
-     * than leaving an autocomplete box spinning.
-     */
     @Override
     public List<String> lookupResource(ResourceLookupContext context) throws Exception {
+        List<String> ret = new ArrayList<String>();
+        String serviceName = getServiceName();
+        Map<String, String> configs = getConfigs();
+
         if (LOG.isDebugEnabled()) {
-            LOG.debug("RangerServiceAirflow.lookupResource: {} context={}", MSG_LOOKUP_UNSUPPORTED, context);
+            LOG.debug("==> RangerServiceAirflow.lookupResource context={}", context);
         }
-        return new ArrayList<>();
+
+        if (context != null) {
+            try {
+                ret = AirflowResourceMgr.getAirflowResources(serviceName, configs, context);
+            } catch (Exception e) {
+                LOG.error("<== RangerServiceAirflow.lookupResource failed", e);
+                throw e;
+            }
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("<== RangerServiceAirflow.lookupResource returned {} item(s)",
+                    ret == null ? 0 : ret.size());
+        }
+        return ret;
     }
 }
