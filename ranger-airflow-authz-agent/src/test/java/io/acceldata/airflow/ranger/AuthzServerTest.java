@@ -120,7 +120,13 @@ class AuthzServerTest {
         JsonNode d = post("/v1/authorize", "Bearer " + TOKEN, payload, 200).path("decisions").get(0);
         assertThat(d.path("allowed").asBoolean()).isFalse();
         assertThat(d.path("reason").asText()).isEqualTo("unmapped_access");
-        assertThat(engine.lastRequest.get()).isNull();
+        RangerAccessRequest audited = engine.lastRequest.get();
+        assertThat(audited).as("§6: unmapped_access denials go through evaluate so they audit").isNotNull();
+        assertThat(audited.getUser()).isEqualTo("alice");
+        assertThat(audited.getAccessType()).isEqualTo("unmapped_access");
+        assertThat(audited.getResource().getValue("config")).isEqualTo("smtp");
+        assertThat(audited.getClientIPAddress()).isEqualTo("10.4.2.19");
+        assertThat(audited.getRequestData()).isEqualTo("/api/v2/config");
     }
 
     @Test

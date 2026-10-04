@@ -225,6 +225,9 @@ public final class AuthzServer implements AutoCloseable {
                     String id = check.id == null ? "" : check.id;
                     if (mapped.status == AccessMapper.Status.UNMAPPED) {
                         warnUnmapped(mapped.detail);
+                        // Audit only: there is no Ranger access type to honor.
+                        // HTTP reason stays unmapped_access regardless of the engine result.
+                        engine.evaluate(buildUnmappedRequest(user, body.context, check));
                         decisions.add(Decision.denied(id, "unmapped_access"));
                         continue;
                     }
@@ -245,14 +248,28 @@ public final class AuthzServer implements AutoCloseable {
 
     private RangerAccessRequestImpl buildRequest(String user, RequestContext ctx,
                                                  AccessMapper.Result mapped, String key) {
+        return buildAccessRequest(user, ctx, mapped.resourceType, mapped.accessType, key);
+    }
+
+    /**
+     * Same audit fields as a mapped check, but the access type is the contract
+     * reason {@code unmapped_access} — there is no Ranger access type to evaluate.
+     */
+    private RangerAccessRequestImpl buildUnmappedRequest(String user, RequestContext ctx, Check check) {
+        String resourceType = check.resource_type == null ? "" : check.resource_type.strip();
+        return buildAccessRequest(user, ctx, resourceType, "unmapped_access", check.key);
+    }
+
+    private RangerAccessRequestImpl buildAccessRequest(String user, RequestContext ctx,
+                                                       String resourceType, String accessType, String key) {
         boolean anyResource = key == null || key.isBlank();
 
         RangerAccessResourceImpl resource = new RangerAccessResourceImpl();
-        if (!anyResource) {
-            resource.setValue(mapped.resourceType, key.strip());
+        if (!anyResource && resourceType != null && !resourceType.isBlank()) {
+            resource.setValue(resourceType, key.strip());
         }
         RangerAccessRequestImpl request = new RangerAccessRequestImpl(
-                resource, mapped.accessType, user, Collections.emptySet(), null);
+                resource, accessType, user, Collections.emptySet(), null);
 
         if (anyResource) {
             // An omitted key means "any resource of this type", and it needs the
@@ -283,7 +300,7 @@ public final class AuthzServer implements AutoCloseable {
         }
         request.setClusterName(config.clusterName());
         request.setClientType("airflow");
-        request.setAction(mapped.accessType);
+        request.setAction(accessType);
         request.setAccessTime(new Date());
         return request;
     }
