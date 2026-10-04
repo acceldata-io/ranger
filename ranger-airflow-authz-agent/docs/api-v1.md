@@ -260,6 +260,32 @@ group policy appears to be ignored.
 
 ---
 
+### `GET /v1/whoami?principal=<raw principal>`
+
+Diagnostic. Shows what the agent makes of a principal — the normalized username it
+would send to the engine, and the groups the downloaded user store holds for it.
+
+```json
+{
+  "principal": "alice@CORP.EXAMPLE",
+  "normalized": "alice",
+  "groups": ["all_staff", "data_eng"],
+  "user_store_version": 69,
+  "policy_version": 11
+}
+```
+
+Requires the shared secret. Writes no audit record — nothing is being authorized.
+
+This is the first thing to check when a policy that grants a group appears to be
+ignored, because the two causes look identical from Airflow:
+
+| symptom | meaning |
+|---|---|
+| `user_store_version` absent | usersync has not populated the store; **no** group policy can match |
+| version present, `groups` empty | the store has no entry for that name — normally a normalization mismatch |
+| groups look right | the problem is in the policy, not identity |
+
 ## 6. Audit behaviour
 
 | Endpoint | Records written |

@@ -12,6 +12,8 @@ package io.acceldata.airflow.ranger;
 
 import org.apache.ranger.audit.model.AuthzAuditEvent;
 import org.apache.ranger.plugin.audit.RangerDefaultAuditHandler;
+import org.apache.ranger.plugin.contextenricher.RangerUserStoreEnricher;
+import org.apache.ranger.plugin.util.RangerUserStore;
 import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerAccessResult;
@@ -19,7 +21,11 @@ import org.apache.ranger.plugin.service.RangerBasePlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Production engine: {@link RangerBasePlugin} with the default audit handler.
@@ -77,6 +83,12 @@ public final class RangerAuthzEngine implements AuthzEngine {
     }
 
     @Override
+    public String clusterName() {
+        String name = plugin.getClusterName();
+        return name == null ? "" : name;
+    }
+
+    @Override
     public Integer serviceDefVersion() {
         RangerServiceDef def = plugin.getServiceDef();
         if (def == null || def.getVersion() == null) {
@@ -88,6 +100,21 @@ public final class RangerAuthzEngine implements AuthzEngine {
     @Override
     public long userStoreVersion() {
         return plugin.getUserStoreVersion();
+    }
+
+    @Override
+    public Set<String> resolvedGroups(String user) {
+        if (user == null || user.isBlank()) {
+            return Collections.emptySet();
+        }
+        RangerUserStoreEnricher enricher = plugin.getUserStoreEnricher();
+        RangerUserStore store = enricher == null ? null : enricher.getRangerUserStore();
+        Map<String, Set<String>> mapping = store == null ? null : store.getUserGroupMapping();
+        if (mapping == null) {
+            return Collections.emptySet();
+        }
+        Set<String> groups = mapping.get(user);
+        return groups == null ? Collections.emptySet() : new TreeSet<>(groups);
     }
 
     @Override

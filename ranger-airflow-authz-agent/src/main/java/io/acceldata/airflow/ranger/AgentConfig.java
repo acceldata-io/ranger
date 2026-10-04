@@ -36,9 +36,17 @@ public final class AgentConfig {
     private final String serviceType;
     private final String appId;
     private final String supportedAirflow;
+    private final String authToLocalRules;
 
     AgentConfig(String bindAddress, int port, SharedSecret sharedSecret, String clusterName,
                 int threadPoolSize, String serviceType, String appId, String supportedAirflow) {
+        this(bindAddress, port, sharedSecret, clusterName, threadPoolSize, serviceType, appId,
+                supportedAirflow, "");
+    }
+
+    AgentConfig(String bindAddress, int port, SharedSecret sharedSecret, String clusterName,
+                int threadPoolSize, String serviceType, String appId, String supportedAirflow,
+                String authToLocalRules) {
         this.bindAddress = requireLoopback(bindAddress);
         if (port < 0 || port > 65535) {
             throw new IllegalArgumentException("port out of range: " + port);
@@ -53,6 +61,7 @@ public final class AgentConfig {
         this.serviceType = requireText(serviceType, "authz.agent.service.type");
         this.appId = requireText(appId, "authz.agent.app.id");
         this.supportedAirflow = requireText(supportedAirflow, "authz.agent.supported.airflow");
+        this.authToLocalRules = authToLocalRules == null ? "" : authToLocalRules.strip();
     }
 
     public static AgentConfig load(Path propertiesFile) {
@@ -71,7 +80,8 @@ public final class AgentConfig {
                 Integer.parseInt(props.getProperty("authz.agent.thread.pool.size", "16")),
                 props.getProperty("authz.agent.service.type", "airflow"),
                 props.getProperty("authz.agent.app.id", "airflow"),
-                props.getProperty("authz.agent.supported.airflow", ">=3.2,<3.3"));
+                props.getProperty("authz.agent.supported.airflow", ">=3.2,<3.3"),
+                props.getProperty("hadoop.security.auth_to_local", ""));
     }
 
     public String bindAddress() { return bindAddress; }
@@ -82,6 +92,14 @@ public final class AgentConfig {
     public String serviceType() { return serviceType; }
     public String appId() { return appId; }
     public String supportedAirflow() { return supportedAirflow; }
+
+    /**
+     * {@code hadoop.security.auth_to_local} rules, or blank to keep whatever
+     * Hadoop loaded from {@code core-site.xml}. Set this only when the agent's
+     * classpath has no core-site.xml, or when Airflow authenticates against a
+     * realm the cluster rules do not cover.
+     */
+    public String authToLocalRules() { return authToLocalRules; }
 
     private static String required(Properties props, String key) {
         String value = props.getProperty(key);
