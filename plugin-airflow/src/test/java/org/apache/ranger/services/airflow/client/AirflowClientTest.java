@@ -41,6 +41,16 @@ class AirflowClientTest {
     }
 
     @Test
+    void collectPageKeepsRawCountWhenAnIdIsBlank() throws Exception {
+        String json = "{\"dags\":[{\"dag_id\":\"etl_daily\"},{\"dag_id\":\"\"}],\"total_entries\":2}";
+        AirflowClient.CollectionPage page = AirflowClient.collectPage(
+                json, RangerAirflowConstants.JSON_DAGS, RangerAirflowConstants.JSON_DAG_ID);
+        assertEquals(Collections.singletonList("etl_daily"), page.ids);
+        assertEquals(2, page.rawCount);
+        assertTrue(page.rawCount > page.ids.size());
+    }
+
+    @Test
     void collectIdsReadsPoolNameOrPool() throws Exception {
         String byName = "{\"pools\":[{\"name\":\"default_pool\"}],\"total_entries\":1}";
         assertEquals(Collections.singletonList("default_pool"),
