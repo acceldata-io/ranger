@@ -156,11 +156,19 @@ public class AirflowClient extends BaseClient {
     }
 
     static List<String> collectIds(String json, String arrayField, String idField) throws Exception {
+        return collectPage(json, arrayField, idField).ids;
+    }
+
+    /**
+     * Parsed ids plus the raw array length. Pagination must use {@code rawCount}:
+     * a full page with a blank id would otherwise look short and drop later pages.
+     */
+    static CollectionPage collectPage(String json, String arrayField, String idField) throws Exception {
         JsonNode root = MAPPER.readTree(json);
         JsonNode array = root == null ? null : root.get(arrayField);
         List<String> ids = new ArrayList<String>();
         if (array == null || !array.isArray()) {
-            return ids;
+            return new CollectionPage(ids, 0);
         }
         for (JsonNode item : array) {
             String id = text(item, idField);
@@ -171,7 +179,17 @@ public class AirflowClient extends BaseClient {
                 ids.add(id);
             }
         }
-        return ids;
+        return new CollectionPage(ids, array.size());
+    }
+
+    static final class CollectionPage {
+        final List<String> ids;
+        final int rawCount;
+
+        CollectionPage(List<String> ids, int rawCount) {
+            this.ids = ids;
+            this.rawCount = rawCount;
+        }
     }
 
     public static Map<String, Object> connectionTest(String serviceName, Map<String, String> configs) {
@@ -296,9 +314,9 @@ public class AirflowClient extends BaseClient {
                         throw hdpException;
                     }
 
-                    List<String> pageIds = collectIds(response.getEntity(String.class), arrayField, idField);
-                    all.addAll(pageIds);
-                    if (pageIds.size() < RangerAirflowConstants.PAGE_LIMIT) {
+                    CollectionPage pageIds = collectPage(response.getEntity(String.class), arrayField, idField);
+                    all.addAll(pageIds.ids);
+                    if (pageIds.rawCount < RangerAirflowConstants.PAGE_LIMIT) {
                         break;
                     }
                 } finally {
