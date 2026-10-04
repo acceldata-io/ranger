@@ -44,6 +44,10 @@ import com.sun.jersey.api.client.WebResource;
  * resources from {@code /api/v2/*}. Same shape as {@code YuniKornClient}:
  * Jersey GET, short timeouts, prefix-filter in process, exclude values already
  * selected in the policy form.
+ *
+ * <p>{@code airflow.url} must be the api-server, not a SPNEGO/Knox UI frontend.
+ * {@code /api/v2} takes a JWT from a password-capable account (LDAP or FAB);
+ * a Kerberos ticket is not an Airflow 3 public-API credential.
  */
 public class AirflowClient extends BaseClient {
 
