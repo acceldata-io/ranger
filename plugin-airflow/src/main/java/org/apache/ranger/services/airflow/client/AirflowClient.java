@@ -145,14 +145,46 @@ public class AirflowClient extends BaseClient {
         return result;
     }
 
-    static boolean matchesPrefix(String value, String userInput, boolean ignoreCase) {
+    /**
+     * Policy fields accept {@code *} / {@code etl_*}. Treat those as "all" or a
+     * prefix; a literal startsWith on the wildcard string matches nothing.
+     */
+    static String normalizeUserInput(String userInput) {
         if (StringUtils.isBlank(userInput)) {
+            return "";
+        }
+        String trimmed = userInput.trim();
+        if ("*".equals(trimmed) || "%".equals(trimmed)) {
+            return "";
+        }
+        int wildcard = firstWildcard(trimmed);
+        if (wildcard < 0) {
+            return trimmed;
+        }
+        return trimmed.substring(0, wildcard);
+    }
+
+    static boolean matchesPrefix(String value, String userInput, boolean ignoreCase) {
+        String prefix = normalizeUserInput(userInput);
+        if (StringUtils.isBlank(prefix)) {
             return true;
         }
         if (ignoreCase) {
-            return value.regionMatches(true, 0, userInput, 0, userInput.length());
+            return value.regionMatches(true, 0, prefix, 0, prefix.length());
         }
-        return value.startsWith(userInput);
+        return value.startsWith(prefix);
+    }
+
+    private static int firstWildcard(String value) {
+        int star = value.indexOf('*');
+        int question = value.indexOf('?');
+        if (star < 0) {
+            return question;
+        }
+        if (question < 0) {
+            return star;
+        }
+        return Math.min(star, question);
     }
 
     static List<String> collectIds(String json, String arrayField, String idField) throws Exception {

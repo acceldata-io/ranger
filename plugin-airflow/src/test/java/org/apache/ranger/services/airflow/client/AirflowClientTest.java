@@ -71,6 +71,15 @@ class AirflowClientTest {
     }
 
     @Test
+    void filterMatchesWildcardAsAllOrPrefix() {
+        List<String> values = Arrays.asList("etl_daily", "etl_hourly", "ml_train");
+
+        assertEquals(values, AirflowClient.filterMatches(values, "*", null, false));
+        assertEquals(Arrays.asList("etl_daily", "etl_hourly"),
+                AirflowClient.filterMatches(values, "etl_*", null, false));
+    }
+
+    @Test
     void filterMatchesViewIgnoreCase() {
         List<String> matches = AirflowClient.filterMatches(
                 RangerAirflowConstants.BUILTIN_VIEWS, "DOC", null, true);
