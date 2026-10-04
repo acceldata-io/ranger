@@ -440,7 +440,7 @@ public class AirflowClient extends BaseClient {
             String decrypted = PasswordUtils.getDecryptPassword(password);
             return decrypted == null ? password : decrypted;
         } catch (Throwable t) {
-            LOG.debug("Password decryption failed; using the configured string as-is");
+            LOG.warn("Password decryption failed; using the configured string as-is");
             return password;
         }
     }
