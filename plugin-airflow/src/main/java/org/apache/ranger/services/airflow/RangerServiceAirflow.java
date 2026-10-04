@@ -47,6 +47,11 @@ import org.slf4j.LoggerFactory;
  * {@code password} on the service. Ranger already seeds that username onto the
  * default {@code all - *} policies, which is what the list APIs need once
  * Ranger is the Airflow auth manager.
+ *
+ * <p>{@code airflow.url} must be the api-server base (the process that serves
+ * {@code /auth/token} and {@code /api/v2}), not a SPNEGO/Knox UI frontend.
+ * Airflow 3's public API accepts a JWT, not a Kerberos ticket, so
+ * {@code username} must be a password-capable account (LDAP or FAB).
  */
 public class RangerServiceAirflow extends RangerBaseService {
 

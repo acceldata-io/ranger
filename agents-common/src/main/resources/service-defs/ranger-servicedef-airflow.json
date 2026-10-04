@@ -235,7 +235,7 @@
 			"defaultValue": "",
 			"validationRegEx":"",
 			"validationMessage": "",
-			"uiHint":"{\"TextFieldWithIcon\":true, \"info\": \"Airflow api-server base URL, e.g. https://airflow.example.com:8080. Used by resource lookup; not required for policy enforcement.\"}",
+			"uiHint":"{\"TextFieldWithIcon\":true, \"info\": \"Airflow api-server base URL, e.g. https://airflow.example.com:8080. Must be the api-server (POST /auth/token, GET /api/v2), not a SPNEGO/Knox UI frontend. Used by resource lookup; not required for policy enforcement.\"}",
 			"label": "Airflow API URL"
 		},
 
@@ -247,7 +247,7 @@
 			"defaultValue": "",
 			"validationRegEx":"",
 			"validationMessage": "",
-			"uiHint":"{\"info\": \"Airflow user used for policy autocomplete (POST /auth/token). Create this user in Ranger as well so it can be added to default policies.\"}",
+			"uiHint":"{\"info\": \"Password-capable Airflow account (LDAP or FAB) used for policy autocomplete via POST /auth/token. A Kerberos ticket is not accepted on /api/v2. Create this user in Ranger as well so it can be added to default policies.\"}",
 			"label": "Username"
 		},
 
