@@ -61,9 +61,16 @@ public class AirflowClient extends BaseClient {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    // Shorter than a typical Airflow JWT lifetime so a rotated password
+    // recovers on the next mint rather than serving a dead token for an hour.
+    private static final long TOKEN_TTL_MS = 5L * 60L * 1000L;
+
     private final String url;
     private final String userName;
     private final String password;
+
+    private String cachedToken;
+    private long   tokenExpiresAtMs;
 
     public AirflowClient(String serviceName, Map<String, String> configs) {
         super(serviceName, configs, "airflow-client");
@@ -310,7 +317,7 @@ public class AirflowClient extends BaseClient {
         client.setReadTimeout(READ_TIMEOUT_MS);
 
         try {
-            String token = fetchAccessToken(client);
+            String token = cachedAccessToken(client);
             String base = url.trim().replaceAll("/+$", "");
             List<String> all = new ArrayList<String>();
 
@@ -326,10 +333,13 @@ public class AirflowClient extends BaseClient {
 
                 ClientResponse response = null;
                 try {
-                    response = resource
-                            .header("Authorization", "Bearer " + token)
-                            .accept(EXPECTED_MIME_TYPE)
-                            .get(ClientResponse.class);
+                    response = getWithBearer(resource, token);
+                    if (response != null && response.getStatus() == 401) {
+                        response.close();
+                        invalidateAccessToken();
+                        token = cachedAccessToken(client);
+                        response = getWithBearer(resource, token);
+                    }
 
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("GET {} offset={} -> status {}",
@@ -376,6 +386,28 @@ public class AirflowClient extends BaseClient {
         } finally {
             client.destroy();
         }
+    }
+
+    private static ClientResponse getWithBearer(WebResource resource, String token) {
+        return resource
+                .header("Authorization", "Bearer " + token)
+                .accept(EXPECTED_MIME_TYPE)
+                .get(ClientResponse.class);
+    }
+
+    private synchronized String cachedAccessToken(Client client) {
+        long now = System.currentTimeMillis();
+        if (cachedToken != null && now < tokenExpiresAtMs) {
+            return cachedToken;
+        }
+        cachedToken = fetchAccessToken(client);
+        tokenExpiresAtMs = now + TOKEN_TTL_MS;
+        return cachedToken;
+    }
+
+    private synchronized void invalidateAccessToken() {
+        cachedToken = null;
+        tokenExpiresAtMs = 0L;
     }
 
     private String fetchAccessToken(Client client) {
