@@ -29,7 +29,52 @@
 	<property>
 		<name>xasecure.audit.destination.solr.urls</name>
 		<value></value>
-		<description>Solr collection URL, e.g. http://solr:8983/solr/ranger_audits</description>
+		<description>Leave empty when using ZooKeeper discovery (Infra Solr).</description>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.solr.zookeepers</name>
+		<value></value>
+		<description>Infra Solr ZK, e.g. host:2181/infra-solr</description>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.solr.collection</name>
+		<value>ranger_audits</value>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.solr.batch.filespool.dir</name>
+		<value>/var/log/airflow/audit/solr/spool</value>
+	</property>
+	<property>
+		<name>xasecure.audit.destination.solr.force.use.inmemory.jaas.config</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>xasecure.audit.jaas.Client.loginModuleName</name>
+		<value>com.sun.security.auth.module.Krb5LoginModule</value>
+	</property>
+	<property>
+		<name>xasecure.audit.jaas.Client.loginModuleControlFlag</name>
+		<value>required</value>
+	</property>
+	<property>
+		<name>xasecure.audit.jaas.Client.option.useKeyTab</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>xasecure.audit.jaas.Client.option.storeKey</name>
+		<value>false</value>
+	</property>
+	<property>
+		<name>xasecure.audit.jaas.Client.option.serviceName</name>
+		<value>solr</value>
+	</property>
+	<property>
+		<name>xasecure.audit.jaas.Client.option.keyTab</name>
+		<value></value>
+	</property>
+	<property>
+		<name>xasecure.audit.jaas.Client.option.principal</name>
+		<value></value>
 	</property>
 	<property>
 		<name>xasecure.audit.destination.hdfs</name>
