@@ -46,12 +46,20 @@ public final class RangerAuthzEngine implements AuthzEngine {
 
     @Override
     public boolean isReady() {
-        return plugin.getPoliciesVersion() >= 0;
+        return plugin.getPoliciesVersion() >= 0 && plugin.getUserStoreVersion() >= 0;
     }
 
     @Override
     public String notReadyReason() {
-        return isReady() ? null : "policies not loaded";
+        boolean policiesLoaded = plugin.getPoliciesVersion() >= 0;
+        boolean userStoreLoaded = plugin.getUserStoreVersion() >= 0;
+        if (policiesLoaded && userStoreLoaded) {
+            return null;
+        }
+        if (!policiesLoaded && !userStoreLoaded) {
+            return "policies not loaded; user store not loaded";
+        }
+        return policiesLoaded ? "user store not loaded" : "policies not loaded";
     }
 
     @Override
