@@ -16,8 +16,9 @@ package io.acceldata.airflow.ranger;
  * resolves them from the user store when {@code use.rangerGroups} is set.
  *
  * <p>M1 covers the two shapes we actually see: a Kerberos principal
- * ({@code alice@REALM}) and an LDAP DN ({@code CN=alice,...}). Full
- * {@code auth_to_local} rule evaluation is M2.
+ * ({@code alice@REALM}) and an LDAP DN ({@code CN=alice,...} or
+ * {@code uid=alice,ou=people,...}). The short name is the first RDN value.
+ * Full {@code auth_to_local} rule evaluation is M2.
  */
 public final class IdentityNormalizer {
 
@@ -31,7 +32,7 @@ public final class IdentityNormalizer {
         if (trimmed.isEmpty()) {
             return trimmed;
         }
-        String fromDn = cnFromDn(trimmed);
+        String fromDn = firstRdnValue(trimmed);
         if (fromDn != null) {
             return fromDn;
         }
@@ -42,18 +43,21 @@ public final class IdentityNormalizer {
         return trimmed;
     }
 
-    private static String cnFromDn(String value) {
+    /**
+     * Leftmost RDN value: {@code CN=alice,OU=...} and {@code uid=alice,ou=...}
+     * both become {@code alice}. A string with no {@code =} or {@code ,} is
+     * not treated as a DN.
+     */
+    private static String firstRdnValue(String value) {
         if (value.indexOf('=') < 0 || value.indexOf(',') < 0) {
             return null;
         }
-        for (String part : value.split(",")) {
-            String piece = part.strip();
-            int eq = piece.indexOf('=');
-            if (eq > 0 && piece.substring(0, eq).strip().equalsIgnoreCase("CN")) {
-                String cn = piece.substring(eq + 1).strip();
-                return cn.isEmpty() ? null : cn;
-            }
+        String first = value.split(",", 2)[0].strip();
+        int eq = first.indexOf('=');
+        if (eq <= 0) {
+            return null;
         }
-        return null;
+        String shortName = first.substring(eq + 1).strip();
+        return shortName.isEmpty() ? null : shortName;
     }
 }
