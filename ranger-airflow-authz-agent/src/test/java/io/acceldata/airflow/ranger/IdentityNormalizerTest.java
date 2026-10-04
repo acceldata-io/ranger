@@ -31,6 +31,13 @@ class IdentityNormalizerTest {
     }
 
     @Test
+    @DisplayName("takes uid from an OpenLDAP-style DN")
+    void ldapUidDn() {
+        assertThat(IdentityNormalizer.normalize("uid=alice,ou=people,dc=corp"))
+                .isEqualTo("alice");
+    }
+
+    @Test
     @DisplayName("short names pass through")
     void shortName() {
         assertThat(IdentityNormalizer.normalize("alice")).isEqualTo("alice");
