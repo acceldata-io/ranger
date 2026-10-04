@@ -27,6 +27,14 @@ public interface AuthzEngine extends AutoCloseable {
 
     String serviceName();
 
+    /**
+     * Cluster name stamped on every audit record. Comes from
+     * {@code ranger.plugin.airflow.access.cluster.name} via the plugin's own
+     * {@code RangerPluginConfig} — the standard Ranger key — rather than a
+     * second agent-specific property that could disagree with it.
+     */
+    String clusterName();
+
     Integer serviceDefVersion();
 
     /**
@@ -36,6 +44,15 @@ public interface AuthzEngine extends AutoCloseable {
      * diagnostic.
      */
     long userStoreVersion();
+
+    /**
+     * Groups the downloaded Ranger user store holds for a normalized username,
+     * or an empty set when the store has no entry. These are the groups the
+     * engine itself will evaluate against — the caller never supplies groups —
+     * so this is the authoritative answer to "why did my group policy not
+     * match". Exposed on {@code /v1/whoami}.
+     */
+    java.util.Set<String> resolvedGroups(String user);
 
     RangerAccessResult evaluate(RangerAccessRequest request);
 

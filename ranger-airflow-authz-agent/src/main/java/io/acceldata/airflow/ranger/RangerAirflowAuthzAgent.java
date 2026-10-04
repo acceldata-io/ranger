@@ -48,6 +48,9 @@ public final class RangerAirflowAuthzAgent {
 
     static void run(Path configPath) throws Exception {
         AgentConfig config = AgentConfig.load(configPath);
+        // Before the engine, so a bad rule string fails startup rather than the
+        // first authorization request.
+        IdentityNormalizer.configureRules(config.authToLocalRules());
         RangerAuthzEngine engine = new RangerAuthzEngine(config);
         AuthzServer server = new AuthzServer(config, engine);
         CountDownLatch shutdown = new CountDownLatch(1);

@@ -38,8 +38,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Embedded Jetty bound to loopback. Four contract endpoints; {@code /v1/filter}
- * is M2 and returns 404 until then.
+ * Embedded Jetty bound to loopback, serving the v1 contract endpoints.
  */
 public final class AuthzServer implements AutoCloseable {
 
@@ -51,7 +50,7 @@ public final class AuthzServer implements AutoCloseable {
      * v1 endpoints this build actually implements. The client checks this rather
      * than inferring the endpoint set from {@code contract_version} alone, so a
      * build that predates {@code /v1/filter} is detected at startup instead of
-     * on the first grid load. Add {@code "filter"} in M2.
+     * on the first grid load.
      */
     static final List<String> CAPABILITIES = List.of("authorize", "filter");
 
@@ -143,6 +142,13 @@ public final class AuthzServer implements AutoCloseable {
                 writeJson(resp, 200, mapper.writeValueAsString(infoBody()));
                 return;
             }
+            if ("/whoami".equals(path)) {
+                if (!requireSecret(req, resp)) {
+                    return;
+                }
+                handleWhoami(req, resp);
+                return;
+            }
             writeJson(resp, 404, "{\"error\":\"not_found\"}");
         }
 
@@ -164,6 +170,36 @@ public final class AuthzServer implements AutoCloseable {
                 return;
             }
             writeJson(resp, 404, "{\"error\":\"not_found\"}");
+        }
+
+        /**
+         * Diagnostic: what this agent makes of a principal.
+         *
+         * <p>Answers the question that otherwise costs an afternoon — "the
+         * policy grants my group, why am I denied". Shows the normalized
+         * username actually sent to the engine and the groups the downloaded
+         * user store holds for it. An empty group list with a
+         * {@code user_store_version} of -1 means usersync has not populated
+         * the store; an empty list with a real version means the store has no
+         * entry for that user, which is usually a normalization mismatch.
+         *
+         * <p>Writes no audit record: nothing is being authorized.
+         */
+        private void handleWhoami(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            String principal = req.getParameter("principal");
+            if (principal == null || principal.isBlank()) {
+                writeJson(resp, 400, mapper.writeValueAsString(
+                        new ErrorBody("bad_request", "principal query parameter is required")));
+                return;
+            }
+            WhoamiBody body = new WhoamiBody();
+            body.principal = principal;
+            body.normalized = IdentityNormalizer.normalize(principal);
+            body.groups = new ArrayList<>(engine.resolvedGroups(body.normalized));
+            long userStoreVersion = engine.userStoreVersion();
+            body.user_store_version = userStoreVersion < 0 ? null : userStoreVersion;
+            body.policy_version = engine.policyVersion();
+            writeJson(resp, 200, mapper.writeValueAsString(body));
         }
 
         private boolean requireSecret(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -418,7 +454,7 @@ public final class AuthzServer implements AutoCloseable {
                 request.setSessionId(ctx.request_id);
             }
         }
-        request.setClusterName(config.clusterName());
+        request.setClusterName(engine.clusterName());
         request.setClientType("airflow");
         request.setAction(accessType);
         request.setAccessTime(new Date());
@@ -574,6 +610,14 @@ public final class AuthzServer implements AutoCloseable {
         public String supported_airflow;
         public List<String> capabilities;
         public Long user_store_version;
+    }
+
+    public static final class WhoamiBody {
+        public String principal;
+        public String normalized;
+        public List<String> groups;
+        public Long user_store_version;
+        public long policy_version;
     }
 
     public static final class ReadyBody {

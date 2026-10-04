@@ -296,6 +296,32 @@ class AuthzServerTest {
     }
 
     @Test
+    @DisplayName("whoami shows the normalized name and the groups Ranger resolved")
+    void whoamiReportsIdentity() throws Exception {
+        engine.groupsByUser = java.util.Map.of("alice", Set.of("data_eng", "all_staff"));
+
+        JsonNode out = get("/v1/whoami?principal=alice%40CORP.EXAMPLE", "Bearer " + TOKEN, 200);
+        assertThat(out.path("principal").asText()).isEqualTo("alice@CORP.EXAMPLE");
+        assertThat(out.path("normalized").asText()).isEqualTo("alice");
+        assertThat(out.path("groups").toString()).contains("data_eng").contains("all_staff");
+        assertThat(out.path("user_store_version").asLong()).isEqualTo(9L);
+
+        // An LDAP DN normalizes the same way, and an unknown user resolves to
+        // no groups rather than an error -- that is the common diagnosis.
+        JsonNode dn = get("/v1/whoami?principal=uid%3Dbob%2Cou%3Dpeople%2Cdc%3Dcorp",
+                "Bearer " + TOKEN, 200);
+        assertThat(dn.path("normalized").asText()).isEqualTo("bob");
+        assertThat(dn.path("groups")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("whoami needs the shared secret and a principal")
+    void whoamiGuards() throws Exception {
+        get("/v1/whoami?principal=alice", null, 401);
+        get("/v1/whoami", "Bearer " + TOKEN, 400);
+    }
+
+    @Test
     @DisplayName("info advertises the filter capability")
     void infoAdvertisesFilter() throws Exception {
         JsonNode info = get("/v1/info", "Bearer " + TOKEN, 200);
@@ -352,9 +378,17 @@ class AuthzServerTest {
         @Override public String notReadyReason() { return reason; }
         @Override public long policyVersion() { return 118L; }
         @Override public String serviceName() { return "odp_airflow"; }
+        @Override public String clusterName() { return "odp-dev"; }
         @Override public Integer serviceDefVersion() { return 3; }
         @Override public long userStoreVersion() { return userStoreVersion; }
         @Override public void close() {}
+
+        volatile java.util.Map<String, Set<String>> groupsByUser = java.util.Map.of();
+
+        @Override
+        public Set<String> resolvedGroups(String user) {
+            return groupsByUser.getOrDefault(user, Set.of());
+        }
 
         @Override
         public RangerAccessResult evaluate(RangerAccessRequest request) {
