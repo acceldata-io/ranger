@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -128,8 +129,9 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         }
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = resolveBaseUrl(p);
+        
 
-        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs");
+        URL url = new URL(baseUrl + "/api/metalakes/" + encodePathSegment(metalake) + "/catalogs");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
     }
     
@@ -141,7 +143,8 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = resolveBaseUrl(p);
 
-        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + "/schemas");
+        URL url = new URL(baseUrl + "/api/metalakes/" + encodePathSegment(metalake)
+                + "/catalogs/" + encodePathSegment(catalog) + "/schemas");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
     }
     
@@ -154,8 +157,9 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = resolveBaseUrl(p);
 
-        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
-                "/schemas/" + schema + "/tables");
+        URL url = new URL(baseUrl + "/api/metalakes/" + encodePathSegment(metalake)
+                + "/catalogs/" + encodePathSegment(catalog)
+                + "/schemas/" + encodePathSegment(schema) + "/tables");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
     }
 
@@ -169,8 +173,10 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = resolveBaseUrl(p);
 
-        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog +
-                "/schemas/" + schema + "/tables/" + table);
+        URL url = new URL(baseUrl + "/api/metalakes/" + encodePathSegment(metalake)
+                + "/catalogs/" + encodePathSegment(catalog)
+                + "/schemas/" + encodePathSegment(schema)
+                + "/tables/" + encodePathSegment(table));
         return executeAndParseColumns(url, prefix);
     }
 
@@ -183,8 +189,9 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = resolveBaseUrl(p);
 
-        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
-                "/schemas/" + schema + "/topics");
+        URL url = new URL(baseUrl + "/api/metalakes/" + encodePathSegment(metalake)
+                + "/catalogs/" + encodePathSegment(catalog)
+                + "/schemas/" + encodePathSegment(schema) + "/topics");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
     }
     
@@ -197,8 +204,9 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = resolveBaseUrl(p);
 
-        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
-                "/schemas/" + schema + "/filesets");
+        URL url = new URL(baseUrl + "/api/metalakes/" + encodePathSegment(metalake)
+                + "/catalogs/" + encodePathSegment(catalog)
+                + "/schemas/" + encodePathSegment(schema) + "/filesets");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
     }
     
@@ -211,8 +219,9 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = resolveBaseUrl(p);
 
-        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
-                "/schemas/" + schema + "/models");
+        URL url = new URL(baseUrl + "/api/metalakes/" + encodePathSegment(metalake)
+                + "/catalogs/" + encodePathSegment(catalog)
+                + "/schemas/" + encodePathSegment(schema) + "/models");
         return executeAndParseIdentifiers(url, "identifiers", prefix);
     }
     
@@ -226,8 +235,10 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         Properties p = getConfigHolder().getRangerSection();
         String baseUrl = resolveBaseUrl(p);
 
-        URL url = new URL(baseUrl + "/api/metalakes/" + metalake + "/catalogs/" + catalog + 
-                "/schemas/" + schema + "/models/" + model + "/versions");
+        URL url = new URL(baseUrl + "/api/metalakes/" + encodePathSegment(metalake)
+                + "/catalogs/" + encodePathSegment(catalog)
+                + "/schemas/" + encodePathSegment(schema)
+                + "/models/" + encodePathSegment(model) + "/versions");
         return executeAndParseVersions(url, prefix);
     }
 
@@ -237,6 +248,14 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
             baseUrl = trimToNull(p.getProperty(KEY_GRAVITINO_URL));
         }
         return baseUrl;
+    }
+
+    /**
+     * Encode one path segment. URLEncoder is form-encoding, so spaces become '+'
+     * and must be rewritten to %20 before the value is placed in a URL path.
+     */
+    private static String encodePathSegment(String segment) {
+        return URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private static String trimToNull(String v) {
