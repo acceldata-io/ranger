@@ -343,6 +343,8 @@
                 <module>ranger-tools</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-trino</module>
+                <module>unixauthpam</module>
+                <module>unixauthnative</module>
                 <!--
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
@@ -823,15 +825,10 @@
             <enabled>true</enabled>
           </snapshots>
         </repository>
-    	<repository>
+        <repository>
             <id>jetbrains-pty4j</id>
             <name>jetbrains-intellij-dependencies</name>
             <url>https://packages.jetbrains.team/maven/p/ij/intellij-dependencies</url>
-        </repository>
-        <repository>
-            <id>central</id>
-            <name>Maven Central</name>
-            <url>repo.maven.apache.org</url>
         </repository>
     </repositories>
     <!-- Plugins resolve against pluginRepositories, never repositories. Without this
