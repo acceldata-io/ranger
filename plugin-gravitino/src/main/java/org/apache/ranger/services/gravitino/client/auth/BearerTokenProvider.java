@@ -59,6 +59,8 @@ public final class BearerTokenProvider {
 
     // cache: per service+tokenUrl+clientId
     private static final ConcurrentHashMap<Key, CachedToken> CACHE = new ConcurrentHashMap<>();
+    // one shared mutex per cache key, so concurrent refreshes do not each call the token endpoint
+    private static final ConcurrentHashMap<Key, Object> CACHE_LOCKS = new ConcurrentHashMap<>();
 
     // defaults
     private static final long DEFAULT_EXPIRES_IN_SEC = 300;   // 5m fallback if token response lacks expires_in
@@ -111,7 +113,8 @@ public final class BearerTokenProvider {
         }
 
         // Prevent token stampede
-        synchronized (key.lock) {
+        Object lock = CACHE_LOCKS.computeIfAbsent(key, k -> new Object());
+        synchronized (lock) {
             cached = CACHE.get(key);
             now = System.currentTimeMillis();
             if (cached != null && cached.expiresAtMs - skewMs > now) {
@@ -233,7 +236,6 @@ public final class BearerTokenProvider {
         final String serviceName;
         final String tokenUrl;
         final String clientId;
-        final Object lock = new Object();
 
         Key(String serviceName, String tokenUrl, String clientId) {
             this.serviceName = serviceName;
