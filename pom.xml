@@ -1237,6 +1237,7 @@
                         <exclude>**/ranger-yunikorn-agent/Makefile</exclude>
                         <exclude>**/ranger-yunikorn-agent/README.md</exclude>
                         <exclude>**/ranger-airflow-authz-agent/docs/**</exclude>
+                        <exclude>**/CLAUDE.md</exclude>
                         <exclude>**/ranger-airflow-authz-agent/.gitignore</exclude>
                         <exclude>**/ranger-airflow-authz-agent/conf/**</exclude>
                         <exclude>**/ranger-yunikorn-agent/.gitignore</exclude>
