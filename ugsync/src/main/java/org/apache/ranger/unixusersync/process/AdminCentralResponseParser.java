@@ -19,7 +19,12 @@
 
 package org.apache.ranger.unixusersync.process;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,7 +35,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
  */
 public final class AdminCentralResponseParser {
 
+	private static final Logger LOG = LoggerFactory.getLogger(AdminCentralResponseParser.class);
+
 	private static final ObjectMapper MAPPER = new ObjectMapper();
+
+	/** Field names already reported as missing, so a bad path does not warn once per user. */
+	private static final Set<String> WARNED_MISSING_ENABLED_FIELDS = ConcurrentHashMap.newKeySet();
 
 	/** Admin Central application-level failure code (see XDP CP identity APIs). */
 	public static final int ERROR_CODE_FAILURE = 1;
@@ -77,6 +87,11 @@ public final class AdminCentralResponseParser {
 		}
 	}
 
+	/**
+	 * Walk {@code dotPath} from {@code root}. A blank path returns {@code root}.
+	 * Leading and trailing dots are ignored ({@code .data} and {@code data.} are {@code data}).
+	 * An empty segment in the middle ({@code a..b}) is rejected.
+	 */
 	public static JsonNode navigate(JsonNode root, String dotPath) {
 		if (root == null || root.isNull() || root.isMissingNode()) {
 			return null;
@@ -84,14 +99,37 @@ public final class AdminCentralResponseParser {
 		if (StringUtils.isBlank(dotPath)) {
 			return root;
 		}
+		String path = stripEdgeDots(dotPath.trim());
+		if (path.isEmpty()) {
+			throw new IllegalArgumentException(
+					"Invalid JSON path \"" + dotPath + "\": path contains no field names");
+		}
 		JsonNode n = root;
-		for (String part : dotPath.split("\\.")) {
+		for (String part : path.split("\\.", -1)) {
+			if (part.isEmpty()) {
+				throw new IllegalArgumentException(
+						"Invalid JSON path \"" + dotPath + "\": empty segment (\"..\"); "
+								+ "check ranger.usersync.admincentral users/groups array path");
+			}
 			if (n == null || n.isNull() || n.isMissingNode()) {
 				return null;
 			}
 			n = n.get(part);
 		}
 		return n;
+	}
+
+	/** Drop dots that only pad the start or end of a path. Interior dots are left in place. */
+	private static String stripEdgeDots(String path) {
+		int start = 0;
+		int end = path.length();
+		while (start < end && path.charAt(start) == '.') {
+			start++;
+		}
+		while (end > start && path.charAt(end - 1) == '.') {
+			end--;
+		}
+		return path.substring(start, end);
 	}
 
 	public static ArrayNode asArray(JsonNode node) {
@@ -104,13 +142,27 @@ public final class AdminCentralResponseParser {
 		return null;
 	}
 
+	/**
+	 * A blank {@code enabledFieldName} means the operator did not opt into the check, so every user is enabled.
+	 * When the field is set, a missing or null value is not enabled: a typo or renamed payload must not sync
+	 * disabled users.
+	 */
 	public static boolean isEffectivelyEnabled(JsonNode user, String enabledFieldName) {
-		if (user == null || StringUtils.isBlank(enabledFieldName)) {
+		if (StringUtils.isBlank(enabledFieldName)) {
 			return true;
 		}
-		JsonNode en = user.get(enabledFieldName.trim());
+		String field = enabledFieldName.trim();
+		if (user == null || user.isNull() || user.isMissingNode()) {
+			return false;
+		}
+		JsonNode en = user.get(field);
 		if (en == null || en.isNull() || en.isMissingNode()) {
-			return true;
+			if (WARNED_MISSING_ENABLED_FIELDS.add(field)) {
+				LOG.warn(
+						"User payload has no \"{}\" field (ranger.usersync.admincentral.user.enabled.field); treating the user as not enabled",
+						field);
+			}
+			return false;
 		}
 		if (en.isBoolean()) {
 			return en.booleanValue();

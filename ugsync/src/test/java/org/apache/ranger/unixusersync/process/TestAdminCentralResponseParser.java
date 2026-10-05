@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,19 @@ class TestAdminCentralResponseParser {
 		inner.set("items", arr);
 		root.set("data", inner);
 		assertEquals(arr, AdminCentralResponseParser.navigate(root, "data.items"));
+		assertEquals(inner, AdminCentralResponseParser.navigate(root, ".data"));
+		assertEquals(inner, AdminCentralResponseParser.navigate(root, "data."));
+		assertEquals(arr, AdminCentralResponseParser.navigate(root, ".data.items."));
+	}
+
+	@Test
+	void navigateRejectsEmptyInteriorSegment() throws Exception {
+		ObjectNode root = mapper.createObjectNode();
+		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+				() -> AdminCentralResponseParser.navigate(root, "data..items"));
+		assertTrue(ex.getMessage().contains("data..items"));
+		assertThrows(IllegalArgumentException.class,
+				() -> AdminCentralResponseParser.navigate(root, "..."));
 	}
 
 	@Test
@@ -78,9 +92,19 @@ class TestAdminCentralResponseParser {
 	}
 
 	@Test
-	void isEffectivelyEnabledMissingFieldMeansTrue() throws Exception {
+	void isEffectivelyEnabledMissingFieldMeansNotEnabled() throws Exception {
 		ObjectNode u = mapper.createObjectNode();
-		assertTrue(AdminCentralResponseParser.isEffectivelyEnabled(u, "enabled"));
+		assertFalse(AdminCentralResponseParser.isEffectivelyEnabled(u, "enabled"));
+		u.putNull("enabled");
+		assertFalse(AdminCentralResponseParser.isEffectivelyEnabled(u, "enabled"));
+	}
+
+	@Test
+	void isEffectivelyEnabledBlankFieldSkipsCheck() throws Exception {
+		ObjectNode u = mapper.createObjectNode();
+		assertTrue(AdminCentralResponseParser.isEffectivelyEnabled(u, ""));
+		assertTrue(AdminCentralResponseParser.isEffectivelyEnabled(u, "   "));
+		assertTrue(AdminCentralResponseParser.isEffectivelyEnabled(u, null));
 	}
 
 	@Test
