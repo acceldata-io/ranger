@@ -527,7 +527,7 @@
         <includes>
           <include>org.apache.ranger:ranger-trino-plugin</include>
           <include>io.trino:trino-spi:jar:${trino.version}</include>
-          <include>io.trino:trino-jdbc:jar:472.3.3.6.2-102</include>
+          <include>io.trino:trino-jdbc:jar:${trino.version}</include>
         </includes>
       </binaries>
     </moduleSet>

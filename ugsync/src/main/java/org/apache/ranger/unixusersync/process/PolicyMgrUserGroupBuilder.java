@@ -789,7 +789,7 @@ public class PolicyMgrUserGroupBuilder extends AbstractUserGroupSource implement
 					curUser.setUserSource(SOURCE_EXTERNAL);
 					restoreVisibility(curUser, userName);
 					deltaUsers.put(userName, curUser);
-					noOfModifiedGroups++;
+					noOfModifiedUsers++;
 					userNameMap.put(userDN, userName);
 				} else {
 					if (MapUtils.isNotEmpty(curUserAttrs) && !StringUtils.equalsIgnoreCase(userDN, curUserDN)) { // skip update
