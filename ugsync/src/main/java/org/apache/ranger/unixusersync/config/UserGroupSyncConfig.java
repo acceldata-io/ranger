@@ -27,6 +27,7 @@ import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -1551,7 +1552,7 @@ public class UserGroupSyncConfig  {
 		if (StringUtils.isBlank(t)) {
 			return "none";
 		}
-		return t.trim().toLowerCase();
+		return t.trim().toLowerCase(Locale.ROOT);
 	}
 
 	public String getAdminCentralUsername() {

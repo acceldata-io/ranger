@@ -26,6 +26,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -90,7 +91,7 @@ final class AdminCentralRestClient {
 			Function<String, String> getenv) {
 		this.connectTimeoutMs = connectTimeoutMs;
 		this.readTimeoutMs = readTimeoutMs;
-		this.authType = authType == null ? "none" : authType.trim().toLowerCase();
+		this.authType = authType == null ? "none" : authType.trim().toLowerCase(Locale.ROOT);
 		this.bearerToken = StringUtils.trimToEmpty(bearerToken);
 		Function<String, String> getenvFn = getenv != null ? getenv : System::getenv;
 		if ("basic".equals(this.authType) && StringUtils.isNotBlank(username)) {
