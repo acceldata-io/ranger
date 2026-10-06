@@ -47,6 +47,7 @@
                             <include>com.codahale.metrics:metrics-core</include>
                             <include>org.slf4j:jul-to-slf4j</include>
                             <include>org.apache.zookeeper:zookeeper:jar:${zookeeper.version}</include>
+                            <include>org.apache.zookeeper:zookeeper-jute:jar:${zookeeper.version}</include>
                             <include>org.apache.curator:curator-framework</include>
                             <include>org.apache.curator:curator-client</include>
                             <include>asm:asm-all</include>
