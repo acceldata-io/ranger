@@ -16,6 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Image entrypoint for acceldata/xdp/dp/ranger (see the Dockerfile ENTRYPOINT).
+# Starts Ranger Admin and UserSync in this one container and stays up while both
+# processes are alive. Deployed dataplane pods do not run this file: the Admin
+# chart bind-mounts its own ranger.sh over this path, and the UserSync chart
+# replaces the entrypoint with a usersync-only command. ranger-xstore-build
+# docker-compose runs the image with no override, so it uses this script.
+
 export HADOOP_HOME="${HADOOP_HOME:-${RANGER_HOME}/usersync}"
 
 ADMIN_SETUP_DONE_FILE="${RANGER_HOME}/.adminSetupDone"
@@ -58,7 +65,7 @@ if [ -f "${OVERLAY_SITE_XML}" ] && [ -d "${RANGER_HOME}/usersync/conf" ]; then
   echo "Applied UserSync site XML from ${OVERLAY_SITE_XML}"
 fi
 
-cd ${RANGER_HOME}/admin && ./ews/ranger-admin-services.sh start
+cd "${RANGER_HOME}/admin" && ./ews/ranger-admin-services.sh start
 
 if [ ! -e "${RANGER_HOME}/.servicesBootstrapped" ]
 then
@@ -66,6 +73,21 @@ then
   sleep 30
   python3 ${RANGER_SCRIPTS}/create-ranger-services.py
   touch "${RANGER_HOME}/.servicesBootstrapped"
+fi
+
+# start.sh runs ranger-usersync-services.sh, which writes usersync.pid after the JVM is up.
+cd "${RANGER_HOME}/usersync" || exit 1
+./start.sh
+
+USERSYNC_ENV_PID="${RANGER_HOME}/usersync/conf/ranger-usersync-env-piddir.sh"
+if [ -f "${USERSYNC_ENV_PID}" ]; then
+  # shellcheck disable=SC1090
+  . "${USERSYNC_ENV_PID}"
+fi
+USERSYNC_PID_FILE="${USERSYNC_PID_DIR_PATH:-/var/run/ranger}/usersync.pid"
+RANGER_USERSYNC_PID=""
+if [ -f "${USERSYNC_PID_FILE}" ]; then
+  RANGER_USERSYNC_PID="$(tr -d '[:space:]' < "${USERSYNC_PID_FILE}")"
 fi
 
 RANGER_ADMIN_PID=`ps -ef  | grep -v grep | grep -i "org.apache.ranger.server.tomcat.EmbeddedServer" | awk '{print $2}'`
