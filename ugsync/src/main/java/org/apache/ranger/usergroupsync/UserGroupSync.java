@@ -33,8 +33,14 @@ public class UserGroupSync implements Runnable {
 	private UserGroupSink ugSink;
 	private UserGroupSource ugSource;
 
-	/** Ignore trigger-file touches that predate process start / last baseline. */
-	private long lastForceSyncTriggerProcessedAt = System.currentTimeMillis();
+	/**
+	 * Second-truncated baseline. {@code File.lastModified()} is 1-second resolution on most
+	 * filesystems, so a millisecond timestamp in the same second looks newer than a fresh touch.
+	 */
+	private long lastForceSyncTriggerProcessedAt = floorToSecond(System.currentTimeMillis());
+
+	/** mtime already acted on. A second touch in that same second is not a new event. */
+	private long lastForceSyncTriggerMtime = Long.MIN_VALUE;
 
 	public static void main(String[] args) {
 		UserGroupSync userGroupSync = new UserGroupSync();
@@ -63,7 +69,8 @@ public class UserGroupSync implements Runnable {
 						syncUserGroup();
 						LOG.info("End: initial load of user/group from source==>sink");
 
-						lastForceSyncTriggerProcessedAt = System.currentTimeMillis();
+						lastForceSyncTriggerProcessedAt = floorToSecond(System.currentTimeMillis());
+						lastForceSyncTriggerMtime = Long.MIN_VALUE;
 						initPending = false;
 						LOG.info("Done initializing user/group source and sink");
 					}else {
@@ -115,6 +122,10 @@ public class UserGroupSync implements Runnable {
 		}
 	}
 
+	private static long floorToSecond(long epochMillis) {
+		return epochMillis / 1000L * 1000L;
+	}
+
 	private void syncUserGroup() throws Throwable {
 		UserGroupSyncConfig config = UserGroupSyncConfig.getInstance();
 
@@ -138,8 +149,10 @@ public class UserGroupSync implements Runnable {
 			long thisSleep = Math.min(chunk, remaining);
 			Thread.sleep(thisSleep);
 			remaining -= thisSleep;
-			if (f.exists() && f.lastModified() > lastForceSyncTriggerProcessedAt) {
-				lastForceSyncTriggerProcessedAt = f.lastModified();
+			long modifiedAt = f.lastModified();
+			if (f.exists() && modifiedAt >= lastForceSyncTriggerProcessedAt && modifiedAt != lastForceSyncTriggerMtime) {
+				lastForceSyncTriggerMtime = modifiedAt;
+				lastForceSyncTriggerProcessedAt = modifiedAt;
 				LOG.info("Force sync trigger file was updated; resuming user/group sync early.");
 				return;
 			}

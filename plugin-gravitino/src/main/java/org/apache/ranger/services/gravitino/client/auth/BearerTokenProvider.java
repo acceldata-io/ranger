@@ -188,8 +188,9 @@ public final class BearerTokenProvider {
             int connectTimeoutMs,
             int readTimeoutMs
     ) {
+        HttpURLConnection conn = null;
         try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(tokenUrl).openConnection();
+            conn = (HttpURLConnection) new URL(tokenUrl).openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(connectTimeoutMs);
             conn.setReadTimeout(readTimeoutMs);
@@ -230,6 +231,10 @@ public final class BearerTokenProvider {
             HadoopException he = new HadoopException("Unable to fetch bearer token", e);
             he.generateResponseDataMap(false, BaseClient.getMessage(e), "Unable to fetch bearer token", null, "xstore.auth.token.url");
             throw he;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
         }
     }
 
