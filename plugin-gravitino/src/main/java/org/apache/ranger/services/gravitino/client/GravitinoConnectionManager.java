@@ -22,20 +22,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * GravitinoConnectionManager - Manages connections to Xstore servers.
- * 
- * This class provides connection pooling and caching for Xstore clients
- * to improve performance and reduce connection overhead.
+ * GravitinoConnectionManager - Builds an Xstore client from the configs for one lookup.
+ *
+ * A client is not cached by service name. Ranger admin can edit the base URL, auth type,
+ * or credentials, and the next lookup must see those values.
  */
 public class GravitinoConnectionManager {
     private static final Logger LOG = LoggerFactory.getLogger(GravitinoConnectionManager.class);
-    
-    // Cache clients by service name to avoid creating new clients for each request
-    private static final ConcurrentHashMap<String, GravitinoClient> clientCache = new ConcurrentHashMap<>();
-    
+
     private GravitinoConnectionManager() {
         // Utility class - no instantiation
     }
@@ -55,57 +51,10 @@ public class GravitinoConnectionManager {
             Map<String, String> configs) throws Exception {
         
         LOG.debug("Getting Xstore client for service: {}", serviceName);
-        
-        // For simplicity, create a new client each time to ensure fresh configs
-        // In production, you might want to cache clients with proper invalidation
+
         GravitinoClient client = new GravitinoHttpClient(serviceName, configs);
-        
+
         LOG.debug("Created new Xstore HTTP client for service: {}", serviceName);
         return client;
-    }
-    
-    /**
-     * Get a cached client or create a new one.
-     * 
-     * @param serviceName Name of the Ranger service
-     * @param serviceType Type of service (gravitino)
-     * @param configs Service configuration
-     * @return A cached or new GravitinoClient instance
-     * @throws Exception if client creation fails
-     */
-    public static GravitinoClient getCachedClient(
-            String serviceName,
-            String serviceType,
-            Map<String, String> configs) throws Exception {
-        
-        return clientCache.computeIfAbsent(serviceName, name -> {
-            try {
-                LOG.info("Creating cached Xstore client for service: {}", name);
-                return new GravitinoHttpClient(name, configs);
-            } catch (Exception e) {
-                LOG.error("Failed to create Xstore client for service: {}", name, e);
-                throw new RuntimeException("Failed to create Xstore client", e);
-            }
-        });
-    }
-    
-    /**
-     * Invalidate a cached client.
-     * 
-     * @param serviceName Name of the Ranger service
-     */
-    public static void invalidateClient(String serviceName) {
-        GravitinoClient removed = clientCache.remove(serviceName);
-        if (removed != null) {
-            LOG.info("Invalidated cached Xstore client for service: {}", serviceName);
-        }
-    }
-    
-    /**
-     * Clear all cached clients.
-     */
-    public static void clearCache() {
-        LOG.info("Clearing all cached Xstore clients");
-        clientCache.clear();
     }
 }
