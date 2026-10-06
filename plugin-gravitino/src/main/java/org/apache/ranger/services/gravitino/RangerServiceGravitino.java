@@ -131,9 +131,10 @@ public class RangerServiceGravitino extends RangerBaseService {
         
         List<RangerPolicy> ret = super.getDefaultRangerPolicies();
         
-        // Add lookup user access to all-metalakes policy
+        // RangerBaseService.buildPolicyName emits "all - <resource>[, <resource>…]". Gravitino hierarchies always start at metalake.
         for (RangerPolicy defaultPolicy : ret) {
-            if (defaultPolicy.getName().contains("all") && lookUpUser != null && !lookUpUser.isEmpty()) {
+            String policyName = defaultPolicy.getName();
+            if (isGeneratedAllPolicy(policyName) && lookUpUser != null && !lookUpUser.isEmpty()) {
                 RangerPolicyItem lookupItem = new RangerPolicyItem();
                 List<RangerPolicyItemAccess> lookupAccesses = new ArrayList<>();
                 lookupAccesses.add(new RangerPolicyItemAccess(ACCESS_USE_CATALOG));
@@ -148,5 +149,13 @@ public class RangerServiceGravitino extends RangerBaseService {
         
         LOG.debug("<== RangerServiceGravitino.getDefaultRangerPolicies() count: {}", ret.size());
         return ret;
+    }
+
+    /**
+     * True for names produced by {@code RangerBaseService.buildPolicyName} for a non-empty hierarchy:
+     * {@code all - } plus resource names. A bare {@code all} is not generated for Gravitino.
+     */
+    private static boolean isGeneratedAllPolicy(String policyName) {
+        return policyName != null && policyName.startsWith("all - ");
     }
 }
