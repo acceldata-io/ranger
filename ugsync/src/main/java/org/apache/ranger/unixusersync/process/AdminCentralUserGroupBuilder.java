@@ -336,6 +336,11 @@ public class AdminCentralUserGroupBuilder extends AbstractUserGroupSource implem
 			JsonNode arrNode = AdminCentralResponseParser.navigate(root, groupsArrayPath);
 			ArrayNode arr = AdminCentralResponseParser.asArray(arrNode);
 			if (arr == null || arr.size() == 0) {
+				if (page == 0 && arr == null) {
+					LOG.warn(
+							"No group array found at JSON path \"{}\"; check ranger.usersync.admincentral.groups.array.path",
+							groupsArrayPath);
+				}
 				break;
 			}
 			for (JsonNode g : arr) {
