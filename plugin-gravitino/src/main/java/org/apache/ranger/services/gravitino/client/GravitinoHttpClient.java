@@ -407,7 +407,7 @@ public class GravitinoHttpClient extends BaseClient implements GravitinoClient {
         if (prefix == null || prefix.isEmpty() || prefix.equals("*")) {
             return true;
         }
-        return name.toLowerCase().startsWith(prefix.toLowerCase());
+        return name.toLowerCase(Locale.ROOT).startsWith(prefix.toLowerCase(Locale.ROOT ));
     }
 
     private static void logRequest(HttpURLConnection conn, URL url, String context) {

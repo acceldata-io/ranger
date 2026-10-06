@@ -180,7 +180,8 @@ public class AdminCentralUserGroupBuilder extends AbstractUserGroupSource implem
 			String groupsArrayPath = config.getAdminCentralGroupsArrayPath();
 			String groupNameField = config.getAdminCentralGroupNameField();
 			String membersField = config.getAdminCentralGroupMembersField();
-			fetchAndMergeGroups(groupsPath, groupsArrayPath, groupNameField, membersField);
+			fetchAndMergeGroups(
+					groupsPath, groupsArrayPath, groupNameField, membersField, userNameField, enabledField);
 		}
 	}
 
@@ -313,7 +314,9 @@ public class AdminCentralUserGroupBuilder extends AbstractUserGroupSource implem
 			String groupsPath,
 			String groupsArrayPath,
 			String groupNameField,
-			String membersField)
+			String membersField,
+			String userNameField,
+			String enabledField)
 			throws Throwable {
 		String base = config.getAdminCentralBaseUrl() + groupsPath;
 		int pageSize = config.getAdminCentralPageSize();
@@ -335,7 +338,7 @@ public class AdminCentralUserGroupBuilder extends AbstractUserGroupSource implem
 				break;
 			}
 			for (JsonNode g : arr) {
-				mergeGroup(g, groupNameField, membersField);
+				mergeGroup(g, groupNameField, membersField, userNameField, enabledField);
 			}
 			if (pageSize <= 0) {
 				break;
@@ -347,7 +350,8 @@ public class AdminCentralUserGroupBuilder extends AbstractUserGroupSource implem
 		}
 	}
 
-	private void mergeGroup(JsonNode group, String groupNameField, String membersField) {
+	private void mergeGroup(
+			JsonNode group, String groupNameField, String membersField, String userNameField, String enabledField) {
 		String rawName = AdminCentralResponseParser.textOrNull(group.get(groupNameField));
 		if (StringUtils.isBlank(rawName)) {
 			return;
@@ -368,21 +372,47 @@ public class AdminCentralUserGroupBuilder extends AbstractUserGroupSource implem
 		JsonNode mem = group.get(membersField);
 		if (mem != null && mem.isArray()) {
 			for (JsonNode m : mem) {
-				String memberName = memberUserName(m, config.getAdminCentralUserNameField());
-				if (StringUtils.isNotBlank(memberName)) {
-					if (userNameRegExInst != null) {
-						memberName = userNameRegExInst.transform(memberName);
-					}
-					memberName = applyUserCase(memberName);
+				String memberName = memberUserName(m, userNameField);
+				if (StringUtils.isBlank(memberName)) {
+					continue;
+				}
+				if (userNameRegExInst != null) {
+					memberName = userNameRegExInst.transform(memberName);
+				}
+				memberName = applyUserCase(memberName);
+				if (StringUtils.isBlank(memberName)) {
+					continue;
+				}
+				boolean alreadySynced = sourceUsers.containsKey(memberName);
+				if (!alreadySynced && !shouldProvisionGroupMember(m, enabledField)) {
+					continue;
+				}
+				if (!alreadySynced) {
 					Map<String, String> uAttr = new HashMap<>();
 					uAttr.put(UgsyncCommonConstants.ORIGINAL_NAME, memberName);
 					uAttr.put(UgsyncCommonConstants.FULL_NAME, memberName);
 					uAttr.put(UgsyncCommonConstants.SYNC_SOURCE, currentSyncSource);
 					sourceUsers.put(memberName, uAttr);
-					linkUserToNormalizedGroup(memberName, groupName);
 				}
+				linkUserToNormalizedGroup(memberName, groupName);
 			}
 		}
+	}
+
+	/**
+	 * A user already accepted from the users API is linked without being created again. A member seen only on a
+	 * group is provisioned when the enabled check is off, or when the member object itself passes {@link
+	 * AdminCentralResponseParser#isEffectivelyEnabled}. A bare username has no enabled field, so it is not
+	 * provisioned once that check is configured.
+	 */
+	static boolean shouldProvisionGroupMember(JsonNode member, String enabledField) {
+		if (StringUtils.isBlank(enabledField)) {
+			return true;
+		}
+		if (member != null && member.isObject()) {
+			return AdminCentralResponseParser.isEffectivelyEnabled(member, enabledField);
+		}
+		return false;
 	}
 
 	private String memberUserName(JsonNode m, String userNameField) {
@@ -402,13 +432,42 @@ public class AdminCentralUserGroupBuilder extends AbstractUserGroupSource implem
 		if (!userNameCaseConversionFlag || name == null) {
 			return name;
 		}
-		return userNameLowerCaseFlag ? name.toLowerCase() : name.toUpperCase();
+		return userNameLowerCaseFlag ? name.toLowerCase(Locale.ROOT) : name.toUpperCase(Locale.ROOT);
 	}
 
 	private String applyGroupCase(String name) {
 		if (!groupNameCaseConversionFlag || name == null) {
 			return name;
 		}
-		return groupNameLowerCaseFlag ? name.toLowerCase() : name.toUpperCase();
+		return groupNameLowerCaseFlag ? name.toLowerCase(Locale.ROOT) : name.toUpperCase(Locale.ROOT);
+	}
+
+	void beginSourceForTest() {
+		sourceUsers = new HashMap<>();
+		sourceGroups = new HashMap<>();
+		sourceGroupUsers = new HashMap<>();
+		if (currentSyncSource == null) {
+			currentSyncSource = "test";
+		}
+	}
+
+	void mergeUserForTest(JsonNode user, String enabledField) {
+		mergeUser(user, "username", "groups", enabledField);
+	}
+
+	void mergeGroupForTest(JsonNode group, String enabledField) {
+		mergeGroup(group, "name", "members", "username", enabledField);
+	}
+
+	Map<String, Map<String, String>> getSourceUsersForTest() {
+		return sourceUsers;
+	}
+
+	Map<String, Map<String, String>> getSourceGroupsForTest() {
+		return sourceGroups;
+	}
+
+	Map<String, Set<String>> getSourceGroupUsersForTest() {
+		return sourceGroupUsers;
 	}
 }
