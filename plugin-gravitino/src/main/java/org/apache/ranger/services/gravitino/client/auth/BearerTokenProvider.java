@@ -57,7 +57,8 @@ public final class BearerTokenProvider {
     }
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    // cache: per service+tokenUrl+clientId
+    // cache: per service+tokenUrl+clientId. Neither map expires on its own, so cap the distinct keys.
+    private static final int MAX_CACHE_ENTRIES = 256;
     private static final ConcurrentHashMap<Key, CachedToken> CACHE = new ConcurrentHashMap<>();
     // one shared mutex per cache key, so concurrent refreshes do not each call the token endpoint
     private static final ConcurrentHashMap<Key, Object> CACHE_LOCKS = new ConcurrentHashMap<>();
@@ -113,6 +114,7 @@ public final class BearerTokenProvider {
         }
 
         // Prevent token stampede
+        trimCache(key);
         Object lock = CACHE_LOCKS.computeIfAbsent(key, k -> new Object());
         synchronized (lock) {
             cached = CACHE.get(key);
@@ -123,8 +125,59 @@ public final class BearerTokenProvider {
 
             TokenResponse fresh = fetchClientCredentialsToken(tokenUrl, clientId, clientSecret, scope, connectTimeoutMs, readTimeoutMs);
             CACHE.put(key, new CachedToken(fresh.accessToken, fresh.expiresAtMs));
+            trimCache(key);
             return "Bearer " + fresh.accessToken;
         }
+    }
+
+    /**
+     * Drop expired tokens, then the soonest-to-expire ones, until both maps are within
+     * {@link #MAX_CACHE_ENTRIES}. {@code retain} is the key this caller is about to use or
+     * has just stored, so a live token is not thrown away in favor of an older one.
+     */
+    private static void trimCache(Key retain) {
+        if (CACHE.size() <= MAX_CACHE_ENTRIES && CACHE_LOCKS.size() <= MAX_CACHE_ENTRIES) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        CACHE.entrySet().removeIf(e -> !retain.equals(e.getKey()) && e.getValue().expiresAtMs <= now);
+        CACHE_LOCKS.keySet().removeIf(k -> !retain.equals(k) && !CACHE.containsKey(k));
+        while (CACHE.size() > MAX_CACHE_ENTRIES || CACHE_LOCKS.size() > MAX_CACHE_ENTRIES) {
+            Key victim = soonestExpiryExcept(retain);
+            if (victim == null) {
+                boolean removed = false;
+                for (Key k : CACHE_LOCKS.keySet()) {
+                    if (!retain.equals(k)) {
+                        CACHE_LOCKS.remove(k);
+                        CACHE.remove(k);
+                        removed = true;
+                        break;
+                    }
+                }
+                if (!removed) {
+                    break;
+                }
+                continue;
+            }
+            CACHE.remove(victim);
+            CACHE_LOCKS.remove(victim);
+        }
+    }
+
+    private static Key soonestExpiryExcept(Key retain) {
+        Key victim = null;
+        long soonest = Long.MAX_VALUE;
+        for (Map.Entry<Key, CachedToken> entry : CACHE.entrySet()) {
+            if (retain.equals(entry.getKey())) {
+                continue;
+            }
+            long expiresAt = entry.getValue().expiresAtMs;
+            if (victim == null || expiresAt < soonest) {
+                soonest = expiresAt;
+                victim = entry.getKey();
+            }
+        }
+        return victim;
     }
 
     private static TokenResponse fetchClientCredentialsToken(

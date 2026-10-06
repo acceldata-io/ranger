@@ -112,9 +112,8 @@ final class AdminCentralRestClient {
 			this.xdpAccessKey = access;
 			this.xdpSecretKey = secret;
 			LOG.info(
-					"Admin Central REST client using XDP AK/SK headers from environment. accessKey={}, secretKey={}",
-					maskSecret(xdpAccessKey),
-					maskSecret(xdpSecretKey));
+					"Admin Central REST client using XDP AK/SK headers from environment. accessKey={}",
+					maskSecret(xdpAccessKey));
 		} else {
 			this.xdpAccessKey = null;
 			this.xdpSecretKey = null;
