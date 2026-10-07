@@ -45,8 +45,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
-public class PatchForAtlasPolicyUpdateForEntityRead_J10064 extends org.apache.ranger.patch.BaseLoader {
-    private static final Logger logger = LoggerFactory.getLogger(PatchForAtlasPolicyUpdateForEntityRead_J10064.class);
+public class PatchForAtlasPolicyUpdateForEntityRead_J10067 extends org.apache.ranger.patch.BaseLoader {
+    private static final Logger logger = LoggerFactory.getLogger(PatchForAtlasPolicyUpdateForEntityRead_J10067.class);
 
     private static final String ENTITY_READ                       = "entity-read";
 
@@ -70,7 +70,7 @@ public class PatchForAtlasPolicyUpdateForEntityRead_J10064 extends org.apache.ra
         logger.info("main()");
 
         try {
-            PatchForAtlasPolicyUpdateForEntityRead_J10064 loader = (PatchForAtlasPolicyUpdateForEntityRead_J10064) CLIUtil.getBean(PatchForAtlasPolicyUpdateForEntityRead_J10064.class);
+            PatchForAtlasPolicyUpdateForEntityRead_J10067 loader = (PatchForAtlasPolicyUpdateForEntityRead_J10067) CLIUtil.getBean(PatchForAtlasPolicyUpdateForEntityRead_J10067.class);
 
             loader.init();
 
@@ -95,12 +95,12 @@ public class PatchForAtlasPolicyUpdateForEntityRead_J10064 extends org.apache.ra
 
     @Override
     public void printStats() {
-        logger.info("PatchForAtlasPolicyUpdateForEntityRead_J10064 Logs");
+        logger.info("PatchForAtlasPolicyUpdateForEntityRead_J10067 Logs");
     }
 
     @Override
     public void execLoad() {
-        logger.info("==> PatchForAtlasPolicyUpdateForEntityRead_J10064.execLoad()");
+        logger.info("==> PatchForAtlasPolicyUpdateForEntityRead_J10067.execLoad()");
 
         try {
             updateAtlasPolicyForAccessType();
@@ -108,7 +108,7 @@ public class PatchForAtlasPolicyUpdateForEntityRead_J10064 extends org.apache.ra
             throw new RuntimeException("Error while updating " + EmbeddedServiceDefsUtil.EMBEDDED_SERVICEDEF_ATLAS_NAME + " service-def", e);
         }
 
-        logger.info("<== PatchForAtlasPolicyUpdateForEntityRead_J10064.execLoad()");
+        logger.info("<== PatchForAtlasPolicyUpdateForEntityRead_J10067.execLoad()");
     }
 
     private void updateAtlasPolicyForAccessType() throws Exception {
@@ -137,7 +137,7 @@ public class PatchForAtlasPolicyUpdateForEntityRead_J10064 extends org.apache.ra
 
                 if (isUpdated) {
                     svcDBStore.updatePolicy(rPolicy);
-                    logger.info("PatchForAtlasPolicyUpdateForEntityRead_J10064: updated policy (id={}, name={}) for service {} to remove/filter permissions",
+                    logger.info("PatchForAtlasPolicyUpdateForEntityRead_J10067: updated policy (id={}, name={}) for service {} to remove/filter permissions",
                             rPolicy.getId(), rPolicy.getName(), xxService.getName());
                 }
             }

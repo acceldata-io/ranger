@@ -157,7 +157,8 @@
     { "itemId": 12, "name": "serviceadmin", "label": "Service Admin",       "category": "MANAGE" },
     { "itemId": 13, "name": "tempudfadmin", "label": "Temporary UDF Admin", "category": "MANAGE" },
     { "itemId": 14, "name": "refresh",      "label": "Refresh",             "category": "MANAGE" },
-    { "itemId": 8,  "name": "all",          "label": "All", "impliedGrants": [ "select", "update", "create", "drop", "alter", "index", "lock", "read", "write", "repladmin", "serviceadmin", "refresh" ] }
+    { "itemId": 15, "name": "rwstorage",    "label": "RW Storage",          "category": "UPDATE" },
+    { "itemId": 8,  "name": "all",          "label": "All", "impliedGrants": [ "select", "update", "create", "drop", "alter", "index", "lock", "read", "write", "repladmin", "serviceadmin", "refresh", "rwstorage" ] }
   ],
   "configs": [
     { "itemId": 1, "name": "username",                    "type": "string",   "mandatory": true,  "label": "Username" },
