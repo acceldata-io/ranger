@@ -2246,11 +2246,11 @@ INSERT INTO x_db_version_h (version,inst_at,inst_by,updated_at,updated_by,active
 GO
 INSERT INTO x_db_version_h (version,inst_at,inst_by,updated_at,updated_by,active) VALUES ('074',CURRENT_TIMESTAMP,'Ranger 2.5.0',CURRENT_TIMESTAMP,'localhost','Y');
 GO
-INSERT INTO x_db_version_h (version,inst_at,inst_by,updated_at,updated_by,active) VALUES ('075',CURRENT_TIMESTAMP,'Ranger 2.9.0',CURRENT_TIMESTAMP,'localhost','Y');
-GO
 INSERT INTO x_db_version_h (version,inst_at,inst_by,updated_at,updated_by,active) VALUES ('076',CURRENT_TIMESTAMP,'Ranger 2.9.0',CURRENT_TIMESTAMP,'localhost','Y');
 GO
 INSERT INTO x_db_version_h (version,inst_at,inst_by,updated_at,updated_by,active) VALUES ('077',CURRENT_TIMESTAMP,'Ranger 2.9.0',CURRENT_TIMESTAMP,'localhost','Y');
+GO
+INSERT INTO x_db_version_h (version,inst_at,inst_by,updated_at,updated_by,active) VALUES ('079',CURRENT_TIMESTAMP,'Ranger 2.9.0',CURRENT_TIMESTAMP,'localhost','Y');
 GO
 INSERT INTO x_db_version_h (version,inst_at,inst_by,updated_at,updated_by,active) VALUES ('DB_PATCHES',CURRENT_TIMESTAMP,'Ranger 1.0.0',CURRENT_TIMESTAMP,'localhost','Y');
 GO
