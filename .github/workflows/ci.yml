@@ -56,6 +56,15 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+      # pin Maven; the runner image moved to 3.10, which fails on existing duplicate pom dependencies
+      - name: Set up Maven 3.9.16
+        run: |
+          MVN_VERSION=3.9.16
+          MVN_URL=https://archive.apache.org/dist/maven/maven-3/${MVN_VERSION}/binaries/apache-maven-${MVN_VERSION}-bin.tar.gz
+          curl -fsSL -o "$RUNNER_TEMP/maven.tar.gz" "$MVN_URL"
+          echo "$(curl -fsSL "$MVN_URL.sha512" | awk '{print $1}')  $RUNNER_TEMP/maven.tar.gz" | sha512sum -c -
+          tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-${MVN_VERSION}/bin" >> "$GITHUB_PATH"
       - name: Clear npm cache
         run: npm cache clean --force
       - name: build (17)
