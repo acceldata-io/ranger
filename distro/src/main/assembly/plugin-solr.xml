@@ -84,6 +84,20 @@
           <include>org.graalvm.sdk:word:jar:${graalvm.version}</include>
           <include>org.graalvm.shadowed:icu4j:jar:${graalvm.version}</include>
           <include>org.graalvm.shadowed:xz:jar:${graalvm.version}</include>
+          <!-- Solr 9 ships only jakarta JAX-RS; bundle the javax JAX-RS 2 / Jersey 2 stack the Ranger REST client needs -->
+          <include>javax.ws.rs:javax.ws.rs-api</include>
+          <include>org.glassfish.jersey.core:jersey-client</include>
+          <include>org.glassfish.jersey.core:jersey-common</include>
+          <include>org.glassfish.jersey.core:jersey-server</include>
+          <include>org.glassfish.jersey.inject:jersey-hk2</include>
+          <include>org.glassfish.hk2:hk2-locator</include>
+          <include>org.glassfish.hk2:hk2-utils</include>
+          <include>org.glassfish.hk2:osgi-resource-locator</include>
+          <include>org.glassfish.hk2.external:aopalliance-repackaged</include>
+          <include>org.glassfish.hk2.external:jakarta.inject</include>
+          <include>jakarta.annotation:jakarta.annotation-api</include>
+          <include>org.javassist:javassist</include>
+          <include>com.fasterxml.jackson.module:jackson-module-jaxb-annotations</include>
         </includes>
       </binaries>
     </moduleSet>
