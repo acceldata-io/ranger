@@ -38,6 +38,7 @@ public class RangerServiceTrino
 
     public static final String ACCESS_TYPE_SELECT = "select";
     public static final String ACCESS_TYPE_IMPERSONATE = "impersonate";
+    public static final String ACCESS_TYPE_EXECUTE = "execute";
 
     @Override
     public Map<String, Object> validateConfig() {
@@ -107,6 +108,12 @@ public class RangerServiceTrino
                 RangerPolicyItem             policyItemForLookupUser = new RangerPolicyItem();
 
                 accessListForLookupUser.add(new RangerPolicyItemAccess(ACCESS_TYPE_SELECT));
+
+                // Trino checks execute on queryid before running any statement; without it the
+                // lookup user cannot list catalogs and Test Connection always fails.
+                if (defaultPolicy.getName().contains("all - queryid")) {
+                    accessListForLookupUser.add(new RangerPolicyItemAccess(ACCESS_TYPE_EXECUTE));
+                }
 
                 policyItemForLookupUser.setUsers(Collections.singletonList(lookUpUser));
                 policyItemForLookupUser.setAccesses(accessListForLookupUser);
