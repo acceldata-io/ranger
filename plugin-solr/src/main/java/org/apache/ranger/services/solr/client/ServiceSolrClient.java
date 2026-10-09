@@ -546,8 +546,15 @@ public class ServiceSolrClient {
 
     private void login(Map<String, String> configs) {
         try {
-            String adminPrincipal = configs.get(HadoopConfigHolder.RANGER_PRINCIPAL);
-            String adminKeytab    = configs.get(HadoopConfigHolder.RANGER_KEYTAB);
+            // Prefer the dedicated lookup identity (policies grant it access); the Ranger Admin identity is only a fallback.
+            String adminPrincipal = configs.get(HadoopConfigHolder.RANGER_LOOKUP_PRINCIPAL);
+            String adminKeytab    = configs.get(HadoopConfigHolder.RANGER_LOOKUP_KEYTAB);
+
+            if (StringUtils.isEmpty(adminPrincipal) || StringUtils.isEmpty(adminKeytab)) {
+                adminPrincipal = configs.get(HadoopConfigHolder.RANGER_PRINCIPAL);
+                adminKeytab    = configs.get(HadoopConfigHolder.RANGER_KEYTAB);
+            }
+
             String nameRules      = configs.get(HadoopConfigHolder.RANGER_NAME_RULES);
 
             if (StringUtils.isEmpty(nameRules)) {
