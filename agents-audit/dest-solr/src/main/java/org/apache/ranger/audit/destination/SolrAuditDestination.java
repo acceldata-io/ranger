@@ -418,7 +418,6 @@ public class SolrAuditDestination extends AuditDestination {
         });
     }
 
-
     SolrInputDocument toSolrDoc(AuthzAuditEvent auditEvent) {
         SolrInputDocument doc = new SolrInputDocument();
 
