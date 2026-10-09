@@ -28,6 +28,12 @@ import org.apache.ranger.audit.utils.KerberosAction;
 import org.apache.ranger.audit.utils.KerberosJAASConfigUser;
 import org.apache.ranger.audit.utils.KerberosUser;
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpEntityEnclosingRequest;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.entity.BufferedHttpEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder;
@@ -243,10 +249,23 @@ public class SolrAuditDestination extends AuditDestination {
                             Krb5HttpClientBuilder krbBuild = new Krb5HttpClientBuilder();
                             SolrHttpClientBuilder kb = krbBuild.getBuilder();
 
-                            HttpClientUtil.setHttpClientBuilder(kb);
+                            final boolean solrNode = isSolrNode();
+
+                            if (!solrNode) {
+                                HttpClientUtil.setHttpClientBuilder(kb);
+                            }
 
                             final List<String>    zkhosts         = new ArrayList<>(Arrays.asList(zkHosts.split(",")));
-                            final CloudSolrClient solrCloudClient = MiscUtil.executePrivilegedAction((PrivilegedExceptionAction<CloudSolrClient>) () -> new CloudSolrClient.Builder(zkhosts, Optional.empty()).build());
+                            final CloseableHttpClient kerberosHttpClient = solrNode ? createKerberosHttpClient(kb) : null;
+                            final CloudSolrClient solrCloudClient = MiscUtil.executePrivilegedAction((PrivilegedExceptionAction<CloudSolrClient>) () -> {
+                                CloudSolrClient.Builder cloudBuilder = new CloudSolrClient.Builder(zkhosts, Optional.empty());
+
+                                if (kerberosHttpClient != null) {
+                                    cloudBuilder.withHttpClient(kerberosHttpClient);
+                                }
+
+                                return cloudBuilder.build();
+                            });
 
                             solrCloudClient.setDefaultCollection(collectionName);
 
@@ -287,6 +306,58 @@ public class SolrAuditDestination extends AuditDestination {
                 }
             }
         }
+    }
+
+    /**
+     * Inside a Solr node, PKIAuthenticationPlugin adds its header interceptor to the static list used by
+     * HttpClientUtil.createClient(), so every client built that way sends the node's SolrAuthV2 header. A different
+     * SolrCloud (infra-solr) cannot verify it and answers 401. Detect that case from the class loader that holds HttpClientUtil.
+     */
+    private static boolean isSolrNode() {
+        try {
+            Class.forName("org.apache.solr.security.PKIAuthenticationPlugin", false, HttpClientUtil.class.getClassLoader());
+
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * Builds the HttpClient straight from the Kerberos builder, without HttpClientUtil.createClient(), so the
+     * node's global PKI interceptor is not attached. Nothing global is modified.
+     */
+    private static CloseableHttpClient createKerberosHttpClient(SolrHttpClientBuilder kerberosBuilder) {
+        LOG.info("Running inside a Solr node: building the audit HttpClient without the node's PKI request interceptor");
+
+        HttpClientBuilder builder = HttpClientBuilder.create().useSystemProperties().setMaxConnPerRoute(10).setMaxConnTotal(20);
+
+        if (kerberosBuilder.getCredentialsProviderProvider() != null) {
+            builder.setDefaultCredentialsProvider(kerberosBuilder.getCredentialsProviderProvider().getCredentialsProvider());
+        }
+
+        if (kerberosBuilder.getAuthSchemeRegistryProvider() != null) {
+            builder.setDefaultAuthSchemeRegistry(kerberosBuilder.getAuthSchemeRegistryProvider().getAuthSchemeRegistry());
+        }
+
+        if (kerberosBuilder.getCookieSpecRegistryProvider() != null) {
+            builder.setDefaultCookieSpecRegistry(kerberosBuilder.getCookieSpecRegistryProvider().getCookieSpecRegistry());
+        }
+
+        // SPNEGO answers the first request with 401 and the request is sent again: the entity must be repeatable
+        // (Krb5HttpClientBuilder does the same with a global interceptor that this client does not get).
+        builder.addInterceptorFirst((HttpRequestInterceptor) (request, context) -> {
+            if (request instanceof HttpEntityEnclosingRequest) {
+                HttpEntityEnclosingRequest enclosing = (HttpEntityEnclosingRequest) request;
+                HttpEntity                 entity    = enclosing.getEntity();
+
+                if (entity != null && !entity.isRepeatable()) {
+                    enclosing.setEntity(new BufferedHttpEntity(entity));
+                }
+            }
+        });
+
+        return builder.build();
     }
 
     SolrInputDocument toSolrDoc(AuthzAuditEvent auditEvent) {
