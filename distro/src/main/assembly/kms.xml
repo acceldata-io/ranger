@@ -41,6 +41,7 @@
                             <include>org.apache.hadoop:hadoop-common:jar:${hadoop.version}</include>
                             <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
                             <include>org.apache.hadoop:hadoop-auth:jar:${hadoop.version}</include>
+                            <include>com.google.re2j:re2j</include>
                             <include>org.eclipse.persistence:eclipselink</include>
                             <include>org.eclipse.persistence:javax.persistence</include>
                             <include>com.googlecode.log4jdbc:log4jdbc</include>
