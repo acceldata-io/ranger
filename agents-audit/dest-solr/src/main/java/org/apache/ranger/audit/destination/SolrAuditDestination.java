@@ -20,6 +20,21 @@
 package org.apache.ranger.audit.destination;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpEntityEnclosingRequest;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.auth.AuthSchemeProvider;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.Credentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.AuthSchemes;
+import org.apache.http.config.Lookup;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.entity.BufferedHttpEntity;
+import org.apache.http.impl.auth.SPNegoSchemeFactory;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.ranger.audit.model.AuditEventBase;
 import org.apache.ranger.audit.model.AuthzAuditEvent;
 import org.apache.ranger.audit.provider.MiscUtil;
@@ -28,12 +43,6 @@ import org.apache.ranger.audit.utils.KerberosAction;
 import org.apache.ranger.audit.utils.KerberosJAASConfigUser;
 import org.apache.ranger.audit.utils.KerberosUser;
 import org.apache.solr.client.solrj.SolrClient;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.entity.BufferedHttpEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder;
@@ -61,6 +70,7 @@ import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.Principal;
 import java.security.PrivilegedExceptionAction;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
@@ -246,17 +256,15 @@ public class SolrAuditDestination extends AuditDestination {
                         LOG.info("Connecting to solr cloud using zkHosts={}", zkHosts);
 
                         try {
-                            Krb5HttpClientBuilder krbBuild = new Krb5HttpClientBuilder();
-                            SolrHttpClientBuilder kb = krbBuild.getBuilder();
+                            final boolean              solrNode = isSolrNode();
+                            final SolrHttpClientBuilder kb       = createKerberosBuilderOrNull();
 
-                            final boolean solrNode = isSolrNode();
-
-                            if (!solrNode) {
+                            if (kb != null && !solrNode) {
                                 HttpClientUtil.setHttpClientBuilder(kb);
                             }
 
-                            final List<String>    zkhosts         = new ArrayList<>(Arrays.asList(zkHosts.split(",")));
-                            final CloseableHttpClient kerberosHttpClient = solrNode ? createKerberosHttpClient(kb) : null;
+                            final List<String>        zkhosts            = new ArrayList<>(Arrays.asList(zkHosts.split(",")));
+                            final CloseableHttpClient kerberosHttpClient = kb == null ? createSpnegoHttpClient() : (solrNode ? createKerberosHttpClient(kb) : null);
                             final CloudSolrClient solrCloudClient = MiscUtil.executePrivilegedAction((PrivilegedExceptionAction<CloudSolrClient>) () -> {
                                 CloudSolrClient.Builder cloudBuilder = new CloudSolrClient.Builder(zkhosts, Optional.empty());
 
@@ -344,8 +352,60 @@ public class SolrAuditDestination extends AuditDestination {
             builder.setDefaultCookieSpecRegistry(kerberosBuilder.getCookieSpecRegistryProvider().getCookieSpecRegistry());
         }
 
-        // SPNEGO answers the first request with 401 and the request is sent again: the entity must be repeatable
-        // (Krb5HttpClientBuilder does the same with a global interceptor that this client does not get).
+        addRepeatableEntityInterceptor(builder);
+
+        return builder.build();
+    }
+
+    /**
+     * Krb5HttpClientBuilder links against the Jetty client API that matches the bundled SolrJ. Some hosts (NiFi and
+     * NiFi Registry bundle SolrJ 9.x next to Jetty 12) cannot load it: NoClassDefFoundError for the Jetty SPNEGO classes.
+     */
+    private static SolrHttpClientBuilder createKerberosBuilderOrNull() {
+        try {
+            return new Krb5HttpClientBuilder().getBuilder();
+        } catch (LinkageError e) {
+            LOG.warn("Solr Krb5HttpClientBuilder cannot be used here ({}), using a plain SPNEGO HttpClient", e.toString());
+
+            return null;
+        }
+    }
+
+    /**
+     * SPNEGO client built from Apache HttpClient only, no Jetty class is needed. The Kerberos identity comes from the
+     * audit login that MiscUtil.executePrivilegedAction() runs the request under.
+     */
+    private static CloseableHttpClient createSpnegoHttpClient() {
+        if (System.getProperty("javax.security.auth.useSubjectCredsOnly") == null) {
+            System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+        }
+
+        Lookup<AuthSchemeProvider> authSchemes = RegistryBuilder.<AuthSchemeProvider>create().register(AuthSchemes.SPNEGO, new SPNegoSchemeFactory(true)).build();
+        CredentialsProvider        credentials = new BasicCredentialsProvider();
+
+        credentials.setCredentials(AuthScope.ANY, new Credentials() {
+            @Override
+            public Principal getUserPrincipal() {
+                return null;
+            }
+
+            @Override
+            public String getPassword() {
+                return null;
+            }
+        });
+
+        HttpClientBuilder builder = HttpClientBuilder.create().useSystemProperties().setMaxConnPerRoute(10).setMaxConnTotal(20)
+                .setDefaultAuthSchemeRegistry(authSchemes).setDefaultCredentialsProvider(credentials);
+
+        addRepeatableEntityInterceptor(builder);
+
+        return builder.build();
+    }
+
+    // SPNEGO answers the first request with 401 and the request is sent again: the entity must be repeatable
+    // (Krb5HttpClientBuilder does the same with a global interceptor that these clients do not get).
+    private static void addRepeatableEntityInterceptor(HttpClientBuilder builder) {
         builder.addInterceptorFirst((HttpRequestInterceptor) (request, context) -> {
             if (request instanceof HttpEntityEnclosingRequest) {
                 HttpEntityEnclosingRequest enclosing = (HttpEntityEnclosingRequest) request;
@@ -356,9 +416,8 @@ public class SolrAuditDestination extends AuditDestination {
                 }
             }
         });
-
-        return builder.build();
     }
+
 
     SolrInputDocument toSolrDoc(AuthzAuditEvent auditEvent) {
         SolrInputDocument doc = new SolrInputDocument();
