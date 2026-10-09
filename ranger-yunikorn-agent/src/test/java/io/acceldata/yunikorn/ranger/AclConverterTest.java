@@ -372,6 +372,58 @@ class AclConverterTest {
     }
 
     // -----------------------------------------------------------------------
+    // Names YuniKorn can't take as-is are percent-encoded
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("Percent-encoded names")
+    class EncodedNames {
+
+        @Test
+        @DisplayName("AD groups with spaces, brackets and colons are percent-encoded")
+        void adGroups() {
+            RangerPolicy policy = builder()
+                    .name("xdp-admins")
+                    .queue("root.xdp")
+                    .policyItem(item()
+                            .users("dataplane-service-user@tmobilenpe-service-user.com")
+                            .groups("[DEV] Quantum XDP : External : Access : Administrator : T-Mobile.com",
+                                    "[DEV] Quantum XDP : Internal : Access : Administrator")
+                            .admin())
+                    .build();
+
+            QueueAclEntry entry = converter.convert(List.of(policy)).get("root.xdp");
+
+            assertThat(entry.adminAcl()).isEqualTo("dataplane-service-user@tmobilenpe-service-user.com "
+                    + "%5BDEV%5D%20Quantum%20XDP%20%3A%20External%20%3A%20Access%20%3A%20Administrator%20%3A%20T-Mobile%2Ecom,"
+                    + "%5BDEV%5D%20Quantum%20XDP%20%3A%20Internal%20%3A%20Access%20%3A%20Administrator");
+        }
+
+        @Test
+        @DisplayName("Users and groups use their own plain rules")
+        void userAndGroupRules() {
+            assertThat(AclConverter.formatAcl(set("team.ops", "John Smith"), set("team.ops", "devs")))
+                    .isEqualTo("John%20Smith,team.ops devs,team%2Eops");
+        }
+
+        @Test
+        @DisplayName("A non-plain name with nothing to encode still gets a '%'")
+        void forcedEncoding() {
+            assertThat(AclConverter.formatAcl(null, set("1team"))).isEqualTo(" %31team");
+        }
+
+        @Test
+        @DisplayName("Encoded names never contain separators and decode back to the original")
+        void roundTrip() throws Exception {
+            String name = "Smith, John (Contractor) & co+ü%";
+            String acl = AclConverter.formatAcl(null, set(name));
+
+            assertThat(acl.substring(1)).doesNotContain(" ", ",");
+            assertThat(java.net.URLDecoder.decode(acl.substring(1), "UTF-8")).isEqualTo(name);
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Builder helpers — keep tests readable
     // -----------------------------------------------------------------------
 
