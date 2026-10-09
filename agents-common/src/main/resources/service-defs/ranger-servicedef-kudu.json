@@ -63,6 +63,6 @@
     { "itemId": 9, "name": "all",      "label": "ALL", "impliedGrants": [ "select", "insert", "update", "delete", "alter", "create", "drop", "metadata" ] }
   ],
   "configs": [
-    { "itemId": 1, "name": "ranger.plugin.audit.filters", "type": "string", "mandatory": false, "label": "Ranger Default Audit Filters", "defaultValue": "[]" }
+    { "itemId": 1, "name": "ranger.plugin.audit.filters", "type": "string", "mandatory": false, "label": "Ranger Default Audit Filters", "defaultValue": "[{'accessResult': 'DENIED', 'isAudited': true}]" }
   ]
 }

@@ -33,8 +33,12 @@ public class RangerServiceKudu extends RangerBaseService {
     @Override
     public HashMap<String, Object> validateConfig() {
         HashMap<String, Object> responseData = new HashMap<String, Object>();
-        String message = "Currently unimplemented. This can be safely ignored.";
-        BaseClient.generateResponseDataMap(false, message, message, null, null, responseData);
+        // The Kudu service definition has no connection settings (no master address, user or
+        // password): the Kudu master pulls policies from Ranger, Ranger never connects to Kudu.
+        // There is nothing that can fail here, so report success instead of a permanent
+        // "Connection Failed" for a correctly configured service.
+        String message = "Kudu has no connection settings to validate. Policies are downloaded by the Kudu master.";
+        BaseClient.generateResponseDataMap(true, message, message, null, null, responseData);
         return responseData;
     }
 
