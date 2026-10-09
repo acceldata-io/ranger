@@ -17,6 +17,7 @@ import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,6 +27,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Translates a list of Ranger policies into a per-queue map of YuniKorn ACL
@@ -66,6 +69,12 @@ import java.util.TreeSet;
  * groups), the trailing space is omitted; if only groups, the leading user
  * portion is empty: {@code " devs,sre"}.
  *
+ * <p>Names that don't fit YuniKorn's plain ACL form (e.g. AD names with
+ * spaces, {@code [} or {@code :}) are percent-encoded, e.g.
+ * {@code "%5BDEV%5D%20Admins"} for the group {@code "[DEV] Admins"}. The ODP
+ * YuniKorn build decodes them; a stock YuniKorn ignores them, so they get no
+ * access there rather than breaking the whole config.
+ *
  * <p>{@code null} ACL means "no allow policy for this access type" — the
  * splicer interprets this as "remove the field". Empty entries are not
  * produced; if a queue has no users and no groups granted, no map entry
@@ -81,6 +90,10 @@ public final class AclConverter {
     static final String ACCESS_SUBMIT = "submit";
     static final String ACCESS_ADMIN  = "admin";
     static final String RESOURCE_QUEUE = "queue";
+
+    // Names YuniKorn accepts as-is in an ACL (yunikorn-core pkg/common/security/acl.go).
+    private static final Pattern PLAIN_USER  = Pattern.compile("^[_a-zA-Z][a-zA-Z0-9_.@-]*[$]?$");
+    private static final Pattern PLAIN_GROUP = Pattern.compile("^[_a-zA-Z][a-zA-Z0-9_-]*$");
 
     /**
      * @param policies the policy set as returned by Ranger Admin
@@ -252,10 +265,40 @@ public final class AclConverter {
         boolean hasGroups = groups != null && !groups.isEmpty();
         if (!hasUsers && !hasGroups) return null;
 
-        String userPart  = hasUsers  ? String.join(",", users)  : "";
-        String groupPart = hasGroups ? String.join(",", groups) : "";
+        String userPart  = hasUsers  ? joinAclNames(users,  PLAIN_USER)  : "";
+        String groupPart = hasGroups ? joinAclNames(groups, PLAIN_GROUP) : "";
 
         if (hasUsers && !hasGroups) return userPart;
         return userPart + " " + groupPart;
+    }
+
+    private static String joinAclNames(Set<String> names, Pattern plain) {
+        return names.stream().map(n -> aclName(n, plain)).collect(Collectors.joining(","));
+    }
+
+    /**
+     * Returns the name as written into a YuniKorn ACL. Names matching
+     * {@code plain} are kept as-is. Others are percent-encoded: every UTF-8
+     * byte outside {@code [A-Za-z0-9_-]} becomes {@code %XX}, so the result
+     * never contains the ACL separators (space, comma). YuniKorn only decodes
+     * entries containing {@code %}, so a name that needed no encoding but
+     * still isn't plain (e.g. {@code "1team"}) gets its first byte encoded.
+     */
+    static String aclName(String name, Pattern plain) {
+        if (name.isEmpty() || plain.matcher(name).matches()) {
+            return name;
+        }
+        byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
+        StringBuilder out = new StringBuilder();
+        for (byte b : bytes) {
+            int c = b & 0xFF;
+            boolean keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                    || (c >= '0' && c <= '9') || c == '_' || c == '-';
+            out.append(keep ? String.valueOf((char) c) : String.format("%%%02X", c));
+        }
+        if (out.indexOf("%") < 0) {
+            return String.format("%%%02X", bytes[0] & 0xFF) + out.substring(1);
+        }
+        return out.toString();
     }
 }
