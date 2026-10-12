@@ -26,9 +26,6 @@
     <artifactId>ranger</artifactId>
     <version>2.5.0.3.3.6.6-SNAPSHOT</version>
     <description>Security for Enforcing Enterprise Policies</description>
-    <modules>
-        <module>plugin-gravitino</module>
-    </modules>
     <packaging>pom</packaging>
     <name>ranger</name>
     <url>http://ranger.apache.org/</url>
@@ -343,6 +340,7 @@
                 <module>ranger-tools</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-trino</module>
+                <module>plugin-gravitino</module>
                 <module>unixauthpam</module>
                 <module>unixauthnative</module>
                 <!--
@@ -653,6 +651,7 @@
                 <module>ranger-authn</module>
                 <module>ranger-metrics</module>
                 <module>plugin-trino</module>
+                <module>plugin-gravitino</module>
                 <!--
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
@@ -730,6 +729,7 @@
                 <module>ranger-tools</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-trino</module>
+                <module>plugin-gravitino</module>
             </modules>
             <build>
                 <plugins>
