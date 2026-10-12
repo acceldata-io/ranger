@@ -15,15 +15,8 @@
 
 -- Add mapping_version column for RMS delta/incremental download support.
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'x_rms_resource_mapping'
-      AND column_name = 'mapping_version'
-  ) THEN
-    ALTER TABLE x_rms_resource_mapping ADD COLUMN mapping_version BIGINT DEFAULT 0;
-    CREATE INDEX x_rms_resource_mapping_IDX_mapping_version ON x_rms_resource_mapping(mapping_version);
-  END IF;
-END
-$$;
+ALTER TABLE x_rms_resource_mapping
+  ADD COLUMN IF NOT EXISTS mapping_version BIGINT DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS x_rms_resource_mapping_IDX_mapping_version
+  ON x_rms_resource_mapping(mapping_version);

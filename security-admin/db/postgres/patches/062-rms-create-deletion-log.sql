@@ -17,30 +17,20 @@
 -- delta downloads across Admin restarts and HA failovers, and add a
 -- watermark column on x_rms_mapping_provider.
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_name = 'x_rms_deletion_log'
-  ) THEN
-    CREATE TABLE x_rms_deletion_log (
-      id                BIGSERIAL PRIMARY KEY,
-      version           BIGINT NOT NULL,
-      change_timestamp  TIMESTAMP NULL,
-      hl_resource_guid  VARCHAR(64) NULL,
-      ll_resource_guid  VARCHAR(64) NOT NULL,
-      ll_service_id     BIGINT NOT NULL
-    );
-    CREATE INDEX x_rms_deletion_log_IDX_svc_ver ON x_rms_deletion_log(ll_service_id, version);
-    CREATE INDEX x_rms_deletion_log_IDX_version ON x_rms_deletion_log(version);
-  END IF;
+CREATE TABLE IF NOT EXISTS x_rms_deletion_log (
+  id                BIGSERIAL PRIMARY KEY,
+  version           BIGINT NOT NULL,
+  change_timestamp  TIMESTAMP NULL,
+  hl_resource_guid  VARCHAR(64) NULL,
+  ll_resource_guid  VARCHAR(64) NOT NULL,
+  ll_service_id     BIGINT NOT NULL
+);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'x_rms_mapping_provider'
-      AND column_name = 'deletion_tracking_from_version'
-  ) THEN
-    ALTER TABLE x_rms_mapping_provider ADD COLUMN deletion_tracking_from_version BIGINT DEFAULT 0;
-  END IF;
-END
-$$;
+CREATE INDEX IF NOT EXISTS x_rms_deletion_log_IDX_svc_ver
+  ON x_rms_deletion_log(ll_service_id, version);
+
+CREATE INDEX IF NOT EXISTS x_rms_deletion_log_IDX_version
+  ON x_rms_deletion_log(version);
+
+ALTER TABLE x_rms_mapping_provider
+  ADD COLUMN IF NOT EXISTS deletion_tracking_from_version BIGINT DEFAULT 0;
