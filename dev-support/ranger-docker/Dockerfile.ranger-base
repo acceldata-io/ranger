@@ -27,6 +27,15 @@ RUN apt-get update && \
     pip3 install apache-ranger && \
     pip3 install requests
 
+# Ranger build/scripts expect `ambari-python-wrap` (Ambari helper) to exist.
+# Provide a lightweight shim that simply invokes python3.
+RUN printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'PYTHON_BIN="${PYTHON_BIN:-python3}"' \
+    'exec "${PYTHON_BIN}" "$@"' \
+    > /usr/local/bin/ambari-python-wrap && chmod +x /usr/local/bin/ambari-python-wrap
+
 # Set environment variables
 ENV JAVA_HOME      /usr/lib/jvm/java-${RANGER_BASE_JAVA_VERSION}-openjdk-${TARGETARCH}
 ENV RANGER_DIST    /home/ranger/dist
@@ -34,7 +43,12 @@ ENV RANGER_SCRIPTS /home/ranger/scripts
 ENV RANGER_HOME    /opt/ranger
 ENV PATH           /usr/java/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-RUN update-java-alternatives --set /usr/lib/jvm/java-1.${RANGER_BASE_JAVA_VERSION}.0-openjdk-${TARGETARCH}
+RUN set -e; \
+    if [ -d "/usr/lib/jvm/java-1.${RANGER_BASE_JAVA_VERSION}.0-openjdk-${TARGETARCH}" ]; then \
+        update-java-alternatives --set /usr/lib/jvm/java-1.${RANGER_BASE_JAVA_VERSION}.0-openjdk-${TARGETARCH}; \
+    else \
+        update-java-alternatives --set /usr/lib/jvm/java-${RANGER_BASE_JAVA_VERSION}-openjdk-${TARGETARCH}; \
+    fi
 
 # setup groups, users, directories
 RUN groupadd ranger && \
