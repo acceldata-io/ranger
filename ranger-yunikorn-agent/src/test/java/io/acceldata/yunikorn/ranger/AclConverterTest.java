@@ -386,17 +386,17 @@ class AclConverterTest {
                     .name("xdp-admins")
                     .queue("root.xdp")
                     .policyItem(item()
-                            .users("dataplane-service-user@tmobilenpe-service-user.com")
-                            .groups("[DEV] Quantum XDP : External : Access : Administrator : T-Mobile.com",
-                                    "[DEV] Quantum XDP : Internal : Access : Administrator")
+                            .users("dataplane-service-user@example.com")
+                            .groups("[DEV] Example Team : External : Access : Administrator : example.com",
+                                    "[DEV] Example Team : Internal : Access : Administrator")
                             .admin())
                     .build();
 
             QueueAclEntry entry = converter.convert(List.of(policy)).get("root.xdp");
 
-            assertThat(entry.adminAcl()).isEqualTo("dataplane-service-user@tmobilenpe-service-user.com "
-                    + "%5BDEV%5D%20Quantum%20XDP%20%3A%20External%20%3A%20Access%20%3A%20Administrator%20%3A%20T-Mobile%2Ecom,"
-                    + "%5BDEV%5D%20Quantum%20XDP%20%3A%20Internal%20%3A%20Access%20%3A%20Administrator");
+            assertThat(entry.adminAcl()).isEqualTo("dataplane-service-user@example.com "
+                    + "%5BDEV%5D%20Example%20Team%20%3A%20External%20%3A%20Access%20%3A%20Administrator%20%3A%20example%2Ecom,"
+                    + "%5BDEV%5D%20Example%20Team%20%3A%20Internal%20%3A%20Access%20%3A%20Administrator");
         }
 
         @Test
