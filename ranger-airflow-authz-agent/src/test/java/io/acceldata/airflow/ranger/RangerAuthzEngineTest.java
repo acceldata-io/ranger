@@ -97,6 +97,55 @@ class RangerAuthzEngineTest {
         }
     }
 
+    @Test
+    @DisplayName("GAP-18: a keyless check must not be satisfied by another resource type's policy")
+    void keylessCheckIsScopedToItsResourceType() throws Exception {
+        RangerAuthzEngine engine = new RangerAuthzEngine(inMemoryPlugin());
+        try {
+            // carol holds read on connection=* and nothing else.
+            assertThat(engine.evaluate(typedKeylessRequest("carol", "connection", "read")).getIsAllowed())
+                    .as("carol holds connection read")
+                    .isTrue();
+            assertThat(engine.evaluate(typedKeylessRequest("carol", "variable", "read")).getIsAllowed())
+                    .as("a connection grant must NOT satisfy a variable check")
+                    .isFalse();
+            assertThat(engine.evaluate(typedKeylessRequest("carol", "dag", "read")).getIsAllowed())
+                    .as("a connection grant must NOT satisfy a dag check")
+                    .isFalse();
+
+            // alice holds read on dag=etl_* -- the prefix case that the
+            // widened matching scope exists to serve must still pass.
+            assertThat(engine.evaluate(typedKeylessRequest("alice", "dag", "read")).getIsAllowed())
+                    .as("a prefix-scoped dag grant must still satisfy the class-level dag read")
+                    .isTrue();
+            assertThat(engine.evaluate(typedKeylessRequest("alice", "variable", "read")).getIsAllowed())
+                    .as("a dag grant must NOT satisfy a variable check")
+                    .isFalse();
+        } finally {
+            engine.close();
+        }
+    }
+
+    /**
+     * Mirrors the request {@code AuthzServer.buildAccessRequest} builds for a
+     * check with no key: the resource type is present so the policy engine can
+     * tell the nine parallel hierarchies apart, and the empty value is read as
+     * "any resource of that type" via SELF_OR_PREFIX.
+     */
+    private static RangerAccessRequestImpl typedKeylessRequest(String user, String type, String access) {
+        RangerAccessResourceImpl resource = new RangerAccessResourceImpl();
+        resource.setValue(type, "");
+        RangerAccessRequestImpl req = new RangerAccessRequestImpl(
+                resource, access, user, Collections.emptySet(), null);
+        req.setResourceElementMatchingScopes(Collections.singletonMap(
+                type, RangerAccessRequest.ResourceElementMatchingScope.SELF_OR_PREFIX));
+        req.setResourceMatchingScope(RangerAccessRequest.ResourceMatchingScope.SELF_OR_DESCENDANTS);
+        req.setClientIPAddress("10.4.2.19");
+        req.setRequestData("/api/v2/" + type);
+        req.setClusterName("odp-dev");
+        return req;
+    }
+
     private static RangerAccessRequestImpl keylessRequest(String user, String access) {
         RangerAccessRequestImpl req = new RangerAccessRequestImpl(
                 new RangerAccessResourceImpl(), access, user, Collections.emptySet(), null);
@@ -158,11 +207,29 @@ class RangerAuthzEngineTest {
         prefixItem.setAccesses(Collections.singletonList(new RangerPolicyItemAccess("read", true)));
         prefixPolicy.setPolicyItems(Collections.singletonList(prefixItem));
 
+        // A grant on a DIFFERENT top-level resource. The nine Airflow resources
+        // are parallel level-10 hierarchies, so this is the policy that must
+        // never satisfy a dag or variable question (GAP-18).
+        RangerPolicy connectionPolicy = new RangerPolicy();
+        connectionPolicy.setId(49L);
+        connectionPolicy.setName("carol-read-all-connections");
+        connectionPolicy.setService("odp_airflow");
+        connectionPolicy.setIsEnabled(true);
+        connectionPolicy.setIsAuditEnabled(true);
+        connectionPolicy.setPolicyType(RangerPolicy.POLICY_TYPE_ACCESS);
+        Map<String, RangerPolicyResource> connectionResources = new HashMap<>();
+        connectionResources.put("connection", new RangerPolicyResource("*"));
+        connectionPolicy.setResources(connectionResources);
+        RangerPolicyItem connectionItem = new RangerPolicyItem();
+        connectionItem.setUsers(Collections.singletonList("carol"));
+        connectionItem.setAccesses(Collections.singletonList(new RangerPolicyItemAccess("read", true)));
+        connectionPolicy.setPolicyItems(Collections.singletonList(connectionItem));
+
         ServicePolicies policies = new ServicePolicies();
         policies.setServiceName("odp_airflow");
         policies.setServiceDef(def);
         policies.setPolicyVersion(118L);
-        policies.setPolicies(Arrays.asList(policy, prefixPolicy));
+        policies.setPolicies(Arrays.asList(policy, prefixPolicy, connectionPolicy));
 
         RangerPolicyEngineOptions options = new RangerPolicyEngineOptions();
         options.disablePolicyRefresher = true;

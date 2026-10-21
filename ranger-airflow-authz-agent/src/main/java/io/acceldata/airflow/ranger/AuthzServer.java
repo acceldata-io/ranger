@@ -419,29 +419,43 @@ public final class AuthzServer implements AutoCloseable {
     private RangerAccessRequestImpl buildAccessRequest(String user, RequestContext ctx,
                                                        String resourceType, String accessType, String key) {
         boolean anyResource = key == null || key.isBlank();
+        boolean haveType    = resourceType != null && !resourceType.isBlank();
 
         RangerAccessResourceImpl resource = new RangerAccessResourceImpl();
-        if (!anyResource && resourceType != null && !resourceType.isBlank()) {
-            resource.setValue(resourceType, key.strip());
+        if (haveType) {
+            // The resource type is set even when no key was supplied. Leaving the
+            // resource empty drops the TYPE along with the name, because the two
+            // are stored as one entry -- and an empty resource makes
+            // RangerDefaultPolicyResourceMatcher.getMatchingHierarchy take its
+            // "no keys" branch, which accepts whichever hierarchy the policy
+            // happens to use. Every policy in the service then becomes a
+            // candidate, so a grant on one resource type answers a question about
+            // another: a user holding only dag=finance_* passes a class-level
+            // check for connection, variable, pool and config.
+            resource.setValue(resourceType, anyResource ? "" : key.strip());
         }
         RangerAccessRequestImpl request = new RangerAccessRequestImpl(
                 resource, accessType, user, Collections.emptySet(), null);
 
         if (anyResource) {
-            // An omitted key means "any resource of this type", and it needs the
-            // matching scope widened to work.
-            //
-            // Note RangerAccessResourceImpl.setValue(name, null) *removes* the key,
-            // so there is no way to express "any" as a resource value -- the
-            // resource simply carries no keys. Against a policy scoped to a prefix
-            // (dag=etl_*) RangerDefaultPolicyResourceMatcher.getMatchType then
-            // returns DESCENDANT, and under the default SELF scope
-            // RangerDefaultPolicyEvaluator counts DESCENDANT as no match. A user
-            // holding read on etl_* would be denied the class-level read and the
-            // list page would come back empty.
-            //
-            // SELF_OR_DESCENDANTS makes any match type other than NONE count,
-            // which is what the contract's "omitting key means any" requires.
+            if (haveType) {
+                // An empty value matches nothing under the default comparison
+                // ("does the requested value start with the policy value?"), so a
+                // user holding a narrow grant such as dag=etl_* would be denied
+                // the class-level read and their list page would 403 despite them
+                // being entitled to some of its rows.
+                //
+                // SELF_OR_PREFIX reverses that comparison to "does the policy
+                // value start with the requested value?"
+                // (RangerAbstractResourceMatcher.isPrefixMatch). Every policy
+                // value starts with "", which is exactly what "any resource of
+                // this type" has to mean.
+                request.setResourceElementMatchingScopes(Collections.singletonMap(
+                        resourceType,
+                        RangerAccessRequest.ResourceElementMatchingScope.SELF_OR_PREFIX));
+            }
+            // Widened for the same reason as the element scope: a match type
+            // other than NONE must count for the "any resource" question.
             request.setResourceMatchingScope(
                     RangerAccessRequest.ResourceMatchingScope.SELF_OR_DESCENDANTS);
         }

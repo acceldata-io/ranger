@@ -154,7 +154,16 @@ class AuthzServerTest {
         assertThat(d.path("allowed").asBoolean()).isFalse();
         assertThat(d.path("reason").asText()).isEqualTo("no_matching_policy");
         RangerAccessRequest seen = engine.lastRequest.get();
-        assertThat(seen.getResource().getValue("connection")).isNull();
+        assertThat(seen.getResource().getValue("connection"))
+                .as("the resource TYPE must be present even with no key, or the policy "
+                        + "engine cannot tell the nine parallel hierarchies apart and a "
+                        + "grant on any one of them answers this question")
+                .isEqualTo("");
+        assertThat(seen.getResourceElementMatchingScopes().get("connection"))
+                .as("an empty value matches nothing under the default comparison; "
+                        + "SELF_OR_PREFIX reverses it so every policy value of this type "
+                        + "matches, which is what 'any resource' means")
+                .isEqualTo(RangerAccessRequest.ResourceElementMatchingScope.SELF_OR_PREFIX);
         assertThat(seen.getResourceMatchingScope())
                 .as("an omitted key must widen the matching scope, or a prefix-scoped "
                         + "policy yields MatchType.DESCENDANT and the engine denies")
