@@ -205,14 +205,17 @@ class AuthzServerTest {
     }
 
     @Test
-    @DisplayName("filter is 501 while unimplemented, and info says so up front")
-    void filterNotImplemented() throws Exception {
-        JsonNode err = post("/v1/filter", "Bearer " + TOKEN, "{}", 501);
-        assertThat(err.path("error").asText()).isEqualTo("not_implemented");
+    @DisplayName("filter is implemented and advertised, and validates its body")
+    void filterIsImplementedAndAdvertised() throws Exception {
+        // An empty body is rejected for the missing context, NOT as 501 -- the
+        // wheel refuses to start if "filter" is absent from capabilities, so
+        // these two must stay in step.
+        JsonNode err = post("/v1/filter", "Bearer " + TOKEN, "{}", 400);
+        assertThat(err.path("error").asText()).isEqualTo("bad_request");
 
         JsonNode info = get("/v1/info", "Bearer " + TOKEN, 200);
         assertThat(info.path("capabilities").isArray()).isTrue();
-        assertThat(info.path("capabilities").toString()).isEqualTo("[\"authorize\"]");
+        assertThat(info.path("capabilities").toString()).isEqualTo("[\"authorize\",\"filter\"]");
         assertThat(info.path("user_store_version").asLong()).isEqualTo(9L);
     }
 

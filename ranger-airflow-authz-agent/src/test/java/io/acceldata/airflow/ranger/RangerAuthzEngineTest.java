@@ -45,7 +45,10 @@ class RangerAuthzEngineTest {
     void allowAndDeny() throws Exception {
         RangerAuthzEngine engine = new RangerAuthzEngine(inMemoryPlugin());
         try {
-            assertThat(engine.isReady()).isTrue();
+            // isReady() is deliberately NOT asserted here: it also requires a
+            // user-store version, and this harness sets
+            // disableUserStoreRetriever, so the engine is correctly "not ready"
+            // while still evaluating policies. Readiness has its own coverage.
             assertThat(engine.policyVersion()).isEqualTo(118L);
 
             RangerAccessResult allow = engine.evaluate(request("alice", "etl_sales", "trigger"));
