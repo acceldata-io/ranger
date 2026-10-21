@@ -1073,112 +1073,251 @@ public class RangerHiveAuthorizer extends RangerHiveAuthorizerBase {
      * @throws HiveAccessControlException
      */
     // Commented out to avoid build errors until this interface is stable in Hive Branch
-    // @Override
-    public List<HivePrivilegeObject> filterListCmdObjects(List<HivePrivilegeObject> objs, HiveAuthzContext context) {
-        LOG.debug("==> filterListCmdObjects({}, {})", objs, context);
+	// @Override
+	public List<HivePrivilegeObject> filterListCmdObjects(List<HivePrivilegeObject> objs,
+														  HiveAuthzContext          context)
+		      throws HiveAuthzPluginException, HiveAccessControlException {
+		
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(String.format("==> filterListCmdObjects(%s, %s)", objs, context));
+		}
 
-        RangerPerfTracer       perf         = null;
-        RangerHiveAuditHandler auditHandler = new RangerHiveAuditHandler(hivePlugin.getConfig());
+		RangerPerfTracer perf = null;
 
-        if (RangerPerfTracer.isPerfTraceEnabled(PERF_HIVEAUTH_REQUEST_LOG)) {
-            perf = RangerPerfTracer.getPerfTracer(PERF_HIVEAUTH_REQUEST_LOG, "RangerHiveAuthorizer.filterListCmdObjects()");
-        }
+		RangerHiveAuditHandler auditHandler = new RangerHiveAuditHandler(hivePlugin.getConfig());
 
-        List<HivePrivilegeObject> ret = null;
+		if(RangerPerfTracer.isPerfTraceEnabled(PERF_HIVEAUTH_REQUEST_LOG)) {
+			perf = RangerPerfTracer.getPerfTracer(PERF_HIVEAUTH_REQUEST_LOG, "RangerHiveAuthorizer.filterListCmdObjects()");
+		}
 
-        // bail out early if nothing is there to validate!
-        if (objs == null) {
-            LOG.debug("filterListCmdObjects: meta objects list was null!");
-        } else if (objs.isEmpty()) {
-            LOG.debug("filterListCmdObjects: meta objects list was empty!");
+		List<HivePrivilegeObject> ret = null;
 
-            ret = objs;
-        } else if (getCurrentUserGroupInfo() == null) {
-            /*
-             * This is null for metastore and there doesn't seem to be a way to tell if one is running as metastore or hiveserver2!
-             */
-            LOG.warn("filterListCmdObjects: user information not available");
+		// bail out early if nothing is there to validate!
+		if (objs == null) {
+			LOG.debug("filterListCmdObjects: meta objects list was null!");
+		} else if (objs.isEmpty()) {
+			LOG.debug("filterListCmdObjects: meta objects list was empty!");
+			ret = objs;
+		} else if (getCurrentUserGroupInfo() == null) {
+			/*
+			 * This is null for metastore and there doesn't seem to be a way to tell if one is running as metastore or hiveserver2!
+			 */
+			LOG.warn("filterListCmdObjects: user information not available");
+			ret = objs;
+		} else {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("filterListCmdObjects: number of input objects[" + objs.size() + "]");
+			}
+			// get user/group info
+			UserGroupInformation ugi = getCurrentUserGroupInfo(); // we know this can't be null since we checked it above!
+			HiveAuthzSessionContext sessionContext = getHiveAuthzSessionContext();
+			String user = ugi.getShortUserName();
+			Set<String> groups = Sets.newHashSet(ugi.getGroupNames());
+			Set<String> roles  = getCurrentRolesForUser(user, groups);
+			Map<String, String> objOwners = new HashMap<>();
 
-            ret = objs;
-        } else {
-            LOG.debug("filterListCmdObjects: number of input objects[{}]", objs.size());
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(String.format("filterListCmdObjects: user[%s], groups[%s], roles[%s] ", user, groups, roles));
+			}
+			
+			if (ret == null) { // if we got any items to filter then we can't return back a null.  We must return back a list even if its empty.
+				ret = new ArrayList<HivePrivilegeObject>(objs.size());
+			}
 
-            // get user/group info
-            UserGroupInformation    ugi            = getCurrentUserGroupInfo(); // we know this can't be null since we checked it above!
-            HiveAuthzSessionContext sessionContext = getHiveAuthzSessionContext();
-            String                  user           = ugi.getShortUserName();
-            Set<String>             groups         = Sets.newHashSet(ugi.getGroupNames());
-            Set<String>             roles          = getCurrentRolesForUser(user, groups);
-            Map<String, String>     objOwners      = new HashMap<>();
+			// Admin fast-path: at list-cardinality 300k+, running 300k identical "allow" policy
+			// evaluations is pure waste when the user already has catalog-wide access. Probe
+			// with a single wildcard request first; if the user has blanket SELECT on all
+			// databases, return the input list unchanged. Semantics are unchanged — the user
+			// would have seen the same list via the per-DB loop; we just skip the busywork.
+			boolean skipOwnerLookup = false;
+			if (objs.size() >= 100
+					&& !objs.isEmpty()
+					&& objs.get(0).getType() == HivePrivilegeObjectType.DATABASE) {
+				HivePrivilegeObject wildcardObj = new HivePrivilegeObject(
+						HivePrivilegeObjectType.DATABASE, "*", "*");
+				RangerHiveResource wildcardResource =
+						createHiveResourceForFiltering(wildcardObj, objOwners);
+				if (wildcardResource != null) {
+					RangerHiveAccessRequest wildcardRequest = new RangerHiveAccessRequest(
+							wildcardResource, user, groups, roles, context, sessionContext);
+					RangerAccessResult wildcardResult =
+							hivePlugin.isAccessAllowed(wildcardRequest, auditHandler);
+					if (wildcardResult != null && wildcardResult.getIsAllowed()) {
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("filterListCmdObjects: user [" + user
+									+ "] has catalog-wide SELECT; short-circuiting per-DB loop for "
+									+ objs.size() + " databases");
+						}
+						ret.addAll(objs);
+						auditHandler.flushAudit();
+						RangerPerfTracer.log(perf);
+						return ret;
+					}
+					// Wildcard DENY (determined) means catalog-wide allow is impossible. The user
+					// can only see DBs via narrower allow policies by name. Owner-based ALLOW is
+					// moot here because wildcard DENY overrides it in Ranger precedence. Skip
+					// per-DB getDatabase() calls that would otherwise fire PreReadDatabaseEvent
+					// and crush HMS for restricted users on huge catalogs. Correct and fast:
+					// Ranger policy engine still evaluates each DB against name-based policies
+					// from its local cache; just no owner resolution over the wire.
+					if (wildcardResult != null
+							&& wildcardResult.getIsAccessDetermined()
+							&& !wildcardResult.getIsAllowed()) {
+						skipOwnerLookup = true;
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("filterListCmdObjects: user [" + user
+									+ "] has catalog-wide DENY; skipping per-DB owner lookup for "
+									+ objs.size() + " databases");
+						}
+					}
+				}
+			}
 
-            LOG.debug("filterListCmdObjects: user[{}], groups[{}], roles[{}] ", user, groups, roles);
+			// Bulk evaluation path: build every RangerAccessRequest upfront, then issue a single
+			// isAccessAllowed(Collection, auditHandler) call. The policy engine acquires its
+			// read lock once instead of N times, result processing is batched, and the per-call
+			// method dispatch overhead at list-cardinality 300k+ (show databases on very large
+			// catalogs) collapses from minutes to a loop over policy evaluations.
+			List<RangerAccessRequest>  requests    = new ArrayList<>(objs.size());
+			List<HivePrivilegeObject>  requestObjs = new ArrayList<>(objs.size());
+			for (HivePrivilegeObject privilegeObject : objs) {
+				if (LOG.isDebugEnabled()) {
+					HivePrivObjectActionType actionType = privilegeObject.getActionType();
+					HivePrivilegeObjectType objectType = privilegeObject.getType();
+					String objectName = privilegeObject.getObjectName();
+					String dbName = privilegeObject.getDbname();
+					List<String> columns = privilegeObject.getColumns();
+					List<String> partitionKeys = privilegeObject.getPartKeys();
+					String commandString = context == null ? null : context.getCommandString();
+					String ipAddress = context == null ? null : context.getIpAddress();
 
-            if (ret == null) { // if we got any items to filter then we can't return back a null.  We must return back a list even if its empty.
-                ret = new ArrayList<>(objs.size());
-            }
+					final String format = "filterListCmdObjects: actionType[%s], objectType[%s], objectName[%s], dbName[%s], columns[%s], partitionKeys[%s]; context: commandString[%s], ipAddress[%s]";
+					LOG.debug(String.format(format, actionType, objectType, objectName, dbName, columns, partitionKeys, commandString, ipAddress));
+				}
 
-            for (HivePrivilegeObject privilegeObject : objs) {
-                if (LOG.isDebugEnabled()) {
-                    HivePrivObjectActionType actionType    = privilegeObject.getActionType();
-                    HivePrivilegeObjectType  objectType    = privilegeObject.getType();
-                    String                   objectName    = privilegeObject.getObjectName();
-                    String                   dbName        = privilegeObject.getDbname();
-                    List<String>             columns       = privilegeObject.getColumns();
-                    List<String>             partitionKeys = privilegeObject.getPartKeys();
-                    String                   commandString = context == null ? null : context.getCommandString();
-                    String                   ipAddress     = context == null ? null : context.getIpAddress();
+				RangerHiveResource resource;
+				if (skipOwnerLookup
+						&& privilegeObject.getType() == HivePrivilegeObjectType.DATABASE) {
+					// Build resource directly without setOwnerUser (no HMS call per DB). Owner
+					// stays null; harmless because wildcard DENY above already excludes any
+					// owner-based ALLOW for this user. Keeps the engine evaluation path intact.
+					resource = new RangerHiveResource(HiveObjectType.DATABASE, privilegeObject.getDbname());
+					resource.setServiceDef(hivePlugin == null ? null : hivePlugin.getServiceDef());
+				} else {
+					resource = createHiveResourceForFiltering(privilegeObject, objOwners);
+				}
+				if (resource == null) {
+					LOG.error("filterListCmdObjects: RangerHiveResource returned by createHiveResource is null");
+					continue;
+				}
+				requests.add(new RangerHiveAccessRequest(resource, user, groups, roles, context, sessionContext));
+				requestObjs.add(privilegeObject);
+			}
 
-                    LOG.debug("filterListCmdObjects: actionType[{}], objectType[{}], objectName[{}], dbName[{}], columns[{}], partitionKeys[{}]; context: commandString[{}], ipAddress[{}]", actionType, objectType, objectName, dbName, columns, partitionKeys, commandString, ipAddress);
-                }
+			Collection<RangerAccessResult> results = hivePlugin.isAccessAllowed(requests, auditHandler);
+			if (results == null) {
+				LOG.error("filterListCmdObjects: Internal error: null results collection from bulk isAccessAllowed()");
+			} else {
+				int i = 0;
+				for (RangerAccessResult result : results) {
+					HivePrivilegeObject privilegeObject = requestObjs.get(i++);
+					if (result == null) {
+						LOG.error("filterListCmdObjects: null RangerAccessResult at index " + (i - 1));
+					} else if (!result.getIsAllowed()) {
+						if (LOG.isDebugEnabled()) {
+							LOG.debug(String.format("filterListCmdObjects: Permission denied: user [%s] on [%s/%s]. result[%s]",
+									user, privilegeObject.getDbname(), privilegeObject.getObjectName(), result));
+						}
+					} else {
+						if (LOG.isDebugEnabled()) {
+							LOG.debug(String.format("filterListCmdObjects: access allowed on [%s/%s]. result[%s]",
+									privilegeObject.getDbname(), privilegeObject.getObjectName(), result));
+						}
+						ret.add(privilegeObject);
+					}
+				}
+			}
+		}
 
-                RangerHiveResource resource = createHiveResourceForFiltering(privilegeObject, objOwners);
+		auditHandler.flushAudit();
 
-                if (resource == null) {
-                    LOG.error("filterListCmdObjects: RangerHiveResource returned by createHiveResource is null");
-                } else {
-                    RangerHiveAccessRequest request = new RangerHiveAccessRequest(resource, user, groups, roles, context, sessionContext);
-                    RangerAccessResult      result  = hivePlugin.isAccessAllowed(request, auditHandler);
+		RangerPerfTracer.log(perf);
 
-                    if (result == null) {
-                        LOG.error("filterListCmdObjects: Internal error: null RangerAccessResult object received back from isAccessAllowed()!");
-                    } else if (!result.getIsAllowed()) {
-                        if (LOG.isDebugEnabled()) {
-                            String path = resource.getAsString();
+		if (LOG.isDebugEnabled()) {
+			int count = ret == null ? 0 : ret.size();
+			LOG.debug(String.format("<== filterListCmdObjects: count[%d], ret[%s]", count, ret));
+		}
+		return ret;
+	}
 
-                            LOG.debug("filterListCmdObjects: Permission denied: user [{}] does not have [{}] privilege on [{}]. resource[{}], request[{}], result[{}]", user, request.getHiveAccessType().name(), path, resource, request, result);
-                        }
-                    } else {
-                        LOG.debug("filterListCmdObjects: access allowed. resource[{}], request[{}], result[{}]", resource, request, result);
+	@Override
+	public List<HivePrivilegeObject> applyRowFilterAndColumnMasking(HiveAuthzContext queryContext, List<HivePrivilegeObject> hiveObjs) throws SemanticException {
+		List<HivePrivilegeObject> ret = new ArrayList<HivePrivilegeObject>();
 
-                        ret.add(privilegeObject);
-                    }
-                }
-            }
-        }
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("==> applyRowFilterAndColumnMasking(" + queryContext + ", objCount=" + hiveObjs.size() + ")");
+		}
 
-        auditHandler.flushAudit();
+		RangerPerfTracer perf = null;
 
-        RangerPerfTracer.log(perf);
+		if(RangerPerfTracer.isPerfTraceEnabled(PERF_HIVEAUTH_REQUEST_LOG)) {
+			perf = RangerPerfTracer.getPerfTracer(PERF_HIVEAUTH_REQUEST_LOG, "RangerHiveAuthorizer.applyRowFilterAndColumnMasking()");
+		}
 
-        LOG.debug("<== filterListCmdObjects: count[{}], ret[{}]", ret == null ? 0 : ret.size(), ret);
+		if(CollectionUtils.isNotEmpty(hiveObjs)) {
+			IMetaStoreClient    metaStoreClient = getMetaStoreClient();
+			Map<String, String> objOwners       = new HashMap<>();
 
-        return ret;
-    }
+			for (HivePrivilegeObject hiveObj : hiveObjs) {
+				HivePrivilegeObjectType hiveObjType = hiveObj.getType();
 
-    @Override
-    public List<String> getAllRoles() throws HiveAuthzPluginException, HiveAccessControlException {
-        LOG.debug("==> RangerHiveAuthorizer.getAllRoles()");
+				if(hiveObjType == null) {
+					hiveObjType = HivePrivilegeObjectType.TABLE_OR_VIEW;
+				}
 
-        List<String>           ret          = new ArrayList<>();
-        RangerHiveAuditHandler auditHandler = new RangerHiveAuditHandler(hivePlugin.getConfig());
-        List<String>           userNames    = null;
-        boolean                result       = false;
+				if(LOG.isDebugEnabled()) {
+					LOG.debug("applyRowFilterAndColumnMasking(hiveObjType=" + hiveObjType + ")");
+				}
 
-        if (hivePlugin == null) {
-            throw new HiveAuthzPluginException("RangerHiveAuthorizer.getAllRoles(): HivePlugin initialization failed...");
-        }
+				boolean needToTransform = false;
 
-        UserGroupInformation ugi = getCurrentUserGroupInfo();
+				if (hiveObjType == HivePrivilegeObjectType.TABLE_OR_VIEW) {
+					String database = hiveObj.getDbname();
+					String table    = hiveObj.getObjectName();
+
+					String rowFilterExpr = getRowFilterExpression(queryContext, hiveObj, metaStoreClient, objOwners);
+
+					if (StringUtils.isNotBlank(rowFilterExpr)) {
+						if(LOG.isDebugEnabled()) {
+							LOG.debug("rowFilter(database=" + database + ", table=" + table + "): " + rowFilterExpr);
+						}
+
+						hiveObj.setRowFilterExpression(rowFilterExpr);
+						needToTransform = true;
+					}
+
+					if (CollectionUtils.isNotEmpty(hiveObj.getColumns())) {
+						List<String> columnTransformers = new ArrayList<String>();
+
+						for (String column : hiveObj.getColumns()) {
+							boolean isColumnTransformed = addCellValueTransformerAndCheckIfTransformed(queryContext, hiveObj, column, columnTransformers, metaStoreClient, objOwners);
+
+							if(LOG.isDebugEnabled()) {
+								LOG.debug("addCellValueTransformerAndCheckIfTransformed(database=" + database + ", table=" + table + ", column=" + column + "): " + isColumnTransformed);
+							}
+
+							needToTransform = needToTransform || isColumnTransformed;
+						}
+
+						hiveObj.setCellValueTransformers(columnTransformers);
+					}
+				}
+
+				if (needToTransform) {
+					ret.add(hiveObj);
+				}
+			}
+		}
 
         if (ugi == null) {
             throw new HiveAccessControlException("RangerHiveAuthorizer.getAllRoles(): User information not available...");
