@@ -1199,6 +1199,63 @@ public class RangerHiveAuthorizer extends RangerHiveAuthorizerBase {
 			if (ret == null) { // if we got any items to filter then we can't return back a null.  We must return back a list even if its empty.
 				ret = new ArrayList<HivePrivilegeObject>(objs.size());
 			}
+
+			// Admin fast-path: at list-cardinality 300k+, running 300k identical "allow" policy
+			// evaluations is pure waste when the user already has catalog-wide access. Probe
+			// with a single wildcard request first; if the user has blanket SELECT on all
+			// databases, return the input list unchanged. Semantics are unchanged — the user
+			// would have seen the same list via the per-DB loop; we just skip the busywork.
+			boolean skipOwnerLookup = false;
+			if (objs.size() >= 100
+					&& !objs.isEmpty()
+					&& objs.get(0).getType() == HivePrivilegeObjectType.DATABASE) {
+				HivePrivilegeObject wildcardObj = new HivePrivilegeObject(
+						HivePrivilegeObjectType.DATABASE, "*", "*");
+				RangerHiveResource wildcardResource =
+						createHiveResourceForFiltering(wildcardObj, objOwners);
+				if (wildcardResource != null) {
+					RangerHiveAccessRequest wildcardRequest = new RangerHiveAccessRequest(
+							wildcardResource, user, groups, roles, context, sessionContext);
+					RangerAccessResult wildcardResult =
+							hivePlugin.isAccessAllowed(wildcardRequest, auditHandler);
+					if (wildcardResult != null && wildcardResult.getIsAllowed()) {
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("filterListCmdObjects: user [" + user
+									+ "] has catalog-wide SELECT; short-circuiting per-DB loop for "
+									+ objs.size() + " databases");
+						}
+						ret.addAll(objs);
+						auditHandler.flushAudit();
+						RangerPerfTracer.log(perf);
+						return ret;
+					}
+					// Wildcard DENY (determined) means catalog-wide allow is impossible. The user
+					// can only see DBs via narrower allow policies by name. Owner-based ALLOW is
+					// moot here because wildcard DENY overrides it in Ranger precedence. Skip
+					// per-DB getDatabase() calls that would otherwise fire PreReadDatabaseEvent
+					// and crush HMS for restricted users on huge catalogs. Correct and fast:
+					// Ranger policy engine still evaluates each DB against name-based policies
+					// from its local cache; just no owner resolution over the wire.
+					if (wildcardResult != null
+							&& wildcardResult.getIsAccessDetermined()
+							&& !wildcardResult.getIsAllowed()) {
+						skipOwnerLookup = true;
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("filterListCmdObjects: user [" + user
+									+ "] has catalog-wide DENY; skipping per-DB owner lookup for "
+									+ objs.size() + " databases");
+						}
+					}
+				}
+			}
+
+			// Bulk evaluation path: build every RangerAccessRequest upfront, then issue a single
+			// isAccessAllowed(Collection, auditHandler) call. The policy engine acquires its
+			// read lock once instead of N times, result processing is batched, and the per-call
+			// method dispatch overhead at list-cardinality 300k+ (show databases on very large
+			// catalogs) collapses from minutes to a loop over policy evaluations.
+			List<RangerAccessRequest>  requests    = new ArrayList<>(objs.size());
+			List<HivePrivilegeObject>  requestObjs = new ArrayList<>(objs.size());
 			for (HivePrivilegeObject privilegeObject : objs) {
 				if (LOG.isDebugEnabled()) {
 					HivePrivObjectActionType actionType = privilegeObject.getActionType();
@@ -1213,24 +1270,44 @@ public class RangerHiveAuthorizer extends RangerHiveAuthorizerBase {
 					final String format = "filterListCmdObjects: actionType[%s], objectType[%s], objectName[%s], dbName[%s], columns[%s], partitionKeys[%s]; context: commandString[%s], ipAddress[%s]";
 					LOG.debug(String.format(format, actionType, objectType, objectName, dbName, columns, partitionKeys, commandString, ipAddress));
 				}
-				
-				RangerHiveResource resource = createHiveResourceForFiltering(privilegeObject, objOwners);
+
+				RangerHiveResource resource;
+				if (skipOwnerLookup
+						&& privilegeObject.getType() == HivePrivilegeObjectType.DATABASE) {
+					// Build resource directly without setOwnerUser (no HMS call per DB). Owner
+					// stays null; harmless because wildcard DENY above already excludes any
+					// owner-based ALLOW for this user. Keeps the engine evaluation path intact.
+					resource = new RangerHiveResource(HiveObjectType.DATABASE, privilegeObject.getDbname());
+					resource.setServiceDef(hivePlugin == null ? null : hivePlugin.getServiceDef());
+				} else {
+					resource = createHiveResourceForFiltering(privilegeObject, objOwners);
+				}
 				if (resource == null) {
 					LOG.error("filterListCmdObjects: RangerHiveResource returned by createHiveResource is null");
-				} else {
-					RangerHiveAccessRequest request = new RangerHiveAccessRequest(resource, user, groups, roles, context, sessionContext);
-					RangerAccessResult result = hivePlugin.isAccessAllowed(request, auditHandler);
+					continue;
+				}
+				requests.add(new RangerHiveAccessRequest(resource, user, groups, roles, context, sessionContext));
+				requestObjs.add(privilegeObject);
+			}
+
+			Collection<RangerAccessResult> results = hivePlugin.isAccessAllowed(requests, auditHandler);
+			if (results == null) {
+				LOG.error("filterListCmdObjects: Internal error: null results collection from bulk isAccessAllowed()");
+			} else {
+				int i = 0;
+				for (RangerAccessResult result : results) {
+					HivePrivilegeObject privilegeObject = requestObjs.get(i++);
 					if (result == null) {
-						LOG.error("filterListCmdObjects: Internal error: null RangerAccessResult object received back from isAccessAllowed()!");
+						LOG.error("filterListCmdObjects: null RangerAccessResult at index " + (i - 1));
 					} else if (!result.getIsAllowed()) {
 						if (LOG.isDebugEnabled()) {
-							String path = resource.getAsString();
-							LOG.debug(String.format("filterListCmdObjects: Permission denied: user [%s] does not have [%s] privilege on [%s]. resource[%s], request[%s], result[%s]",
-									user, request.getHiveAccessType().name(), path, resource, request, result));
+							LOG.debug(String.format("filterListCmdObjects: Permission denied: user [%s] on [%s/%s]. result[%s]",
+									user, privilegeObject.getDbname(), privilegeObject.getObjectName(), result));
 						}
 					} else {
 						if (LOG.isDebugEnabled()) {
-							LOG.debug(String.format("filterListCmdObjects: access allowed. resource[%s], request[%s], result[%s]", resource, request, result));
+							LOG.debug(String.format("filterListCmdObjects: access allowed on [%s/%s]. result[%s]",
+									privilegeObject.getDbname(), privilegeObject.getObjectName(), result));
 						}
 						ret.add(privilegeObject);
 					}
@@ -3167,14 +3244,16 @@ public class RangerHiveAuthorizer extends RangerHiveAuthorizerBase {
 	static void setOwnerUser(RangerHiveResource resource, HivePrivilegeObject hiveObj, IMetaStoreClient metaStoreClient, Map<String, String> objOwners) {
 		if (hiveObj != null) {
 			String objName = null;
-			String owner   = null;
+			String owner   = hiveObj.getOwnerName();
 
 			// resource.setOwnerUser(hiveObj.getOwnerName());
 			switch (hiveObj.getType()) {
 				case DATABASE:
 					try {
 						objName = hiveObj.getDbname();
-						owner   = objOwners != null ? objOwners.get(objName) : null;
+						if (StringUtils.isBlank(owner) && objOwners != null) {
+							owner = objOwners.get(objName);
+						}
 
 						if (StringUtils.isBlank(owner)) {
 							Database database = metaStoreClient != null ? metaStoreClient.getDatabase(hiveObj.getDbname()) : null;
@@ -3196,7 +3275,9 @@ public class RangerHiveAuthorizer extends RangerHiveAuthorizerBase {
 				case COLUMN:
 					try {
 						objName = hiveObj.getDbname() + "." + hiveObj.getObjectName();
-						owner   = objOwners != null ? objOwners.get(objName) : null;
+						if (StringUtils.isBlank(owner) && objOwners != null) {
+							owner = objOwners.get(objName);
+						}
 
 						if (StringUtils.isBlank(owner)) {
 							Table table = metaStoreClient != null ? metaStoreClient.getTable(hiveObj.getDbname(), hiveObj.getObjectName()) : null;
