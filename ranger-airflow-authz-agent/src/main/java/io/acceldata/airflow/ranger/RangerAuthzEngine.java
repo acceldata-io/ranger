@@ -21,7 +21,10 @@ import org.apache.ranger.plugin.service.RangerBasePlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -127,6 +130,22 @@ public final class RangerAuthzEngine implements AuthzEngine {
         // A null result processor is how RangerBasePlugin is told to skip
         // auditing for one evaluation.
         return plugin.isAccessAllowed(request, null);
+    }
+
+    @Override
+    public List<RangerAccessResult> evaluateAllNoAudit(List<RangerAccessRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return Collections.emptyList();
+        }
+        // RangerPolicyEngineImpl.evaluatePolicies(Collection, ...) takes the
+        // read lock once and evaluates the whole batch inside it. The null
+        // result processor suppresses per-request audits; audit filters and
+        // chained plugins are still applied, exactly as on the single path.
+        Collection<RangerAccessResult> results = plugin.isAccessAllowed(requests, null);
+        if (results == null) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(results);
     }
 
     @Override

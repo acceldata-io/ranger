@@ -28,6 +28,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -270,6 +272,46 @@ class AuthzServerTest {
     }
 
     @Test
+    @DisplayName("filter evaluates the whole page in one batch, under one read lock")
+    void filterEvaluatesAsASingleBatch() throws Exception {
+        engine.allowedKeys = Set.of("etl_0001");
+
+        String body = "{\"user\":\"spark@CORP.EXAMPLE\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags\"},"
+                + "\"resource_type\":\"dag\",\"method\":\"GET\","
+                + "\"keys\":[\"etl_0001\",\"finance_0001\",\"ops_0001\"]}";
+        JsonNode out = post("/v1/filter", "Bearer " + TOKEN, body, 200);
+
+        assertThat(out.path("allowed_keys").toString()).contains("etl_0001");
+        // Three keys, three decisions, but ONE trip into the policy engine --
+        // a per-key loop would take the read lock three times and could
+        // straddle a policy refresh partway down the page.
+        assertThat(engine.batchCalls.get())
+                .as("the page must be evaluated as one batch")
+                .isEqualTo(1);
+        assertThat(engine.unauditedEvaluations.get()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("filter denies the whole call if the batch returns the wrong number of results")
+    void filterDeniesOnResultCountMismatch() throws Exception {
+        engine.allowedKeys = Set.of("etl_0001", "etl_0002");
+        engine.shortBatchBy = 1; // one decision short of the keys asked about
+
+        String body = "{\"user\":\"spark@CORP.EXAMPLE\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags\"},"
+                + "\"resource_type\":\"dag\",\"method\":\"GET\","
+                + "\"keys\":[\"etl_0001\",\"etl_0002\",\"finance_0001\"]}";
+
+        // Results are matched to keys by position, so a short list would hand
+        // back decisions belonging to other keys. Refuse rather than guess.
+        post("/v1/filter", "Bearer " + TOKEN, body, 500);
+        assertThat(engine.auditSummaries.get())
+                .as("a call that produced no decisions must not be audited as one")
+                .isZero();
+    }
+
+    @Test
     @DisplayName("filter denying every key still audits once, as a denial")
     void filterDenyingEverythingAuditsOnce() throws Exception {
         engine.allowedKeys = Set.of();
@@ -382,6 +424,8 @@ class AuthzServerTest {
         final AtomicReference<RangerAccessRequest> lastRequest = new AtomicReference<>();
         final AtomicInteger evaluations = new AtomicInteger();
         final AtomicInteger unauditedEvaluations = new AtomicInteger();
+        final AtomicInteger batchCalls = new AtomicInteger();
+        int shortBatchBy = 0;
         final AtomicInteger auditSummaries = new AtomicInteger();
         final AtomicReference<String> lastSummary = new AtomicReference<>();
         final AtomicReference<Boolean> lastSummaryAllowed = new AtomicReference<>();
@@ -412,6 +456,23 @@ class AuthzServerTest {
         public RangerAccessResult evaluateNoAudit(RangerAccessRequest request) {
             unauditedEvaluations.incrementAndGet();
             return decide(request);
+        }
+
+        @Override
+        public List<RangerAccessResult> evaluateAllNoAudit(List<RangerAccessRequest> requests) {
+            batchCalls.incrementAndGet();
+            List<RangerAccessResult> out = new ArrayList<>(requests.size());
+            for (RangerAccessRequest request : requests) {
+                unauditedEvaluations.incrementAndGet();
+                out.add(decide(request));
+            }
+            if (shortBatchBy > 0) {
+                // Simulate the engine returning fewer results than requests.
+                for (int i = 0; i < shortBatchBy && !out.isEmpty(); i++) {
+                    out.remove(out.size() - 1);
+                }
+            }
+            return out;
         }
 
         @Override
