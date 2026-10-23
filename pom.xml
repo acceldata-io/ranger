@@ -135,7 +135,7 @@
         <guava.version>32.0.1-jre</guava.version>
         <hadoop-shaded-guava.version>1.4.0</hadoop-shaded-guava.version>
         <hadoop.version>3.3.6.${odp.release.version}</hadoop.version>
-        <ozone.version>1.4.1.${odp.release.version}</ozone.version>
+        <ozone.version>2.1.0.${odp.release.version}</ozone.version>
         <hamcrest.version>2.2</hamcrest.version>
         <hbase.version>2.6.2.${odp.release.version}</hbase.version>
         <hive.version>4.1.0.${odp.release.version}</hive.version>
