@@ -13,6 +13,8 @@ package io.acceldata.airflow.ranger;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerAccessResult;
 
+import java.util.List;
+
 /**
  * The policy engine the HTTP layer talks to. Production wraps
  * {@code RangerBasePlugin}; tests substitute a fake.
@@ -66,6 +68,23 @@ public interface AuthzEngine extends AutoCloseable {
      * follows up with {@link #auditFilterSummary}.
      */
     RangerAccessResult evaluateNoAudit(RangerAccessRequest request);
+
+    /**
+     * Evaluate a whole batch under a single policy-engine read lock.
+     *
+     * <p>Evaluating a filter call key by key takes and releases that lock once
+     * per key, so a policy refresh landing mid-loop would evaluate the first
+     * half of a list page against the old policy version and the second half
+     * against the new one. Ranger's batch entry point holds the lock for the
+     * whole collection, so one page is one consistent view.
+     *
+     * <p>Audits nothing, for the reasons on {@link #evaluateNoAudit}.
+     *
+     * @return one result per request, in the same order. An empty list means
+     *         the batch could not be evaluated; callers must treat that as
+     *         "nothing permitted".
+     */
+    List<RangerAccessResult> evaluateAllNoAudit(List<RangerAccessRequest> requests);
 
     /**
      * Write the single audit record summarising a filter call.

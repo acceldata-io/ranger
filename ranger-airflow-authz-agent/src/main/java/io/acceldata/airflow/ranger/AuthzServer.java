@@ -332,25 +332,46 @@ public final class AuthzServer implements AutoCloseable {
                     return;
                 }
 
-                List<String> allowedKeys = new ArrayList<>();
-                RangerAccessRequestImpl representative = null;
-                RangerAccessResult representativeResult = null;
-
+                // Build every request before evaluating any of them. The batch
+                // is then decided under a single policy-engine read lock, so
+                // one list page is one consistent view of the policies; a
+                // key-by-key loop can straddle a policy refresh and answer the
+                // first half of a page from a different version than the second.
+                List<String> keys = new ArrayList<>();
+                List<RangerAccessRequest> requests = new ArrayList<>();
                 for (String key : body.keys) {
                     if (key == null || key.isBlank()) {
                         continue;
                     }
-                    RangerAccessRequestImpl rangerReq =
-                            buildRequest(user, body.context, mapped, key);
-                    RangerAccessResult result = engine.evaluateNoAudit(rangerReq);
+                    keys.add(key);
+                    requests.add(buildRequest(user, body.context, mapped, key));
+                }
+
+                List<RangerAccessResult> results = engine.evaluateAllNoAudit(requests);
+                if (results.size() != requests.size()) {
+                    // Results are matched to keys by position, so a short or
+                    // long list would hand back decisions belonging to other
+                    // keys. Deny the whole call rather than guess.
+                    LOG.error("filter evaluation returned {} results for {} requests; denying the call",
+                            results.size(), requests.size());
+                    writeJson(resp, 500, "{\"error\":\"internal\"}");
+                    return;
+                }
+
+                List<String> allowedKeys = new ArrayList<>();
+                RangerAccessRequest representative = null;
+                RangerAccessResult representativeResult = null;
+
+                for (int i = 0; i < requests.size(); i++) {
+                    RangerAccessResult result = results.get(i);
                     boolean allowed = result != null && result.getIsAllowed();
                     if (allowed) {
-                        allowedKeys.add(key);
+                        allowedKeys.add(keys.get(i));
                     }
                     // Prefer an allowed result so the summary's policy id points
                     // at a policy that actually granted something.
                     if (representativeResult == null || (allowed && !representativeResult.getIsAllowed())) {
-                        representative = rangerReq;
+                        representative = requests.get(i);
                         representativeResult = result;
                     }
                 }
