@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2026 Acceldata Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+-->
+<!--
+  The Airflow plugin tarball, installed on API-SERVER nodes.
+
+  It differs from every other plugin assembly in one way: there is no
+  shim and no ranger-plugin-classloader. Those exist so a plugin loaded
+  into a host JVM does not collide with the host's own Hadoop, Jackson
+  and Guava. The Airflow decision point is a separate process with no
+  host classpath to collide with, so it ships as the single shaded jar
+  that the agent module already builds, run as
+
+      java -cp <conf-dir>:<agent-jar> io.acceldata.airflow.ranger.RangerAirflowAuthzAgent
+
+  If a CVE in a bundled dependency ever makes a one-jar swap preferable
+  to rebuilding the shaded artifact, switch the moduleSet below to
+  includeDependencies=true with an outputDirectory of
+  lib/ranger-airflow-plugin-impl, the way plugin-yarn does.
+-->
+<assembly>
+  <id>airflow-plugin</id>
+  <formats>
+    <format>tar.gz</format>
+  </formats>
+  <baseDirectory>${project.parent.name}-${project.version}-airflow-plugin</baseDirectory>
+  <includeBaseDirectory>true</includeBaseDirectory>
+
+  <moduleSets>
+    <moduleSet>
+      <useAllReactorProjects>true</useAllReactorProjects>
+      <includes>
+        <include>org.apache.ranger:ranger-airflow-authz-agent</include>
+      </includes>
+      <binaries>
+        <outputDirectory>lib</outputDirectory>
+        <!-- already shaded; its dependencies are inside the jar -->
+        <includeDependencies>false</includeDependencies>
+        <unpack>false</unpack>
+        <directoryMode>755</directoryMode>
+        <fileMode>644</fileMode>
+      </binaries>
+    </moduleSet>
+  </moduleSets>
+
+  <fileSets>
+    <fileSet>
+      <outputDirectory>install/conf.templates/enable</outputDirectory>
+      <directory>../ranger-airflow-authz-agent/conf</directory>
+      <excludes>
+        <exclude>*.sh</exclude>
+        <exclude>CLAUDE.md</exclude>
+      </excludes>
+      <fileMode>700</fileMode>
+    </fileSet>
+    <fileSet>
+      <outputDirectory>install/conf.templates/disable</outputDirectory>
+      <directory>../ranger-airflow-authz-agent/disable-conf</directory>
+      <fileMode>700</fileMode>
+    </fileSet>
+    <!-- version file -->
+    <fileSet>
+      <outputDirectory></outputDirectory>
+      <directory>${project.build.outputDirectory}</directory>
+      <includes>
+        <include>version</include>
+      </includes>
+      <fileMode>444</fileMode>
+    </fileSet>
+  </fileSets>
+
+  <files>
+    <file>
+      <source>${project.parent.basedir}/agents-common/scripts/enable-agent.sh</source>
+      <outputDirectory></outputDirectory>
+      <destName>enable-airflow-plugin.sh</destName>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <source>${project.parent.basedir}/agents-common/scripts/enable-agent.sh</source>
+      <outputDirectory></outputDirectory>
+      <destName>disable-airflow-plugin.sh</destName>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <source>${project.parent.basedir}/ranger-airflow-authz-agent/scripts/install.properties</source>
+      <outputDirectory></outputDirectory>
+      <destName>install.properties</destName>
+      <fileMode>644</fileMode>
+    </file>
+    <file>
+      <source>${project.parent.basedir}/security-admin/scripts/ranger_credential_helper.py</source>
+      <outputDirectory></outputDirectory>
+      <destName>ranger_credential_helper.py</destName>
+      <fileMode>755</fileMode>
+    </file>
+  </files>
+</assembly>

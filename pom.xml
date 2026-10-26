@@ -431,6 +431,26 @@
             </modules>
         </profile>
         <profile>
+            <id>ranger-airflow-plugin</id>
+            <modules>
+                <module>agents-audit</module>
+                <module>agents-common</module>
+                <module>agents-cred</module>
+                <module>agents-installer</module>
+                <module>credentialbuilder</module>
+                <module>ranger-plugin-classloader</module>
+                <module>ranger-util</module>
+                <!--
+                  No shim module. Other plugins ship a shim that loads the
+                  real plugin through ranger-plugin-classloader, to keep it
+                  off the host service's classpath. The Airflow decision
+                  point is a separate JVM, so there is no host classpath to
+                  isolate from.
+                -->
+                <module>ranger-airflow-authz-agent</module>
+            </modules>
+        </profile>
+        <profile>
             <id>ranger-yarn-plugin</id>
             <modules>
                 <module>agents-audit</module>
