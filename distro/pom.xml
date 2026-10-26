@@ -58,6 +58,7 @@
                                         <descriptor>src/main/assembly/knox-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-airflow.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-solr.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
@@ -252,6 +253,35 @@
                                     <skipAssembly>false</skipAssembly>
                                     <descriptors>
                                         <descriptor>src/main/assembly/storm-agent.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>ranger-airflow-plugin</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <version>${assembly.plugin.version}</version>
+                        <configuration>
+                            <finalName>ranger-${project.version}</finalName>
+                            <outputDirectory>../target</outputDirectory>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <skipAssembly>false</skipAssembly>
+                                    <descriptors>
+                                        <descriptor>src/main/assembly/plugin-airflow.xml</descriptor>
                                     </descriptors>
                                 </configuration>
                             </execution>
@@ -494,6 +524,7 @@
                                         <descriptor>src/main/assembly/knox-agent.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-kafka.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-yarn.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-airflow.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-ozone.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-solr.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-atlas.xml</descriptor>
