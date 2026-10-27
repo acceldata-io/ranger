@@ -49,7 +49,7 @@ public class EmbeddedServiceDefsUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedServiceDefsUtil.class);
 
 
-	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,abfs,yunikorn,polaris";
+	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,abfs,airflow,yunikorn,polaris";
 	private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
 	private Set<String> supportedServiceDefs;
 	public static final String EMBEDDED_SERVICEDEF_TAG_NAME  = "tag";
@@ -79,6 +79,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME  = "nestedstructure";
 	public static final String EMBEDDED_SERVICEDEF_S3_NAME  = "s3";
 	public static final String EMBEDDED_SERVICEDEF_GCS_NAME = "gcs";
+	public static final String EMBEDDED_SERVICEDEF_AIRFLOW_NAME  = "airflow";
 	public static final String EMBEDDED_SERVICEDEF_YUNIKORN_NAME  = "yunikorn";
 	public static final String EMBEDDED_SERVICEDEF_POLARIS_NAME = "polaris";
 
@@ -130,6 +131,7 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef kuduServiceDef;
 	private RangerServiceDef nestedStructureServiveDef;
 	private RangerServiceDef s3ServiceDef;
+	private RangerServiceDef airflowServiceDef;
 	private RangerServiceDef yuniKornServiceDef;
 	private RangerServiceDef polarisServiceDef;
 	private RangerServiceDef gcsServiceDef;
@@ -182,6 +184,7 @@ public class EmbeddedServiceDefsUtil {
 			kuduServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_KUDU_NAME);
 			nestedStructureServiveDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_NESTEDSTRUCTURE_NAME);
 			s3ServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_S3_NAME);
+			airflowServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_AIRFLOW_NAME);
 			yuniKornServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YUNIKORN_NAME);
 			polarisServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_POLARIS_NAME);
 			gcsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GCS_NAME);
@@ -278,6 +281,8 @@ public class EmbeddedServiceDefsUtil {
 	public long getNestedStructureServiceDefId() { return getId(nestedStructureServiveDef); }
 
 	public long getS3ServiceDefId() { return getId(s3ServiceDef); }
+
+	public long getAirflowServiceDefId() { return getId(airflowServiceDef); }
 
 	public long getYuniKornServiceDefId() { return getId(yuniKornServiceDef); }
 

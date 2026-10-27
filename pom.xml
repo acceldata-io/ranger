@@ -299,8 +299,10 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
+                <module>ranger-airflow-authz-agent</module>
                 <module>plugin-ozone</module>
                 <module>s3-agent</module>
                 <module>gcs-agent</module>
@@ -427,6 +429,26 @@
                 <module>credentialbuilder</module>
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>ranger-airflow-plugin</id>
+            <modules>
+                <module>agents-audit</module>
+                <module>agents-common</module>
+                <module>agents-cred</module>
+                <module>agents-installer</module>
+                <module>credentialbuilder</module>
+                <module>ranger-plugin-classloader</module>
+                <module>ranger-util</module>
+                <!--
+                  No shim module. Other plugins ship a shim that loads the
+                  real plugin through ranger-plugin-classloader, to keep it
+                  off the host service's classpath. The Airflow decision
+                  point is a separate JVM, so there is no host classpath to
+                  isolate from.
+                -->
+                <module>ranger-airflow-authz-agent</module>
             </modules>
         </profile>
         <profile>
@@ -610,8 +632,10 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
+                <module>ranger-airflow-authz-agent</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
@@ -690,8 +714,10 @@
                 <module>hive-agent</module>
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
+                <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
+                <module>ranger-airflow-authz-agent</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
@@ -1231,6 +1257,10 @@
                         <exclude>**/ranger-yunikorn-agent/Dockerfile</exclude>
                         <exclude>**/ranger-yunikorn-agent/Makefile</exclude>
                         <exclude>**/ranger-yunikorn-agent/README.md</exclude>
+                        <exclude>**/ranger-airflow-authz-agent/docs/**</exclude>
+                        <exclude>**/CLAUDE.md</exclude>
+                        <exclude>**/ranger-airflow-authz-agent/.gitignore</exclude>
+                        <exclude>**/ranger-airflow-authz-agent/conf/**</exclude>
                         <exclude>**/ranger-yunikorn-agent/.gitignore</exclude>
                         <exclude>**/ranger-yunikorn-agent/.github/**</exclude>
                         <exclude>**/ranger-yunikorn-agent/deploy/**</exclude>
