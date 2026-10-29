@@ -70,7 +70,7 @@
 							<include>org.codehaus.woodstox:stax2-api:jar:${codehaus.woodstox.stax2api.version}</include>
 							<include>org.apache.commons:commons-configuration2:jar:${commons.configuration.version}</include>
 							<include>org.cloudera.logredactor:logredactor</include>
-							<include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.version}</include>
+							<include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.annotations.version}</include>
 							<include>com.fasterxml.jackson.core:jackson-core:jar:${fasterxml.jackson.version}</include>
 							<include>com.fasterxml.jackson.core:jackson-databind:jar:${fasterxml.jackson.databind.version}</include>
 							<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:jar:${fasterxml.jackson.version}</include>
