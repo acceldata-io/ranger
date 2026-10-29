@@ -94,6 +94,8 @@ public final class AclConverter {
     // Names YuniKorn accepts as-is in an ACL (yunikorn-core pkg/common/security/acl.go).
     private static final Pattern PLAIN_USER  = Pattern.compile("^[_a-zA-Z][a-zA-Z0-9_.@-]*[$]?$");
     private static final Pattern PLAIN_GROUP = Pattern.compile("^[_a-zA-Z][a-zA-Z0-9_-]*$");
+    // YuniKorn's "everyone" entry, an encoded "*" would be a literal name
+    private static final String WILDCARD = "*";
 
     /**
      * @param policies the policy set as returned by Ranger Admin
@@ -277,27 +279,26 @@ public final class AclConverter {
     }
 
     /**
-     * Returns the name as written into a YuniKorn ACL. Names matching
-     * {@code plain} are kept as-is. Others are percent-encoded: every UTF-8
-     * byte outside {@code [A-Za-z0-9_-]} becomes {@code %XX}, so the result
-     * never contains the ACL separators (space, comma). YuniKorn only decodes
-     * entries containing {@code %}, so a name that needed no encoding but
-     * still isn't plain (e.g. {@code "1team"}) gets its first byte encoded.
+     * Returns the name as written into a YuniKorn ACL. The name is trimmed
+     * first, as leading or trailing whitespace would never match. The
+     * wildcard and names matching {@code plain} are kept as-is. Others are
+     * percent-encoded: the first byte and every UTF-8 byte outside
+     * {@code [A-Za-z0-9_-]} become {@code %XX}. The result always contains
+     * {@code %}, which is what makes YuniKorn decode it, and never contains
+     * the ACL separators (space, comma).
      */
     static String aclName(String name, Pattern plain) {
-        if (name.isEmpty() || plain.matcher(name).matches()) {
+        name = name.strip();
+        if (name.isEmpty() || WILDCARD.equals(name) || plain.matcher(name).matches()) {
             return name;
         }
         byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
         StringBuilder out = new StringBuilder();
-        for (byte b : bytes) {
-            int c = b & 0xFF;
-            boolean keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-                    || (c >= '0' && c <= '9') || c == '_' || c == '-';
+        for (int i = 0; i < bytes.length; i++) {
+            int c = bytes[i] & 0xFF;
+            boolean keep = i > 0 && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                    || (c >= '0' && c <= '9') || c == '_' || c == '-');
             out.append(keep ? String.valueOf((char) c) : String.format("%%%02X", c));
-        }
-        if (out.indexOf("%") < 0) {
-            return String.format("%%%02X", bytes[0] & 0xFF) + out.substring(1);
         }
         return out.toString();
     }

@@ -403,13 +403,27 @@ class AclConverterTest {
         @DisplayName("Users and groups use their own plain rules")
         void userAndGroupRules() {
             assertThat(AclConverter.formatAcl(set("team.ops", "John Smith"), set("team.ops", "devs")))
-                    .isEqualTo("John%20Smith,team.ops devs,team%2Eops");
+                    .isEqualTo("%4Aohn%20Smith,team.ops devs,%74eam%2Eops");
         }
 
         @Test
         @DisplayName("A non-plain name with nothing to encode still gets a '%'")
         void forcedEncoding() {
             assertThat(AclConverter.formatAcl(null, set("1team"))).isEqualTo(" %31team");
+        }
+
+        @Test
+        @DisplayName("The wildcard is not encoded")
+        void wildcard() {
+            assertThat(AclConverter.formatAcl(set("*"), null)).isEqualTo("*");
+            assertThat(AclConverter.formatAcl(null, set("*"))).isEqualTo(" *");
+        }
+
+        @Test
+        @DisplayName("Names are trimmed before encoding")
+        void trimmed() {
+            assertThat(AclConverter.formatAcl(set(" alice "), set("devs ", " [DEV] Admins ")))
+                    .isEqualTo("alice %5BDEV%5D%20Admins,devs");
         }
 
         @Test
