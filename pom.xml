@@ -205,8 +205,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protobuf-java.version>3.25.5</protobuf-java.version>
         <gcp.protobuf-java.version>3.25.5</gcp.protobuf-java.version>
-        <ratis.version>3.0.1</ratis.version>
-        <ratis-thirdparty.version>1.0.5</ratis-thirdparty.version>
+        <ratis.version>3.2.0</ratis.version>
+        <ratis-thirdparty.version>1.0.9</ratis-thirdparty.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <scala.xml.version>1.0.4</scala.xml.version>
