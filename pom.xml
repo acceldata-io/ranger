@@ -205,8 +205,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protobuf-java.version>3.25.5</protobuf-java.version>
         <gcp.protobuf-java.version>3.25.5</gcp.protobuf-java.version>
-        <ratis.version>3.0.1</ratis.version>
-        <ratis-thirdparty.version>1.0.5</ratis-thirdparty.version>
+        <ratis.version>3.2.0</ratis.version>
+        <ratis-thirdparty.version>1.0.9</ratis-thirdparty.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <scala.xml.version>1.0.4</scala.xml.version>
@@ -963,17 +963,17 @@
                 <groupId>org.glassfish.jaxb</groupId>
                 <artifactId>jaxb-runtime</artifactId>
                 <version>${jaxb.api.version}</version>
-	</dependency>
-	<dependency>
-    <groupId>com.sun.jersey</groupId>
-    <artifactId>jersey-bundle</artifactId>
-    <version>1.19.4</version>
-</dependency>
-	<dependency>
-    <groupId>com.sun.xml.bind</groupId>
-    <artifactId>jaxb-impl</artifactId>
-    <version>2.3.3</version>
-</dependency>
+	        </dependency>
+	        <dependency>
+                <groupId>com.sun.jersey</groupId>
+    		    <artifactId>jersey-bundle</artifactId>
+    		    <version>1.19.4</version>
+	        </dependency>
+	        <dependency>
+    		    <groupId>com.sun.xml.bind</groupId>
+    		    <artifactId>jaxb-impl</artifactId>
+    		    <version>2.3.3</version>
+	        </dependency>
             <dependency>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -990,6 +990,11 @@
                     </exclusion>
                 </exclusions>
             </dependency>
+            <dependency>
+    		    <groupId>org.slf4j</groupId>
+    		    <artifactId>slf4j-api</artifactId>
+    		    <version>${slf4j.version}</version>
+	        </dependency>
         </dependencies>
     </dependencyManagement>
     <build>
