@@ -243,7 +243,7 @@
                     <include>ch.qos.logback:logback-core:jar:${logback.version}</include>
                     <include>com.google.code.gson:gson</include>
                     <include>com.sun.jersey:jersey-bundle:jar:1.19.4</include>
-                    <include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.version}</include>
+                    <include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.annotations.version}</include>
                     <include>com.fasterxml.jackson.core:jackson-core:jar:${fasterxml.jackson.version}</include>
                     <include>com.fasterxml.jackson.core:jackson-databind:jar:${fasterxml.jackson.version}</include>
                     <include>org.codehaus.woodstox:stax2-api</include>
