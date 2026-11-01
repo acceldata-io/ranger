@@ -130,7 +130,7 @@
                             <include>com.microsoft.azure:azure-mgmt-eventhub</include>
                             <include>com.microsoft.azure:azure-keyvault-cryptography</include>
                             <!-- GCP -->
-                            <include>com.google.cloud:google-cloud-kms</include>
+                            <include>com.google.cloud:google-cloud-kms:jar:${google.cloud.kms}</include>
                             <include>io.grpc:grpc-api</include>
                             <include>io.grpc:grpc-context</include>
                             <include>io.grpc:grpc-stub</include>
@@ -141,16 +141,16 @@
                             <include>com.google.auto.value:auto-value-annotations</include>
                             <include>com.google.api.grpc:proto-google-common-protos</include>
                             <include>com.google.api.grpc:proto-google-cloud-kms-v1</include>
-                            <include>com.google.api:gax</include>
+                            <include>com.google.api:gax:jar:${google.gax.version}</include>
                             <include>io.opencensus:opencensus-api</include>
-                            <include>com.google.api:gax-grpc</include>
+                            <include>com.google.api:gax-grpc:jar:${google.gax.version}</include>
+                            <include>com.google.api:gax-httpjson:jar:${google.gax.version}</include>
                             <include>com.google.auth:google-auth-library-credentials</include>
                             <include>io.grpc:grpc-netty-shaded</include>
                             <include>io.perfmark:perfmark-api</include>
                             <include>io.grpc:grpc-core</include>
                             <include>com.google.android:annotations</include>
                             <include>io.grpc:grpc-alts</include>
-                            <include>io.grpc:grpc-grpclb</include>
                             <include>com.google.protobuf:protobuf-java:jar:${gcp.protobuf-java.version}</include>
                             <include>com.google.protobuf:protobuf-java-util:jar:${gcp.protobuf-java.version}</include>
                             <include>org.conscrypt:conscrypt-openjdk-uber</include>
@@ -163,7 +163,6 @@
                             <include>com.google.http-client:google-http-client-gson</include>
                             <include>io.grpc:grpc-xds</include>
                             <include>io.grpc:grpc-services</include>
-                            <include>io.opencensus:opencensus-proto</include>
                             <!-- AWS KMS -->
                             <include>com.amazonaws:aws-java-sdk-core</include>
                             <include>com.amazonaws:aws-java-sdk-kms</include>
@@ -229,8 +228,6 @@
                     <include>org.apache.hadoop:hadoop-client-runtime:jar:${hadoop.version}</include>
                     <include>org.apache.solr:solr-solrj:jar:${solr.version}</include>
                     <include>org.apache.ranger:ranger-common-utils</include>
-                    <include>org.apache.ranger:ranger-authz-api</include>
-                    <include>org.apache.ranger:ranger-plugins-common</include>
                     <include>org.apache.ranger:credentialbuilder</include>
                     <include>org.apache.commons:commons-collections4:jar:${commons.collections4.version}</include>
                     <include>org.apache.commons:commons-compress:jar:${commons.compress.version}</include>
@@ -328,9 +325,6 @@
                             <include>org.apache.httpcomponents:httpcore:jar:${httpcomponents.httpcore.version}</include>
                             <include>org.apache.httpcomponents:httpmime:jar:${httpcomponents.httpmime.version}</include>
                             <include>org.apache.zookeeper:zookeeper:jar:${zookeeper.version}</include>
-                            <include>org.apache.solr:solr-solrj:jar:${solr.version}</include>
-                            <include>org.apache.httpcomponents:httpcore-nio:jar:${httpcomponents.httpcore.version}</include>
-                            <include>org.apache.httpcomponents:httpasyncclient:jar:${httpcomponents.httpasyncclient.version}</include>
                             <include>org.glassfish.jersey.core:jersey-client</include>
                             <include>org.glassfish.jersey.core:jersey-common</include>
                             <include>org.glassfish.jersey.core:jersey-server</include>
@@ -414,7 +408,6 @@
                 <directoryMode>755</directoryMode>
                 <fileMode>644</fileMode>
                 <includes>
-                    <include>org.apache.hadoop:hadoop-common:jar:${hadoop.version}</include>
                     <include>org.apache.commons:commons-collections4:jar:${commons.collections4.version}</include>
                     <include>commons-cli:commons-cli</include>
                     <include>commons-collections:commons-collections</include>

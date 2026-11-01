@@ -38,6 +38,13 @@ echo "=========================================="
 # Source service check functions
 source /home/ranger/scripts/service-check-functions.sh
 
+# Render conf/ranger-audit-ingestor-site.xml from configs/ranger-audit-ingestor-site.yaml
+# (KAFKA_BOOTSTRAP_SERVERS from env); a mounted configs/ranger-audit-ingestor-site.xml wins
+if ! python3 /home/ranger/scripts/audit-ingestor-config.py; then
+  echo "[ERROR] Audit ingestor configuration failed, see audit-ingestor-config.py logs above"
+  exit 1
+fi
+
 # Quick check for Kafka availability
 # The audit server has a built-in recovery/spool mechanism for when Kafka is unavailable
 KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-ranger-kafka:9092}"
@@ -56,8 +63,8 @@ export JAVA_HOME=${JAVA_HOME:-/opt/java/openjdk}
 export PATH=$JAVA_HOME/bin:$PATH
 export AUDIT_SERVER_LOG_DIR=${AUDIT_SERVER_LOG_DIR}
 
-# Set heap size (support both old and new env var names)
-AUDIT_SERVER_HEAP="${AUDIT_INGESTOR_HEAP:-${AUDIT_SERVER_HEAP:--Xms512m -Xmx2g}}"
+# Heap from RANGER_AUDIT_INGESTOR_MAX_HEAP (set in .env / docker compose).
+AUDIT_SERVER_HEAP="-Xms${RANGER_AUDIT_INGESTOR_MAX_HEAP} -Xmx${RANGER_AUDIT_INGESTOR_MAX_HEAP}"
 export AUDIT_SERVER_HEAP
 
 # Set JVM options including logback configuration (support both old and new env var names)
@@ -68,7 +75,7 @@ if [ -z "$AUDIT_SERVER_OPTS" ] && [ -z "$AUDIT_INGESTOR_OPTS" ]; then
   AUDIT_SERVER_OPTS="${AUDIT_SERVER_OPTS} -Djava.net.preferIPv4Stack=true -server"
   AUDIT_SERVER_OPTS="${AUDIT_SERVER_OPTS} -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
   AUDIT_SERVER_OPTS="${AUDIT_SERVER_OPTS} -XX:InitiatingHeapOccupancyPercent=35"
-  AUDIT_SERVER_OPTS="${AUDIT_SERVER_OPTS} -XX:ConcGCThreads=4 -XX:ParallelGCThreads=8"
+  AUDIT_SERVER_OPTS="${AUDIT_SERVER_OPTS} -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2"
 else
   AUDIT_SERVER_OPTS="${AUDIT_INGESTOR_OPTS:-${AUDIT_SERVER_OPTS}}"
 fi

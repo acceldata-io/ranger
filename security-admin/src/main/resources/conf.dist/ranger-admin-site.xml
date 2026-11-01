@@ -326,11 +326,21 @@
 	<property>
 		<name>ranger.admin.authn.header.spiffe</name>
 		<value></value>
-		<description>Comma-separated list of HTTP header name(s) carrying a SPIFFE ID (e.g. spiffe://cluster/ns/&lt;ns&gt;/sa/&lt;service-account&gt;). A single header name is also valid. The trailing service-account segment is used as the authenticated principal. When multiple headers are configured, the first one carrying a well-formed SPIFFE ID is used. Consulted only when the username header is absent.</description>
+		<description>Comma-separated list of HTTP header name(s) carrying a SPIFFE ID (e.g. spiffe://cluster/ns/&lt;ns&gt;/sa/&lt;service-account&gt;). A single header name is also valid. The full SPIFFE ID is used as the authenticated principal. When multiple headers are configured, the first one carrying a well-formed SPIFFE ID is used. Consulted only when the username header is absent.</description>
 	</property>
 	<property>
 		<name>ranger.admin.authn.header.requestid</name>
 		<value></value>
+	</property>
+	<property>
+		<name>ranger.admin.authn.header.roles</name>
+		<value></value>
+		<description>Name of the HTTP header (e.g. X-Forwarded-Roles) carrying a comma-separated list of roles to assign to the authenticated user. Accepted values are role names RANGER_ROLE_ADMIN, RANGER_ROLE_AUDITOR, RANGER_ROLE_USER, RANGER_ROLE_KEY_ADMIN, and RANGER_ROLE_KEY_ADMIN_AUDITOR. Values that are not recognized are ignored.</description>
+	</property>
+	<property>
+		<name>ranger.admin.spiffe.as.username.enabled</name>
+		<value>false</value>
+		<description>When enabled, ':' is accepted as a valid character in usernames so that SPIFFE IDs (e.g. spiffe://spiffe.example.com/ns/sales/sa/trino) can be used as service-account usernames. Disabled by default.</description>
 	</property>
 	<!-- Trusted header auth properties end -->
 	<!-- Kerberos Properties starts-->	
@@ -379,6 +389,16 @@
 		<name>ranger.downloadpolicy.session.log.enabled</name>
 		<value>false</value>
 	</property>
+	<!-- User-store download Properties starts-->
+	<property>
+		<name>ranger.admin.userstore.include.usergroups.mappings</name>
+		<value>false</value>
+		<description>
+			When set to true, the user-store download API includes the user-to-group mappings (userGroupMapping) in the response payload,
+		</description>
+	</property>
+	<!-- User-store download Properties ends-->
+
 	<!-- Service user for KMS -->
     <property>
     	<name>ranger.kms.service.user.hdfs</name>
@@ -472,12 +492,12 @@
 		<property>
 			<name>ranger.admin.super.users</name>
 			<value></value>
-			<description>Comma-separated list of users granted full Ranger administrative privileges at login (system admin and key admin capabilities), independent of database roles. Empty or absent disables config-based super users.</description>
+			<description>Comma-separated list of users granted full Ranger administrative privileges at login (system admin capabilities), independent of database roles. Empty or absent disables config-based super users.</description>
 		</property>
 		<property>
 			<name>ranger.admin.super.groups</name>
 			<value></value>
-			<description>Comma-separated list of groups whose members are granted full Ranger administrative privileges at login (system admin and key admin capabilities), independent of database roles. Empty or absent disables config-based super groups.</description>
+			<description>Comma-separated list of groups whose members are granted full Ranger administrative privileges at login (system admin capabilities), independent of database roles. Empty or absent disables config-based super groups.</description>
 		</property>
 	<property>
 		<name>xasecure.audit.jaas.Client.loginModuleName</name>

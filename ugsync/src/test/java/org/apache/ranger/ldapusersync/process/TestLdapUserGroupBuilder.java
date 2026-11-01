@@ -421,6 +421,97 @@ public class TestLdapUserGroupBuilder extends AbstractLdapTestUnit {
     }
 
     @Test
+    void testUG_getUsers_ad_filter_uses_uSNChanged_only() throws Throwable {
+        resetConfig();
+        configureMinimalLdapConfig();
+        UserGroupSyncConfig cfg = UserGroupSyncConfig.getInstance();
+        cfg.setProperty("ranger.usersync.ldap.deltasync", "true");
+        cfg.setProperty("ranger.usersync.ldap.deltasync.server.type", "ad");
+
+        LdapUserGroupBuilder b = new LdapUserGroupBuilder();
+        b.init();
+
+        Field fGroupEnabled = LdapUserGroupBuilder.class.getDeclaredField("groupSearchEnabled");
+        fGroupEnabled.setAccessible(true);
+        fGroupEnabled.setBoolean(b, false);
+
+        Field gutF      = LdapUserGroupBuilder.class.getDeclaredField("groupUserTable");
+        Field srcUsersF = LdapUserGroupBuilder.class.getDeclaredField("sourceUsers");
+        Field srcGroupsF = LdapUserGroupBuilder.class.getDeclaredField("sourceGroups");
+        gutF.setAccessible(true);
+        srcUsersF.setAccessible(true);
+        srcGroupsF.setAccessible(true);
+        gutF.set(b, HashBasedTable.create());
+        srcUsersF.set(b, new HashMap<>());
+        srcGroupsF.set(b, new HashMap<>());
+
+        final String userDn = "cn=User1000,ou=people,dc=example,dc=com";
+        Attributes attrs = new BasicAttributes(true);
+        attrs.put(new BasicAttribute("cn", "User1000"));
+        attrs.put(new BasicAttribute("uSNChanged", "2001"));
+
+        class TestSearchResult extends SearchResult {
+            private final String nameInNs;
+
+            TestSearchResult(String name, Attributes a, String nameInNs) {
+                super(name, null, a);
+                this.nameInNs = nameInNs;
+            }
+
+            @Override
+            public String getNameInNamespace() {
+                return nameInNs;
+            }
+        }
+
+        final SearchResult sr = new TestSearchResult(userDn, attrs, userDn);
+
+        class SingleEnum implements NamingEnumeration<SearchResult> {
+            private boolean consumed;
+
+            @Override
+            public SearchResult next() {
+                consumed = true;
+                return sr;
+            }
+
+            @Override
+            public boolean hasMore() {
+                return !consumed;
+            }
+
+            @Override
+            public void close() {}
+
+            @Override
+            public boolean hasMoreElements() {
+                return hasMore();
+            }
+
+            @Override
+            public SearchResult nextElement() {
+                return next();
+            }
+        }
+
+        try (MockedConstruction<InitialLdapContext> mocked = Mockito.mockConstruction(InitialLdapContext.class, (mock, ctx) -> {
+            Mockito.when(mock.search(Mockito.anyString(), Mockito.anyString(), Mockito.any(SearchControls.class)))
+                    .thenReturn(new SingleEnum());
+            Mockito.when(mock.getResponseControls()).thenReturn(null);
+        })) {
+            Method getUsers = LdapUserGroupBuilder.class.getDeclaredMethod("getUsers", boolean.class);
+            getUsers.setAccessible(true);
+            getUsers.invoke(b, false);
+
+            Field extFilF = LdapUserGroupBuilder.class.getDeclaredField("extendedUserSearchFilter");
+            extFilF.setAccessible(true);
+            String ext = (String) extFilF.get(b);
+            assertTrue(ext.contains("uSNChanged>="), ext);
+            assertFalse(ext.contains("modifyTimestamp>="), ext);
+        }
+    }
+
+    @Test
     public void testV_getUsers_processes_user_and_group_memberships() throws Throwable {
         resetConfig();
         configureMinimalLdapConfig();
@@ -536,6 +627,8 @@ public class TestLdapUserGroupBuilder extends AbstractLdapTestUnit {
         UserGroupSyncConfig cfg = UserGroupSyncConfig.getInstance();
         cfg.setProperty("ranger.usersync.ldap.group.searchfilter", "cn=Group*");
         cfg.setProperty("ranger.usersync.ldap.largegroupsync", "true");
+        // Enable delta sync so that delta sync attributes are included in the search filters below
+        cfg.setProperty("ranger.usersync.ldap.deltasync", "true");
 
         LdapUserGroupBuilder b = new LdapUserGroupBuilder();
         b.init();
@@ -1127,6 +1220,84 @@ public class TestLdapUserGroupBuilder extends AbstractLdapTestUnit {
         assertTrue(srcUsers.containsKey("uid=user1,ou=people,dc=example,dc=com"));
         assertTrue(srcUsers.containsKey("uid=user2,ou=people,dc=example,dc=com"));
         assertTrue(srcUsers.containsKey("uid=user3,ou=people,dc=example,dc=com"));
+    }
+
+    @Test
+    void testZF_getUsers_and_getGroups_exclude_delta_filter_when_deltasync_disabled() throws Throwable {
+        resetConfig();
+        configureMinimalLdapConfig();
+        UserGroupSyncConfig cfg = UserGroupSyncConfig.getInstance();
+        cfg.setProperty("ranger.usersync.ldap.deltasync", "false");
+
+        LdapUserGroupBuilder b = new LdapUserGroupBuilder();
+        b.init();
+
+        // Prepare internal structures used by getUsers/getGroups
+        Field gutF           = LdapUserGroupBuilder.class.getDeclaredField("groupUserTable");
+        Field srcUsersF      = LdapUserGroupBuilder.class.getDeclaredField("sourceUsers");
+        Field srcGroupsF     = LdapUserGroupBuilder.class.getDeclaredField("sourceGroups");
+        Field srcGroupUsersF = LdapUserGroupBuilder.class.getDeclaredField("sourceGroupUsers");
+        gutF.setAccessible(true);
+        srcUsersF.setAccessible(true);
+        srcGroupsF.setAccessible(true);
+        srcGroupUsersF.setAccessible(true);
+        gutF.set(b, HashBasedTable.create());
+        srcUsersF.set(b, new HashMap<>());
+        srcGroupsF.set(b, new HashMap<>());
+        srcGroupUsersF.set(b, new HashMap<>());
+
+        class EmptyEnum implements NamingEnumeration<SearchResult> {
+            @Override
+            public SearchResult next() {
+                return null;
+            }
+
+            @Override
+            public boolean hasMore() {
+                return false;
+            }
+
+            @Override
+            public void close() {}
+
+            @Override
+            public boolean hasMoreElements() {
+                return false;
+            }
+
+            @Override
+            public SearchResult nextElement() {
+                return null;
+            }
+        }
+
+        try (MockedConstruction<InitialLdapContext> mocked = Mockito.mockConstruction(InitialLdapContext.class, (mock, ctx) -> {
+            Mockito.when(mock.search(Mockito.anyString(), Mockito.anyString(), Mockito.any(SearchControls.class)))
+                    .thenReturn(new EmptyEnum());
+            Mockito.when(mock.getResponseControls()).thenReturn(null);
+        })) {
+            Method getUsers = LdapUserGroupBuilder.class.getDeclaredMethod("getUsers", boolean.class);
+            getUsers.setAccessible(true);
+            getUsers.invoke(b, false);
+
+            Method getGroups = LdapUserGroupBuilder.class.getDeclaredMethod("getGroups", boolean.class);
+            getGroups.setAccessible(true);
+            getGroups.invoke(b, false);
+
+            // Search filters must not reference delta sync attributes when delta sync is disabled
+            Field extUserF = LdapUserGroupBuilder.class.getDeclaredField("extendedUserSearchFilter");
+            Field extAllF  = LdapUserGroupBuilder.class.getDeclaredField("extendedAllGroupsSearchFilter");
+            extUserF.setAccessible(true);
+            extAllF.setAccessible(true);
+            String extUser = (String) extUserF.get(b);
+            String extAll  = (String) extAllF.get(b);
+            assertTrue(extUser.startsWith("(&(objectclass="), () -> extUser + ": must start with '(&(objectclass='");
+            assertTrue(extAll.startsWith("(&(objectclass="), () -> extAll + ": must start with '(&(objectclass='");
+            assertFalse(extUser.contains("uSNChanged"), () -> extUser + ": must not contain 'uSNChanged'");
+            assertFalse(extUser.contains("modifyTimestamp"), () -> extUser + ": must not contain 'modifyTimestamp'");
+            assertFalse(extAll.contains("uSNChanged"), () -> extAll + ": must not contain 'uSNChanged'");
+            assertFalse(extAll.contains("modifyTimestamp"), () -> extAll + ": must not contain 'modifyTimestamp'");
+        }
     }
 
     private static void configureMinimalLdapConfig() throws Exception {

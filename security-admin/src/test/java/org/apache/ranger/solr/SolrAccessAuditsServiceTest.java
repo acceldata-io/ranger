@@ -17,6 +17,7 @@
 package org.apache.ranger.solr;
 
 import org.apache.ranger.AccessAuditsService;
+import org.apache.ranger.audit.metrics.AuditMetricsHelper;
 import org.apache.ranger.common.PropertiesUtil;
 import org.apache.ranger.common.RESTErrorUtil;
 import org.apache.ranger.common.SearchCriteria;
@@ -25,8 +26,10 @@ import org.apache.ranger.db.XXServiceDao;
 import org.apache.ranger.db.XXServiceDefDao;
 import org.apache.ranger.entity.XXService;
 import org.apache.ranger.entity.XXServiceDef;
+import org.apache.ranger.plugin.model.RangerAuditMetrics;
 import org.apache.ranger.view.VXAccessAuditList;
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
@@ -192,6 +195,71 @@ public class SolrAccessAuditsServiceTest {
     public void getXAccessAuditSearchCount_returnsConstant() {
         SolrAccessAuditsService service = new SolrAccessAuditsService();
         assertEquals(100L, service.getXAccessAuditSearchCount(new SearchCriteria()).getValue());
+    }
+
+    @Test
+    public void getAuditMetrics_whenIdNull_throws() {
+        SolrAccessAuditsService service = createServiceWithHelper();
+
+        assertThrows(WebApplicationException.class, () -> service.getAuditMetrics(null, null));
+    }
+
+    @Test
+    public void getAuditMetrics_whenServiceNotFound_throws() {
+        SolrAccessAuditsService service = createServiceWithHelper();
+        RangerDaoManager daoManager = mock(RangerDaoManager.class);
+        XXServiceDao svcDao = mock(XXServiceDao.class);
+        when(daoManager.getXXService()).thenReturn(svcDao);
+        when(svcDao.getById(99L)).thenReturn(null);
+        injectField(service, AccessAuditsService.class, "daoManager", daoManager);
+
+        assertThrows(WebApplicationException.class, () -> service.getAuditMetrics(99L, null));
+    }
+
+    @Test
+    public void getAuditMetrics_success_setsServiceId() throws Throwable {
+        SolrAccessAuditsService service = createServiceWithHelper();
+        SolrClient client = mock(SolrClient.class);
+        when(service.auditMetricsHelper.solrMgr.getSolrClient()).thenReturn(client);
+
+        QueryResponse response = mock(QueryResponse.class);
+        SolrDocumentList results = new SolrDocumentList();
+        results.setNumFound(10);
+        when(response.getResults()).thenReturn(results);
+        when(response.getStatus()).thenReturn(0);
+        when(service.auditMetricsHelper.solrUtil.runQuery(eq(client), any(SolrQuery.class))).thenReturn(response);
+
+        RangerDaoManager daoManager = mock(RangerDaoManager.class);
+        XXServiceDao svcDao = mock(XXServiceDao.class);
+        XXServiceDefDao sdDao = mock(XXServiceDefDao.class);
+        XXService xxService = mock(XXService.class);
+        XXServiceDef sd = mock(XXServiceDef.class);
+        when(daoManager.getXXService()).thenReturn(svcDao);
+        when(daoManager.getXXServiceDef()).thenReturn(sdDao);
+        when(svcDao.getById(5L)).thenReturn(xxService);
+        when(xxService.getName()).thenReturn("dev_hdfs");
+        when(xxService.getType()).thenReturn(1L);
+        when(sdDao.getById(1L)).thenReturn(sd);
+        when(sd.getName()).thenReturn("hdfs");
+        injectField(service, AccessAuditsService.class, "daoManager", daoManager);
+        injectField(service.auditMetricsHelper.auditMetricsHelper, AuditMetricsHelper.class, "daoManager", daoManager);
+
+        RangerAuditMetrics metrics = service.getAuditMetrics(5L, null);
+
+        assertEquals(5L, metrics.getId());
+        assertEquals("dev_hdfs", metrics.getServiceName());
+        assertEquals(10L, metrics.getNumberOfAudits());
+    }
+
+    private SolrAccessAuditsService createServiceWithHelper() {
+        SolrAccessAuditsService service = new SolrAccessAuditsService();
+        service.auditMetricsHelper = new SolrAuditMetricsHelper();
+        service.auditMetricsHelper.auditMetricsHelper = new AuditMetricsHelper();
+        service.auditMetricsHelper.solrMgr = mock(SolrMgr.class);
+        service.auditMetricsHelper.solrUtil = mock(SolrUtil.class);
+        service.auditMetricsHelper.restErrorUtil = new RESTErrorUtil();
+        setRestErrorUtil(service);
+        return service;
     }
 
     private static void setRestErrorUtil(AccessAuditsService svc) {

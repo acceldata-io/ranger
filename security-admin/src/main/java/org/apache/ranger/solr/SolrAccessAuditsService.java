@@ -20,13 +20,18 @@
 package org.apache.ranger.solr;
 
 import org.apache.ranger.AccessAuditsService;
+import org.apache.ranger.audit.metrics.AccessAuditsMetricsService;
 import org.apache.ranger.audit.provider.MiscUtil;
 import org.apache.ranger.common.MessageEnums;
 import org.apache.ranger.common.PropertiesUtil;
 import org.apache.ranger.common.SearchCriteria;
 import org.apache.ranger.entity.XXService;
 import org.apache.ranger.entity.XXServiceDef;
+import org.apache.ranger.plugin.model.RangerAuditMetrics;
+import org.apache.ranger.plugin.model.RangerAuditMetricsByDays;
+import org.apache.ranger.plugin.model.RangerAuditMetricsByHours;
 import org.apache.ranger.plugin.util.JsonUtilsV2;
+import org.apache.ranger.plugin.util.SearchFilter;
 import org.apache.ranger.view.VXAccessAudit;
 import org.apache.ranger.view.VXAccessAuditList;
 import org.apache.ranger.view.VXLong;
@@ -47,7 +52,7 @@ import java.util.Map;
 
 @Service
 @Scope("singleton")
-public class SolrAccessAuditsService extends AccessAuditsService {
+public class SolrAccessAuditsService extends AccessAuditsService implements AccessAuditsMetricsService {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolrAccessAuditsService.class);
 
     @Autowired
@@ -55,6 +60,9 @@ public class SolrAccessAuditsService extends AccessAuditsService {
 
     @Autowired
     SolrUtil solrUtil;
+
+    @Autowired
+    SolrAuditMetricsHelper auditMetricsHelper;
 
     public VXAccessAuditList searchXAccessAudits(SearchCriteria searchCriteria) {
         // Make call to Solr
@@ -124,6 +132,64 @@ public class SolrAccessAuditsService extends AccessAuditsService {
         vXLong.setValue(count);
 
         return vXLong;
+    }
+
+    public RangerAuditMetrics getLatestAuditMetrics(String serviceType, String serviceName) {
+        return getLatestAuditMetrics(serviceType, serviceName, null);
+    }
+
+    public RangerAuditMetrics getLatestAuditMetrics(String serviceType, String serviceName, String timezone) {
+        return auditMetricsHelper.getLatestAuditMetrics(serviceType, serviceName, timezone);
+    }
+
+    public RangerAuditMetrics getAuditMetrics(Long serviceId) {
+        return getAuditMetrics(serviceId, null);
+    }
+
+    public RangerAuditMetrics getAuditMetrics(Long serviceId, String timezone) {
+        if (serviceId == null) {
+            throw restErrorUtil.createRESTException("AuditMetrics id is required");
+        }
+
+        if (daoManager == null || daoManager.getXXService() == null) {
+            throw restErrorUtil.createRESTException("Service lookup is not available");
+        }
+
+        XXService service = daoManager.getXXService().getById(serviceId);
+        if (service == null) {
+            throw restErrorUtil.createRESTException("AuditMetrics with Id: " + serviceId + " does not exist");
+        }
+
+        String serviceName = service.getName();
+        String serviceType = auditMetricsHelper.resolveServiceType(service);
+
+        RangerAuditMetrics metric = auditMetricsHelper.getLatestAuditMetrics(serviceType, serviceName, timezone);
+        metric.setId(serviceId);
+        return metric;
+    }
+
+    public List<RangerAuditMetrics> getLatestAuditMetricsList(SearchFilter filter) {
+        return getLatestAuditMetricsList(filter, null);
+    }
+
+    public List<RangerAuditMetrics> getLatestAuditMetricsList(SearchFilter filter, String timezone) {
+        return auditMetricsHelper.getLatestAuditMetricsList(filter, timezone);
+    }
+
+    public List<RangerAuditMetricsByDays> getAuditMetricsByDays(int olderThanInDays, SearchFilter filter) {
+        return getAuditMetricsByDays(olderThanInDays, filter, null);
+    }
+
+    public List<RangerAuditMetricsByDays> getAuditMetricsByDays(int olderThanInDays, SearchFilter filter, String timezone) {
+        return auditMetricsHelper.getAuditMetricsByDays(olderThanInDays, filter, timezone);
+    }
+
+    public List<RangerAuditMetricsByHours> getAuditMetricsByHours(SearchFilter filter) {
+        return getAuditMetricsByHours(filter, null);
+    }
+
+    public List<RangerAuditMetricsByHours> getAuditMetricsByHours(SearchFilter filter, String timezone) {
+        return auditMetricsHelper.getAuditMetricsByHours(filter, timezone);
     }
 
     /**

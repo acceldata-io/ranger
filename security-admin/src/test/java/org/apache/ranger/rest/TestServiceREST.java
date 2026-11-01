@@ -633,8 +633,54 @@ public class TestServiceREST {
         ResourceLookupContext context     = new ResourceLookupContext();
         context.setResourceName(serviceName);
         context.setUserInput("HDFS");
+        XXService    xService    = xService();
+        XXServiceDao xServiceDao = Mockito.mock(XXServiceDao.class);
+        Mockito.when(daoManager.getXXService()).thenReturn(xServiceDao);
+        Mockito.when(xServiceDao.findByName(serviceName)).thenReturn(xService);
+        Mockito.when(bizUtil.hasAccess(xService, null)).thenReturn(true);
         List<String> list = serviceREST.lookupResource(serviceName, context);
         Assertions.assertNotNull(list);
+    }
+
+    @Test
+    public void test13bLookupResourceNotFound() throws Exception {
+        String                serviceName = "missing_service";
+        ResourceLookupContext context     = new ResourceLookupContext();
+        XXServiceDao          xServiceDao = Mockito.mock(XXServiceDao.class);
+
+        Mockito.when(daoManager.getXXService()).thenReturn(xServiceDao);
+        Mockito.when(xServiceDao.findByName(serviceName)).thenReturn(null);
+        Mockito.when(restErrorUtil.createRESTException(Mockito.eq(HttpServletResponse.SC_NOT_FOUND), Mockito.eq("Not found"), Mockito.eq(true)))
+                .thenReturn(new WebApplicationException(HttpServletResponse.SC_NOT_FOUND));
+
+        WebApplicationException exception = Assertions.assertThrows(WebApplicationException.class,
+                () -> serviceREST.lookupResource(serviceName, context));
+
+        Assertions.assertEquals(HttpServletResponse.SC_NOT_FOUND, exception.getResponse().getStatus());
+        Mockito.verify(restErrorUtil).createRESTException(HttpServletResponse.SC_NOT_FOUND, "Not found", true);
+        Mockito.verify(serviceMgr, Mockito.never()).lookupResource(Mockito.anyString(), Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    public void test13cLookupResourceForbiddenWhenNoAccess() throws Exception {
+        String                serviceName = "HDFS_1";
+        ResourceLookupContext context     = new ResourceLookupContext();
+        XXService             xService    = xService();
+        XXServiceDao          xServiceDao = Mockito.mock(XXServiceDao.class);
+        String                deniedMsg   = "Operation denied. User is not permitted to lookup resources for service " + serviceName;
+
+        Mockito.when(daoManager.getXXService()).thenReturn(xServiceDao);
+        Mockito.when(xServiceDao.findByName(serviceName)).thenReturn(xService);
+        Mockito.when(bizUtil.hasAccess(xService, null)).thenReturn(false);
+        Mockito.when(restErrorUtil.createRESTException(Mockito.eq(HttpServletResponse.SC_FORBIDDEN), Mockito.eq(deniedMsg), Mockito.eq(true)))
+                .thenReturn(new WebApplicationException(HttpServletResponse.SC_FORBIDDEN));
+
+        WebApplicationException exception = Assertions.assertThrows(WebApplicationException.class,
+                () -> serviceREST.lookupResource(serviceName, context));
+
+        Assertions.assertEquals(HttpServletResponse.SC_FORBIDDEN, exception.getResponse().getStatus());
+        Mockito.verify(restErrorUtil).createRESTException(HttpServletResponse.SC_FORBIDDEN, deniedMsg, true);
+        Mockito.verify(serviceMgr, Mockito.never()).lookupResource(Mockito.anyString(), Mockito.any(), Mockito.any());
     }
 
     @Test
@@ -854,6 +900,35 @@ public class TestServiceREST {
         Mockito.when(xServiceDefDao.getById(xService.getType())).thenReturn(xServiceDef);
         serviceREST.deletePolicy(rangerPolicy.getId());
         Mockito.verify(validatorFactory).getPolicyValidator(svcStore);
+    }
+
+    @Test
+    public void testDeletePolicy_delegatedAdminWithoutModifyAccessIsForbidden() throws Exception {
+        // DELETE /service/plugins/policies/{id} by a non-admin delegated-admin whose grants do not
+        // cover the policy's access-types. deletePolicy() must route the stored policy through the modify check and
+        // must not delete when that check fails.
+        RangerPolicy rangerPolicy = rangerPolicy();
+        ServiceREST  spy          = Mockito.spy(serviceREST);
+
+        Mockito.when(validatorFactory.getPolicyValidator(svcStore)).thenReturn(policyValidator);
+        Mockito.when(svcStore.getPolicy(Id)).thenReturn(rangerPolicy);
+        Mockito.when(bizUtil.getCurrentUserLoginId()).thenReturn("alice");
+        Mockito.when(bizUtil.isAdmin()).thenReturn(false);
+        Mockito.when(bizUtil.isKeyAdmin()).thenReturn(false);
+        Mockito.when(svcStore.isServiceAdminUser(Mockito.anyString(), Mockito.anyString())).thenReturn(false);
+        Mockito.when(userMgr.getGroupsForUser(Mockito.anyString())).thenReturn(new HashSet<>());
+
+        RangerPolicyAdmin policyAdmin = Mockito.mock(RangerPolicyAdmin.class);
+        Mockito.doReturn(policyAdmin).when(spy).getPolicyAdminForDelegatedAdmin(Mockito.anyString());
+        Mockito.when(policyAdmin.getRolesFromUserAndGroups(Mockito.anyString(), Mockito.anySet())).thenReturn(new HashSet<>());
+        Mockito.when(policyAdmin.isDelegatedAdminAccessAllowedForModify(Mockito.same(rangerPolicy), Mockito.eq("alice"), Mockito.anySet(), Mockito.anySet(), Mockito.anyMap())).thenReturn(false);
+        Mockito.when(restErrorUtil.createRESTException(Mockito.eq(HttpServletResponse.SC_FORBIDDEN), Mockito.anyString(), Mockito.eq(true)))
+                .thenReturn(new WebApplicationException(HttpServletResponse.SC_FORBIDDEN));
+
+        Assertions.assertThrows(WebApplicationException.class, () -> spy.deletePolicy(Id));
+
+        Mockito.verify(policyAdmin).isDelegatedAdminAccessAllowedForModify(Mockito.same(rangerPolicy), Mockito.eq("alice"), Mockito.anySet(), Mockito.anySet(), Mockito.anyMap());
+        Mockito.verify(svcStore, Mockito.never()).deletePolicy(Mockito.any(RangerPolicy.class));
     }
 
     @Test
@@ -3273,6 +3348,11 @@ public class TestServiceREST {
         context.setResourceName(serviceName);
         context.setUserInput("HDFS");
 
+        XXService    xService    = xService();
+        XXServiceDao xServiceDao = Mockito.mock(XXServiceDao.class);
+        Mockito.when(daoManager.getXXService()).thenReturn(xServiceDao);
+        Mockito.when(xServiceDao.findByName(serviceName)).thenReturn(xService);
+        Mockito.when(bizUtil.hasAccess(xService, null)).thenReturn(true);
         Mockito.when(serviceMgr.lookupResource(serviceName, context, svcStore)).thenThrow(new RuntimeException("Lookup failed"));
         Mockito.when(restErrorUtil.createRESTException(Mockito.anyString())).thenReturn(new WebApplicationException());
 

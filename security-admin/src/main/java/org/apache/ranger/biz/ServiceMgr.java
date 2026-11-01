@@ -48,15 +48,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.net.InetAddress;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -75,6 +80,8 @@ public class ServiceMgr {
     private static final String KERBEROS_TYPE        = "kerberos";
     private static final String NAME_RULES           = "hadoop.security.auth_to_local";
     private static final String HOST_NAME            = "ranger.service.host";
+
+    public static final String PROP_SERVICE_CONFIG_VALIDATE_REQUIRE_SAVED_SERVICE = "ranger.serviceconfig.validate.require.saved.service";
 
     private static final long _DefaultTimeoutValue_Lookp          = 1000; // 1 s
     private static final long _DefaultTimeoutValue_ValidateConfig = 10000; // 10 s
@@ -134,15 +141,17 @@ public class ServiceMgr {
             }
         }
 
-        RangerBaseService svc = null;
-
-        if (service != null) {
-            Map<String, String> newConfigs = rangerSvcService.getConfigsWithDecryptedPassword(service);
-
-            service.setConfigs(newConfigs);
-
-            svc = getRangerServiceByService(service, svcStore);
+        if (service == null) {
+            throw new Exception("Service not found: " + serviceName);
         }
+
+        Map<String, String> newConfigs = rangerSvcService.getConfigsWithDecryptedPassword(service);
+
+        service.setConfigs(newConfigs);
+
+        validateOutboundServiceConfigs(newConfigs);
+
+        RangerBaseService svc = getRangerServiceByService(service, svcStore);
 
         LOG.debug("==> ServiceMgr.lookupResource for Service: ({}Context: {})", svc, context);
 
@@ -201,17 +210,9 @@ public class ServiceMgr {
 
         LOG.debug("==> ServiceMgr.validateConfig for Service: ({})", svc);
 
-        // check if service configs contains localhost/127.0.0.1
         if (service != null && service.getConfigs() != null) {
-            for (Map.Entry<String, String> entry : service.getConfigs().entrySet()) {
-                if (entry.getValue() != null && StringUtils.containsIgnoreCase(entry.getValue(), "localhost") || StringUtils.containsIgnoreCase(entry.getValue(), "127.0.0.1")) {
-                    URL url = getValidURL(entry.getValue());
-
-                    if ((url != null) && (url.getHost().equalsIgnoreCase("localhost") || url.getHost().equals("127.0.0.1"))) {
-                        throw new Exception("Invalid value for configuration " + entry.getKey() + ": host " + url.getHost() + " is not allowed");
-                    }
-                }
-            }
+            enforceSavedServiceEndpointConfigs(service);
+            validateOutboundServiceConfigs(service.getConfigs());
         }
 
         if (svc != null) {
@@ -445,9 +446,424 @@ public class ServiceMgr {
         }
     }
 
-    private static URL getValidURL(String urlString) {
+    private void enforceSavedServiceEndpointConfigs(RangerService service) throws Exception {
+        if (!Boolean.parseBoolean(PropertiesUtil.getProperty(PROP_SERVICE_CONFIG_VALIDATE_REQUIRE_SAVED_SERVICE, "false"))) {
+            return;
+        }
+
+        String serviceName = service.getName();
+        if (StringUtils.isBlank(serviceName)) {
+            return;
+        }
+
+        RangerService savedService = svcDBStore.getServiceByName(serviceName);
+        if (savedService == null) {
+            throw new Exception("Configuration validation requires a saved service: " + serviceName);
+        }
+
+        if (StringUtils.isNotBlank(service.getType()) && StringUtils.isNotBlank(savedService.getType())
+                && !StringUtils.equals(service.getType(), savedService.getType())) {
+            throw new Exception("Configuration validation service type does not match saved service: " + serviceName);
+        }
+
+        Map<String, String> savedConfigs = rangerSvcService.getConfigsWithDecryptedPassword(savedService);
+        if (savedConfigs == null) {
+            savedConfigs = Collections.emptyMap();
+        }
+
+        for (Map.Entry<String, String> entry : service.getConfigs().entrySet()) {
+            String configKey    = entry.getKey();
+            String requestValue = entry.getValue();
+            if (requestValue == null || requestValue.trim().isEmpty()) {
+                continue;
+            }
+
+            String savedValue = savedConfigs.get(configKey);
+            boolean savedIsEndpoint   = savedValue != null && isConnectionEndpoint(savedValue);
+            boolean requestIsEndpoint = isConnectionEndpoint(requestValue);
+
+            if (!savedIsEndpoint && !requestIsEndpoint) {
+                continue;
+            }
+
+            if (savedValue == null) {
+                throw new Exception("Invalid value for configuration " + configKey + ": endpoint property is not present in saved service configuration");
+            }
+
+            if (!savedIsEndpoint) {
+                throw new Exception("Invalid value for configuration " + configKey + ": endpoint must match the saved service configuration");
+            }
+
+            ConnectionEndpointPin savedPin   = parseConnectionEndpointPin(configKey, savedValue);
+            ConnectionEndpointPin requestPin = parseConnectionEndpointPin(configKey, requestValue);
+            if (!requestPin.matches(savedPin)) {
+                throw new Exception("Invalid value for configuration " + configKey + ": endpoint must match the saved service configuration");
+            }
+        }
+    }
+
+    private static boolean isConnectionEndpoint(String value) {
+        if (value == null) {
+            return false;
+        }
+
+        String trimmed = value.trim();
+        return looksLikeConnectionUrl(trimmed) || looksLikeJdbcAtHost(trimmed) || looksLikeHostPortEndpoint(trimmed);
+    }
+
+    private static boolean looksLikeConnectionUrl(String value) {
+        return value != null && value.contains("://");
+    }
+
+    private static boolean looksLikeJdbcAtHost(String value) {
+        if (StringUtils.isBlank(value) || looksLikeConnectionUrl(value)) {
+            return false;
+        }
+
+        return value.startsWith("jdbc:") && value.contains("@");
+    }
+
+    private static boolean looksLikeHostPortEndpoint(String value) {
+        if (StringUtils.isBlank(value) || looksLikeConnectionUrl(value) || value.contains("@")) {
+            return false;
+        }
+
+        if (value.contains(",")) {
+            for (String segment : value.split(",")) {
+                if (!looksLikeHostPortSegment(segment.trim())) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return looksLikeHostPortSegment(value.trim());
+    }
+
+    private static boolean looksLikeHostPortSegment(String segment) {
+        if (StringUtils.isBlank(segment)) {
+            return false;
+        }
+
+        if (segment.startsWith("[")) {
+            int closeBracket = segment.indexOf(']');
+            if (closeBracket <= 0) {
+                return false;
+            }
+
+            if (closeBracket + 1 >= segment.length() || segment.charAt(closeBracket + 1) != ':') {
+                return false;
+            }
+
+            return StringUtils.isNumeric(segment.substring(closeBracket + 2));
+        }
+
+        int colon = segment.lastIndexOf(':');
+        if (colon <= 0 || colon >= segment.length() - 1) {
+            return false;
+        }
+
+        return StringUtils.isNumeric(segment.substring(colon + 1));
+    }
+
+    private static ConnectionEndpointPin parseConnectionEndpointPin(String configKey, String rawValue) throws Exception {
+        String trimmed = rawValue.trim();
+        if (looksLikeConnectionUrl(trimmed)) {
+            return parseConnectionUrlPin(configKey, trimmed);
+        }
+
+        if (looksLikeJdbcAtHost(trimmed)) {
+            int at = trimmed.lastIndexOf('@');
+            String afterAt = trimmed.substring(at + 1);
+            if (afterAt.startsWith("//")) {
+                return parseConnectionUrlPin(configKey, "jdbc://" + afterAt.substring(2));
+            }
+
+            List<String> authorityHostPorts = parseCommaSeparatedHostPorts(afterAt);
+            if (authorityHostPorts.isEmpty()) {
+                throw new Exception("Invalid value for configuration " + configKey + ": connection URL cannot be parsed securely for endpoint pinning");
+            }
+
+            return new ConnectionEndpointPin("jdbc-at", null, authorityHostPorts, "");
+        }
+
+        if (looksLikeHostPortEndpoint(trimmed)) {
+            List<String> authorityHostPorts = parseCommaSeparatedHostPorts(trimmed);
+            if (authorityHostPorts.isEmpty()) {
+                throw new Exception("Invalid value for configuration " + configKey + ": connection URL cannot be parsed securely for endpoint pinning");
+            }
+
+            return new ConnectionEndpointPin("", null, authorityHostPorts, "");
+        }
+
+        throw new Exception("Invalid value for configuration " + configKey + ": connection URL cannot be parsed securely for endpoint pinning");
+    }
+
+    private static ConnectionEndpointPin parseConnectionUrlPin(String configKey, String rawValue) throws Exception {
+        String trimmed = rawValue.trim();
+        int    schemeSep = trimmed.indexOf("://");
+        if (schemeSep < 0) {
+            throw new Exception("Invalid value for configuration " + configKey + ": connection URL cannot be parsed securely for endpoint pinning");
+        }
+
+        String scheme    = trimmed.substring(0, schemeSep).toLowerCase(Locale.ROOT);
+        String remainder = trimmed.substring(schemeSep + 3);
+
+        String path       = "";
+        String authority  = remainder;
+        int    pathStart  = remainder.indexOf('/');
+        if (pathStart >= 0) {
+            authority = remainder.substring(0, pathStart);
+            path      = normalizePathForPinning(remainder.substring(pathStart));
+        }
+
+        String userInfo     = null;
+        String hostPortPart = authority;
+        if (authority.contains("@")) {
+            int at = authority.lastIndexOf('@');
+            userInfo     = authority.substring(0, at);
+            hostPortPart = authority.substring(at + 1);
+        }
+
+        List<String> authorityHostPorts = parseCommaSeparatedHostPorts(hostPortPart);
+        if (authorityHostPorts.isEmpty() && StringUtils.isBlank(hostPortPart)) {
+            if (StringUtils.isBlank(path) || "/".equals(path)) {
+                throw new Exception("Invalid value for configuration " + configKey + ": connection URL cannot be parsed securely for endpoint pinning");
+            }
+        } else if (authorityHostPorts.isEmpty()) {
+            throw new Exception("Invalid value for configuration " + configKey + ": connection URL cannot be parsed securely for endpoint pinning");
+        }
+
+        return new ConnectionEndpointPin(scheme, userInfo, authorityHostPorts, path);
+    }
+
+    private static String normalizePathForPinning(String path) {
+        if (path == null) {
+            return "";
+        }
+        int cut = path.length();
+        for (int i = 0; i < path.length(); i++) {
+            char c = path.charAt(i);
+            if (c == '?' || c == '#') {
+                cut = i;
+                break;
+            }
+        }
+        return path.substring(0, cut);
+    }
+
+    private static List<String> parseCommaSeparatedHostPorts(String hostPortPart) {
+        List<String> ret = new ArrayList<>();
+        if (StringUtils.isBlank(hostPortPart)) {
+            return ret;
+        }
+
+        for (String segment : hostPortPart.split(",")) {
+            String normalized = normalizeHostPortSegment(segment.trim());
+            if (StringUtils.isNotBlank(normalized)) {
+                ret.add(normalized);
+            }
+        }
+
+        return ret;
+    }
+
+    private static String normalizeHostPortSegment(String segment) {
+        if (StringUtils.isBlank(segment)) {
+            return segment;
+        }
+
+        if (segment.startsWith("[")) {
+            int closeBracket = segment.indexOf(']');
+            if (closeBracket > 0) {
+                String host     = segment.substring(1, closeBracket).toLowerCase(Locale.ROOT);
+                String portSuffix = closeBracket + 1 < segment.length() ? segment.substring(closeBracket + 1) : "";
+                return host + portSuffix;
+            }
+        }
+
+        int colonCount = StringUtils.countMatches(segment, ":");
+        if (colonCount == 1) {
+            int colon = segment.indexOf(':');
+            return segment.substring(0, colon).toLowerCase(Locale.ROOT) + segment.substring(colon);
+        }
+
+        return segment.toLowerCase(Locale.ROOT);
+    }
+
+    private static final class ConnectionEndpointPin {
+        private final String       scheme;
+        private final String       userInfo;
+        private final List<String> authorityHostPorts;
+        private final String       path;
+
+        private ConnectionEndpointPin(String scheme, String userInfo, List<String> authorityHostPorts, String path) {
+            this.scheme              = scheme;
+            this.userInfo            = StringUtils.isBlank(userInfo) ? null : userInfo;
+            this.authorityHostPorts  = authorityHostPorts == null ? Collections.emptyList() : authorityHostPorts;
+            this.path                = path == null ? "" : path;
+        }
+
+        private boolean matches(ConnectionEndpointPin saved) {
+            return Objects.equals(scheme, saved.scheme)
+                    && Objects.equals(userInfo, saved.userInfo)
+                    && Objects.equals(path, saved.path)
+                    && authorityHostPorts.equals(saved.authorityHostPorts);
+        }
+    }
+
+    private static void validateOutboundServiceConfigs(Map<String, String> configs) throws Exception {
+        if (configs == null) {
+            return;
+        }
+
+        for (Map.Entry<String, String> entry : configs.entrySet()) {
+            String configValue = entry.getValue();
+            if (configValue != null && !configValue.trim().isEmpty()) {
+                String userInfo = extractUserInfo(configValue);
+                if (userInfoContainsBlockedHost(userInfo)) {
+                    throw new Exception("Invalid value for configuration " + entry.getKey() + ": userinfo contains blocked host (blocked host detected)");
+                }
+
+                String host = extractHost(configValue);
+                if (host != null) {
+                    if (isBlockedHost(host)) {
+                        throw new Exception("Invalid value for configuration " + entry.getKey() + ": host " + host + " is not allowed (blocked host detected)");
+                    }
+                } else {
+                    String lowerVal = configValue.toLowerCase().trim();
+                    if (lowerVal.contains("localhost") || lowerVal.contains("127.0.0.1") || lowerVal.contains("0.0.0.0") || lowerVal.contains("::1")) {
+                        throw new Exception("Invalid value for configuration " + entry.getKey() + ": contains blocked keywords but could not be parsed securely.");
+                    }
+                }
+            }
+        }
+    }
+
+    private static URI toConfigUri(String urlString) throws Exception {
+        String processedUrl = urlString.trim().replaceFirst("(?i)^jdbc:", "");
+        if (!processedUrl.contains("://")) {
+            processedUrl = "http://" + processedUrl;
+        }
+
+        // Bracket IPv6 literals only (must contain ':' in the host segment; avoids decimal IPs like 2130706433:6379)
+        processedUrl = processedUrl.replaceFirst("://((?:[0-9a-fA-F]*:)+[0-9a-fA-F]*):(\\d+)(/.*)?$", "://[$1]:$2$3");
+
+        return new URI(processedUrl);
+    }
+
+    private static String extractUserInfo(String urlString) {
         try {
-            return new URL(urlString);
+            return toConfigUri(urlString).getUserInfo();
+        } catch (Exception e) {
+            LOG.debug("Failed to extract userinfo from string: {}", urlString, e);
+            return null;
+        }
+    }
+
+    private static boolean userInfoContainsBlockedHost(String userInfo) {
+        if (StringUtils.isBlank(userInfo)) {
+            return false;
+        }
+
+        String[] segments = userInfo.split(":");
+        for (String segment : segments) {
+            if (StringUtils.isNotBlank(segment) && isBlockedHost(segment.trim())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static String extractHost(String urlString) {
+        try {
+            URI    uri  = toConfigUri(urlString);
+            String host = uri.getHost();
+
+            if (host == null && uri.getAuthority() != null) {
+                host = uri.getAuthority();
+                // Strip credentials if present (e.g., user:pass@127.1)
+                if (host.contains("@")) {
+                    host = host.substring(host.lastIndexOf("@") + 1);
+                }
+
+                if (host.startsWith("[")) {
+                    int closeBracket = host.indexOf("]");
+                    int portColon    = host.indexOf(":", closeBracket);
+                    if (portColon > -1) {
+                        host = host.substring(0, portColon);
+                    }
+                } else if (host.contains(":")) {
+                    host = host.substring(0, host.indexOf(":"));
+                }
+            }
+
+            return host != null ? host.replaceAll("^\\[|\\]$", "") : null;
+        } catch (Exception e) {
+            LOG.debug("Failed to extract host from string: {}", urlString, e);
+            return null;
+        }
+    }
+
+    private static boolean isBlockedHost(String host) {
+        if (host == null || host.trim().isEmpty()) {
+            return false;
+        }
+        host = host.trim().toLowerCase();
+
+        // Expand POSIX shorthand IPs (e.g., 127.1 -> 127.0.0.1)
+        String normalizedIP = normalizePOSIXIp(host);
+        if (normalizedIP != null) {
+            host = normalizedIP;
+        }
+
+        try {
+            InetAddress addr = InetAddress.getByName(host);
+
+            return addr.isLoopbackAddress() || addr.isLinkLocalAddress() || addr.isAnyLocalAddress() || "localhost".equals(host);
+        } catch (UnknownHostException e) {
+            LOG.debug("Host could not be resolved, allowing by default: {}", host);
+            return false;
+        }
+    }
+
+    private static String normalizePOSIXIp(String host) {
+        String[] parts = host.split("\\.");
+        if (parts.length < 1 || parts.length > 4) {
+            return null;
+        }
+
+        try {
+            long[] vals = new long[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                String p = parts[i].trim();
+                if (p.isEmpty()) {
+                    return null;
+                }
+
+                int radix = (p.startsWith("0x") || p.startsWith("0X")) ? 16 : (p.startsWith("0") && p.length() > 1 ? 8 : 10);
+                vals[i] = Long.parseLong(p.replaceFirst("(?i)^0x", ""), radix);
+            }
+
+            long ip = 0;
+            switch (parts.length) {
+                case 1:
+                    ip = vals[0];
+                    break;
+                case 2:
+                    ip = (vals[0] << 24) | vals[1];
+                    break;
+                case 3:
+                    ip = (vals[0] << 24) | (vals[1] << 16) | vals[2];
+                    break;
+                case 4:
+                    ip = (vals[0] << 24) | (vals[1] << 16) | (vals[2] << 8) | vals[3];
+                    break;
+            }
+
+            return String.format("%d.%d.%d.%d", (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255);
         } catch (Exception e) {
             return null;
         }
@@ -481,7 +897,10 @@ public class ServiceMgr {
                             } else {
                                 URL[]          pluginFiles = getPluginFilesForServiceType(serviceType);
                                 URLClassLoader clsLoader   = new URLClassLoader(pluginFiles, Thread.currentThread().getContextClassLoader());
-                                Class<?>       cls         = Class.forName(clsName, true, clsLoader);
+                                Class<?>       cls         = Class.forName(clsName, false, clsLoader);
+                                if (!RangerBaseService.class.isAssignableFrom(cls)) {
+                                    throw new ClassCastException("class " + clsName + " is not assignable to " + RangerBaseService.class.getName());
+                                }
 
                                 ret = (Class<? extends RangerBaseService>) cls;
                             }

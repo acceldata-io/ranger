@@ -1135,6 +1135,15 @@ public class ServiceREST {
         RangerPerfTracer perf = null;
 
         try {
+            XXService xxService = daoManager.getXXService().findByName(serviceName);
+            if (xxService == null) {
+                throw restErrorUtil.createRESTException(HttpServletResponse.SC_NOT_FOUND, "Not found", true);
+            }
+            if (!Boolean.TRUE.equals(bizUtil.hasAccess(xxService, null))) {
+                throw restErrorUtil.createRESTException(HttpServletResponse.SC_FORBIDDEN,
+                        "Operation denied. User is not permitted to lookup resources for service " + serviceName, true);
+            }
+
             if (RangerPerfTracer.isPerfTraceEnabled(PERF_LOG)) {
                 perf = RangerPerfTracer.getPerfTracer(PERF_LOG, "ServiceREST.lookupResource(serviceName=" + serviceName + ")");
             }
@@ -1190,7 +1199,7 @@ public class ServiceREST {
                 Set<String>          accessTypes = grantRequest.getAccessTypes();
                 VXUser               vxUser      = xUserService.getXUserByUserName(userName);
 
-                if (vxUser.getUserRoleList().contains(RangerConstants.ROLE_ADMIN_AUDITOR) || vxUser.getUserRoleList().contains(RangerConstants.ROLE_KEY_ADMIN_AUDITOR)) {
+                if ((vxUser.getUserRoleList().contains(RangerConstants.ROLE_ADMIN_AUDITOR) || vxUser.getUserRoleList().contains(RangerConstants.ROLE_KEY_ADMIN_AUDITOR)) && !bizUtil.isConfigSuperUser(userName)) {
                     VXResponse vXResponse = new VXResponse();
 
                     vXResponse.setStatusCode(HttpServletResponse.SC_FORBIDDEN);
@@ -1435,7 +1444,7 @@ public class ServiceREST {
                     Set<String>          accessTypes = revokeRequest.getAccessTypes();
                     VXUser               vxUser      = xUserService.getXUserByUserName(userName);
 
-                    if (vxUser.getUserRoleList().contains(RangerConstants.ROLE_ADMIN_AUDITOR) || vxUser.getUserRoleList().contains(RangerConstants.ROLE_KEY_ADMIN_AUDITOR)) {
+                    if ((vxUser.getUserRoleList().contains(RangerConstants.ROLE_ADMIN_AUDITOR) || vxUser.getUserRoleList().contains(RangerConstants.ROLE_KEY_ADMIN_AUDITOR)) && !bizUtil.isConfigSuperUser(userName)) {
                         VXResponse vXResponse = new VXResponse();
 
                         vXResponse.setStatusCode(HttpServletResponse.SC_FORBIDDEN);

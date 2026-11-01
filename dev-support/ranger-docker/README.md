@@ -24,9 +24,9 @@ Use Dockerfiles in this directory to create docker images and run them to build 
 ### Environment Setup
 
 - Ensure that you have recent version of Docker installed from [docker.io](http://www.docker.io) (as of this writing: Engine v24.0.5, Compose v2.20.2).
-   Make sure to configure docker with at least 8gb of memory.
+   Make sure to configure docker with at least 4gb of memory for the full stack (Ranger core services default to 256 MB JVM heap each; see `.env`).
 
-- Update environment variables in ```.env``` file, if necessary
+- Update environment variables in ```.env``` file, if necessary. JVM heap per service is controlled by `RANGER_*_MAX_HEAP` variables; docker compose passes them into each container and upstream start scripts read them when building `JAVA_OPTS`. Non-docker installs keep upstream defaults (typically `1g`) when these variables are unset.
 
 - Set ```dev-support/ranger-docker``` as your working directory.
 
@@ -43,6 +43,14 @@ Use Dockerfiles in this directory to create docker images and run them to build 
   
   # valid values for RANGER_DB_TYPE: mysql/postgres/oracle
    ~~~
+
+- Ranger Admin container is configured at runtime from files in `scripts/admin/configs`, mounted at `/opt/ranger/admin/configs`:
+  - `ranger-admin-site.xml`, when mounted at `/opt/ranger/admin/configs`, is used as it is.
+  - if `ranger-admin-site.xml` is not present, then `ranger-admin-site-${RANGER_DB_TYPE}.yaml` is the complete Ranger Admin configuration, as a flat map of property name to value. On start, `scripts/admin/dba.py` renders `conf/ranger-admin-site.xml` from it, without using the configuration shipped in the admin distribution; update this file to change Ranger Admin configuration.
+  - any other file in this directory (for example, `logback.xml`) is copied to `conf/` as-is.
+  - passwords of the database user and built-in users (admin, rangerusersync, rangertagsync, keyadmin) are read from `RANGER_*_PASSWORD` variables in `.env`.
+  - container logs (`docker logs ranger`) consist of logs from `dba.py` (with progress of database/java patches), `create-ranger-services.py`, `catalina.out` and Ranger Admin log (`ranger-admin-<hostname>-<user>.log`), which continues to be written to `/var/log/ranger` as well. A log line marks the moment Ranger Admin is ready. Logs are colored when the container has a TTY (as with docker compose); set `NO_COLOR` to disable colors.
+  - trusted header authentication (`X-Forwarded-User`) is enabled, so that the readiness endpoint `/service/actuator/health/readiness` can be queried as `healthcheck` user; any client reaching Ranger Admin can use this header, so enable it only behind a trusted proxy outside of this development setup.
 
 ### Apache Ranger Build
 
@@ -83,13 +91,17 @@ export ENABLE_FILE_SYNC_SOURCE=true
 export RANGER_DB_TYPE=postgres
 
 # valid values for AUDIT_INDEX_STORE: opensearch (default) | solr
-# Ranger Admin audit_store (via ranger.sh); set matching profile for compose:
+# overrides ranger.audit.source.type of Ranger Admin (via ranger.sh); set matching profile for compose:
 export AUDIT_INDEX_STORE=opensearch
 export AUDIT_DESTINATIONS=audit-store-${AUDIT_INDEX_STORE}
 docker compose --profile ${AUDIT_DESTINATIONS} -f docker-compose.ranger.yml -f docker-compose.ranger-audit-service.yml -f docker-compose.ranger-usersync.yml -f docker-compose.ranger-tagsync.yml -f docker-compose.ranger-pdp.yml -f docker-compose.ranger-kms.yml up -d
 
 # Ranger Admin can be accessed at http://localhost:6080 (admin/rangerR0cks!)
 ~~~
+
+#### Kafka client authentication for the audit pipeline and tagsync
+See [README-KAFKA-CLIENT-AUTH.md](README-KAFKA-CLIENT-AUTH.md) for the supported mechanisms (GSSAPI by default, OAUTHBEARER used here) and how this setup exercises them.
+
 #### Bring up hive container
 ~~~
 docker compose --profile ${AUDIT_DESTINATIONS} -f docker-compose.ranger.yml -f docker-compose.ranger-audit-service.yml -f docker-compose.ranger-hadoop.yml -f docker-compose.ranger-hive.yml up -d
