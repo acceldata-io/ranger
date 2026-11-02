@@ -963,17 +963,17 @@
                 <groupId>org.glassfish.jaxb</groupId>
                 <artifactId>jaxb-runtime</artifactId>
                 <version>${jaxb.api.version}</version>
-	</dependency>
-	<dependency>
-    <groupId>com.sun.jersey</groupId>
-    <artifactId>jersey-bundle</artifactId>
-    <version>1.19.4</version>
-</dependency>
-	<dependency>
-    <groupId>com.sun.xml.bind</groupId>
-    <artifactId>jaxb-impl</artifactId>
-    <version>2.3.3</version>
-</dependency>
+	        </dependency>
+	        <dependency>
+                <groupId>com.sun.jersey</groupId>
+                <artifactId>jersey-bundle</artifactId>
+                <version>1.19.4</version>
+            </dependency>
+	        <dependency>
+                <groupId>com.sun.xml.bind</groupId>
+                <artifactId>jaxb-impl</artifactId>
+                <version>2.3.3</version>
+            </dependency>
             <dependency>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -990,6 +990,11 @@
                     </exclusion>
                 </exclusions>
             </dependency>
+            <dependency>
+    		    <groupId>org.slf4j</groupId>
+    		    <artifactId>slf4j-api</artifactId>
+    		    <version>${slf4j.version}</version>
+	        </dependency>
         </dependencies>
     </dependencyManagement>
     <build>
