@@ -27,7 +27,12 @@ ENV JAVA_HOME  /usr/lib/jvm/java-${RANGER_BUILD_JAVA_VERSION}-openjdk-${TARGETAR
 ENV MAVEN_HOME /usr/share/maven
 ENV PATH       /usr/java/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/apache-maven/bin
 
-RUN update-java-alternatives --set /usr/lib/jvm/java-1.${RANGER_BUILD_JAVA_VERSION}.0-openjdk-${TARGETARCH}
+RUN set -e; \
+    if [ -d "/usr/lib/jvm/java-1.${RANGER_BUILD_JAVA_VERSION}.0-openjdk-${TARGETARCH}" ]; then \
+        update-java-alternatives --set /usr/lib/jvm/java-1.${RANGER_BUILD_JAVA_VERSION}.0-openjdk-${TARGETARCH}; \
+    else \
+        update-java-alternatives --set /usr/lib/jvm/java-${RANGER_BUILD_JAVA_VERSION}-openjdk-${TARGETARCH}; \
+    fi
 
 # setup ranger group, and users
 RUN mkdir -p /home/ranger/git && \
