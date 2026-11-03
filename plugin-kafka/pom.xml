@@ -174,10 +174,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- ZooKeeper client for the Solr audit destination (SolrJ CloudSolrClient).
+             ranger-plugins-audit excludes it from solr-solrj, and Kafka 4 no longer ships it in libs/,
+             so it is packaged in ranger-kafka-plugin-impl (same as the Ozone/Trino plugins). -->
         <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
             <version>${zookeeper.version}</version>
+            <scope>runtime</scope>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
@@ -200,7 +204,6 @@
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

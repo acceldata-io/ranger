@@ -76,6 +76,9 @@
                                         <include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:jar:${fasterxml.jackson.version}</include>
 					<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:jar:${fasterxml.jackson.version}</include>
 					<include>org.apache.solr:solr-solrj:jar:${solr.version}</include>
+					<!-- ZooKeeper client for the Solr audit destination; Kafka 4 does not ship it in libs/ -->
+					<include>org.apache.zookeeper:zookeeper:jar:${zookeeper.version}</include>
+					<include>org.apache.zookeeper:zookeeper-jute:jar:${zookeeper.version}</include>
 					<include>commons-codec:commons-codec</include>
 					<include>org.codehaus.woodstox:stax2-api</include>
 					<include>com.fasterxml.woodstox:woodstox-core</include>
