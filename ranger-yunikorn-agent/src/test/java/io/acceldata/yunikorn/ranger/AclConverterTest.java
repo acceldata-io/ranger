@@ -427,6 +427,23 @@ class AclConverterTest {
         }
 
         @Test
+        @DisplayName("Blank names are dropped and an all-blank side is treated as empty")
+        void blankNames() {
+            assertThat(AclConverter.formatAcl(set(" ", "bob"), null)).isEqualTo("bob");
+            assertThat(AclConverter.formatAcl(set(" "), null)).isNull();
+            assertThat(AclConverter.formatAcl(set(" "), set("  "))).isNull();
+            assertThat(AclConverter.formatAcl(set(" "), set("devs"))).isEqualTo(" devs");
+            assertThat(AclConverter.formatAcl(set("alice"), set(" "))).isEqualTo("alice");
+        }
+
+        @Test
+        @DisplayName("Names equal after trimming are written once")
+        void duplicatesAfterTrim() {
+            assertThat(AclConverter.formatAcl(set("alice", "alice "), set("[DEV] Admins", " [DEV] Admins")))
+                    .isEqualTo("alice %5BDEV%5D%20Admins");
+        }
+
+        @Test
         @DisplayName("Encoded names never contain separators and decode back to the original")
         void roundTrip() throws Exception {
             String name = "Smith, John (Contractor) & co+ü%";

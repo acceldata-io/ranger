@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -261,22 +262,46 @@ public final class AclConverter {
      * <p>The leading space when only groups are present is intentional —
      * YuniKorn's parser splits on space first, so the empty user side has
      * to be a real empty token.
+     *
+     * <p>Each name goes through {@link #aclName}: it is trimmed, and names
+     * that are not plain are percent-encoded (for example
+     * {@code "John Smith"} becomes {@code "%4Aohn%20Smith"}). Blank names
+     * are dropped, and names that end up identical after trimming are
+     * written once. If no names are left on either side, the result is
+     * {@code null}.
      */
     static String formatAcl(Set<String> users, Set<String> groups) {
-        boolean hasUsers  = users  != null && !users.isEmpty();
-        boolean hasGroups = groups != null && !groups.isEmpty();
-        if (!hasUsers && !hasGroups) return null;
+        String userPart  = joinAclNames(users,  PLAIN_USER,  "user");
+        String groupPart = joinAclNames(groups, PLAIN_GROUP, "group");
 
-        String userPart  = hasUsers  ? joinAclNames(users,  PLAIN_USER)  : "";
-        String groupPart = hasGroups ? joinAclNames(groups, PLAIN_GROUP) : "";
-
-        if (hasUsers && !hasGroups) return userPart;
+        if (userPart.isEmpty() && groupPart.isEmpty()) return null;
+        if (groupPart.isEmpty()) return userPart;
         return userPart + " " + groupPart;
     }
 
-    private static String joinAclNames(Set<String> names, Pattern plain) {
-        return names.stream().map(n -> aclName(n, plain)).collect(Collectors.joining(","));
+    /** Encodes, de-duplicates (keeping first-seen order) and comma-joins names; blank names are dropped. */
+    private static String joinAclNames(Set<String> names, Pattern plain, String kind) {
+        if (names == null || names.isEmpty()) return "";
+        return names.stream()
+                .filter(Objects::nonNull)
+                .map(n -> {
+                    String encoded = aclName(n, plain);
+                    if (!encoded.isEmpty() && !encoded.equals(n.strip()) && WARNED_ENCODED.add(kind + ":" + n)) {
+                        LOG.warn("ACL {} name '{}' is not a plain YuniKorn name and is written "
+                                + "percent-encoded as '{}'; a YuniKorn without percent-decoding "
+                                + "support will ignore it", kind, n, encoded);
+                    }
+                    return encoded;
+                })
+                .filter(n -> !n.isEmpty())
+                .distinct()
+                .collect(Collectors.joining(","));
     }
+
+    /** Names already warned about, so each encoded name is logged once rather than on every sync. */
+    private static final Set<String> WARNED_ENCODED = ConcurrentHashMap.newKeySet();
+
+    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
     /**
      * Returns the name as written into a YuniKorn ACL. The name is trimmed
@@ -285,7 +310,7 @@ public final class AclConverter {
      * percent-encoded: the first byte and every UTF-8 byte outside
      * {@code [A-Za-z0-9_-]} become {@code %XX}. The result always contains
      * {@code %}, which is what makes YuniKorn decode it, and never contains
-     * the ACL separators (space, comma).
+     * the ACL separators (space, comma). A blank name returns {@code ""}.
      */
     static String aclName(String name, Pattern plain) {
         name = name.strip();
@@ -293,12 +318,16 @@ public final class AclConverter {
             return name;
         }
         byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
-        StringBuilder out = new StringBuilder();
+        StringBuilder out = new StringBuilder(bytes.length * 3);
         for (int i = 0; i < bytes.length; i++) {
             int c = bytes[i] & 0xFF;
             boolean keep = i > 0 && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
                     || (c >= '0' && c <= '9') || c == '_' || c == '-');
-            out.append(keep ? String.valueOf((char) c) : String.format("%%%02X", c));
+            if (keep) {
+                out.append((char) c);
+            } else {
+                out.append('%').append(HEX[c >> 4]).append(HEX[c & 0xF]);
+            }
         }
         return out.toString();
     }
