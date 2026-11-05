@@ -73,7 +73,9 @@ fi
 # As this script is common to all component, find the component name based on the script-name
 #
 
-COMPONENT_NAME=`basename $0 | cut -d. -f1 | sed -e 's:^disable-::' | sed -e 's:^enable-::'`
+# Normally the component comes from this script's own name. A plugin whose
+# enable script wraps this one cannot rename it, so allow an override.
+COMPONENT_NAME=${RANGER_COMPONENT_NAME:-`basename $0 | cut -d. -f1 | sed -e 's:^disable-::' | sed -e 's:^enable-::'`}
 
 echo "${COMPONENT_NAME}" | grep 'plugin' > /dev/null 2>&1
 
