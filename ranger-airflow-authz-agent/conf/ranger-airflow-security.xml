@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<!--
+  Copyright 2026 Acceldata Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+-->
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+	<property>
+		<name>ranger.plugin.airflow.policy.rest.url</name>
+		<value>http://localhost:6080</value>
+		<description>URL to Ranger Admin</description>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.service.name</name>
+		<value>odp_airflow</value>
+		<description>Name of the Ranger service containing policies for this Airflow instance</description>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.policy.source.impl</name>
+		<value>org.apache.ranger.admin.client.RangerAdminRESTClient</value>
+		<description>Class to retrieve policies from the source</description>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.policy.rest.ssl.config.file</name>
+		<value>ranger-policymgr-ssl.xml</value>
+		<description>Path to the file containing SSL details to contact Ranger Admin</description>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.policy.pollIntervalMs</name>
+		<value>30000</value>
+		<description>How often to poll for changes in policies</description>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.policy.cache.dir</name>
+		<value>/etc/ranger/airflow/policycache</value>
+		<description>Directory where Ranger policies are cached after successful retrieval</description>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.policy.rest.client.connection.timeoutMs</name>
+		<value>120000</value>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.policy.rest.client.read.timeoutMs</name>
+		<value>30000</value>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.access.cluster.name</name>
+		<value></value>
+		<description>Cluster name written into audit records</description>
+	</property>
+	<!-- Groups come from Ranger's user store, never from the caller. -->
+	<property>
+		<name>ranger.plugin.airflow.use.rangerGroups</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.use.only.rangerGroups</name>
+		<value>true</value>
+	</property>
+	<!-- Keytab login to a Kerberized Ranger admin. Leave initialize=false for
+	     basic-auth / unsecured Ranger; set true and fill principal + file otherwise. -->
+	<property>
+		<name>ranger.plugin.airflow.ugi.initialize</name>
+		<value>false</value>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.ugi.login.type</name>
+		<value>keytab</value>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.ugi.keytab.principal</name>
+		<value></value>
+	</property>
+	<property>
+		<name>ranger.plugin.airflow.ugi.keytab.file</name>
+		<value></value>
+	</property>
+</configuration>
