@@ -272,6 +272,36 @@ class AuthzServerTest {
     }
 
     @Test
+    @DisplayName("filter rejects an all-blank key list instead of returning an unaudited 200")
+    void filterRejectsAllBlankKeys() throws Exception {
+        String body = "{\"user\":\"spark@CORP.EXAMPLE\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags\"},"
+                + "\"resource_type\":\"dag\",\"method\":\"GET\","
+                + "\"keys\":[\"\",\"  \"]}";
+        post("/v1/filter", "Bearer " + TOKEN, body, 400);
+
+        // Nothing evaluated, so there must be no summary claiming otherwise.
+        assertThat(engine.unauditedEvaluations.get()).isZero();
+        assertThat(engine.auditSummaries.get()).isZero();
+    }
+
+    @Test
+    @DisplayName("filter counts only the keys it actually evaluated")
+    void filterEvaluatedCountSkipsBlanks() throws Exception {
+        engine.allowedKeys = Set.of("etl_0001");
+
+        String body = "{\"user\":\"spark@CORP.EXAMPLE\","
+                + "\"context\":{\"client_ip\":\"10.4.2.19\",\"request_uri\":\"/api/v2/dags\"},"
+                + "\"resource_type\":\"dag\",\"method\":\"GET\","
+                + "\"keys\":[\"etl_0001\",\"\",\"mktg_0001\"]}";
+        JsonNode out = post("/v1/filter", "Bearer " + TOKEN, body, 200);
+
+        assertThat(out.path("evaluated").asInt()).isEqualTo(2);
+        assertThat(engine.auditSummaries.get()).isEqualTo(1);
+        assertThat(engine.lastSummary.get()).isEqualTo("filter: /api/v2/dags evaluated=2 allowed=1");
+    }
+
+    @Test
     @DisplayName("filter evaluates the whole page in one batch, under one read lock")
     void filterEvaluatesAsASingleBatch() throws Exception {
         engine.allowedKeys = Set.of("etl_0001");

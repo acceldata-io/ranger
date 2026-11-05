@@ -320,7 +320,6 @@ public final class AuthzServer implements AutoCloseable {
 
                 FilterResponse out = new FilterResponse();
                 out.policy_version = engine.policyVersion();
-                out.evaluated = body.keys.size();
 
                 if (mapped.status == AccessMapper.Status.UNMAPPED) {
                     // Nothing is permitted, and there is no Ranger access type to
@@ -346,6 +345,9 @@ public final class AuthzServer implements AutoCloseable {
                     keys.add(key);
                     requests.add(buildRequest(user, body.context, mapped, key));
                 }
+
+                // Blanks were skipped above, so count what we actually ask about.
+                out.evaluated = requests.size();
 
                 List<RangerAccessResult> results = engine.evaluateAllNoAudit(requests);
                 if (results.size() != requests.size()) {
@@ -416,6 +418,11 @@ public final class AuthzServer implements AutoCloseable {
         }
         if (body.keys == null || body.keys.isEmpty()) {
             return "keys must contain at least one entry";
+        }
+        // All-blank is the same as empty: nothing to evaluate, so nothing to
+        // audit. Reject it rather than return an unaudited 200.
+        if (body.keys.stream().noneMatch(k -> k != null && !k.isBlank())) {
+            return "keys must contain at least one non-blank entry";
         }
         if (body.keys.size() > MAX_KEYS) {
             return "keys exceeds " + MAX_KEYS;
