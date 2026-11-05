@@ -113,14 +113,26 @@
   </fileSets>
 
   <files>
+    <!--
+      The generic installer only templates the plugin XMLs. It cannot start or
+      stop a separate agent process, nor set auth_manager in airflow.cfg, so
+      enable/disable is an Airflow-specific script that delegates the XML half
+      to it. Shipped under both names; the action comes from the name.
+    -->
     <file>
       <source>${project.parent.basedir}/agents-common/scripts/enable-agent.sh</source>
+      <outputDirectory></outputDirectory>
+      <destName>enable-agent.sh</destName>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <source>${project.parent.basedir}/ranger-airflow-authz-agent/scripts/airflow-plugin.sh</source>
       <outputDirectory></outputDirectory>
       <destName>enable-airflow-plugin.sh</destName>
       <fileMode>755</fileMode>
     </file>
     <file>
-      <source>${project.parent.basedir}/agents-common/scripts/enable-agent.sh</source>
+      <source>${project.parent.basedir}/ranger-airflow-authz-agent/scripts/airflow-plugin.sh</source>
       <outputDirectory></outputDirectory>
       <destName>disable-airflow-plugin.sh</destName>
       <fileMode>755</fileMode>

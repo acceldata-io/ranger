@@ -19,16 +19,17 @@ Nothing equivalent exists for Airflow. Two things have to be undone and
 neither is an XML property this installer can reach:
 
   1. [core] auth_manager in airflow.cfg must go back to the FAB auth
-     manager. airflow.cfg is managed through Ambari, so a script editing
-     it directly would be reverted on the next restart. It has to be
-     changed through Ambari configuration.
+     manager. Under Ambari that happens through configuration, because a
+     script editing airflow.cfg directly would be reverted on the next
+     restart; elsewhere disable-airflow-plugin.sh edits it.
 
   2. The agent process has to be stopped, and it is a separate daemon
      rather than a library inside a running service.
 
-Both belong to disable-airflow-plugin.sh and the service-unit work, not
-to conf templating. This file exists so the directory survives packaging
-and so the omission reads as a decision rather than an oversight.
+Both are handled by disable-airflow-plugin.sh, which stops the agent unit
+and removes auth_manager from airflow.cfg, or by Ambari when the plugin is
+managed there. This file exists so the directory survives packaging and so
+the omission reads as a decision rather than an oversight.
 
 The agent's own XML (ranger-airflow-security.xml, ranger-airflow-audit.xml)
 is deliberately left in place on disable: it is only read by the agent,
