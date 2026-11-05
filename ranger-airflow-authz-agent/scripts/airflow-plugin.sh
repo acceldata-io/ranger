@@ -123,7 +123,7 @@ After=network.target
 Type=simple
 User=${USER}
 Group=${GROUP}
-ExecStart=${JAVA_HOME_P}/bin/java -cp "${CONF_DIR}:${HERE}/lib/*" io.acceldata.airflow.ranger.RangerAirflowAuthzAgent ${CONF_DIR}/authz-agent.properties
+ExecStart=${JAVA_HOME}/bin/java -cp "${CONF_DIR}:${HERE}/lib/*" io.acceldata.airflow.ranger.RangerAirflowAuthzAgent ${CONF_DIR}/authz-agent.properties
 Restart=on-failure
 RestartSec=5
 # A clean SIGTERM stop leaves the JVM with 143; without this systemd records
