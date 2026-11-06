@@ -17,6 +17,7 @@ import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,6 +27,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Translates a list of Ranger policies into a per-queue map of YuniKorn ACL
@@ -66,6 +70,12 @@ import java.util.TreeSet;
  * groups), the trailing space is omitted; if only groups, the leading user
  * portion is empty: {@code " devs,sre"}.
  *
+ * <p>Names that don't fit YuniKorn's plain ACL form (e.g. AD names with
+ * spaces, {@code [} or {@code :}) are percent-encoded, e.g.
+ * {@code "%5BDEV%5D%20Admins"} for the group {@code "[DEV] Admins"}. The ODP
+ * YuniKorn build decodes them; a stock YuniKorn ignores them, so they get no
+ * access there rather than breaking the whole config.
+ *
  * <p>{@code null} ACL means "no allow policy for this access type" — the
  * splicer interprets this as "remove the field". Empty entries are not
  * produced; if a queue has no users and no groups granted, no map entry
@@ -81,6 +91,12 @@ public final class AclConverter {
     static final String ACCESS_SUBMIT = "submit";
     static final String ACCESS_ADMIN  = "admin";
     static final String RESOURCE_QUEUE = "queue";
+
+    // Names YuniKorn accepts as-is in an ACL (yunikorn-core pkg/common/security/acl.go).
+    private static final Pattern PLAIN_USER  = Pattern.compile("^[_a-zA-Z][a-zA-Z0-9_.@-]*[$]?$");
+    private static final Pattern PLAIN_GROUP = Pattern.compile("^[_a-zA-Z][a-zA-Z0-9_-]*$");
+    // YuniKorn's "everyone" entry, an encoded "*" would be a literal name
+    private static final String WILDCARD = "*";
 
     /**
      * @param policies the policy set as returned by Ranger Admin
@@ -246,16 +262,73 @@ public final class AclConverter {
      * <p>The leading space when only groups are present is intentional —
      * YuniKorn's parser splits on space first, so the empty user side has
      * to be a real empty token.
+     *
+     * <p>Each name goes through {@link #aclName}: it is trimmed, and names
+     * that are not plain are percent-encoded (for example
+     * {@code "John Smith"} becomes {@code "%4Aohn%20Smith"}). Blank names
+     * are dropped, and names that end up identical after trimming are
+     * written once. If no names are left on either side, the result is
+     * {@code null}.
      */
     static String formatAcl(Set<String> users, Set<String> groups) {
-        boolean hasUsers  = users  != null && !users.isEmpty();
-        boolean hasGroups = groups != null && !groups.isEmpty();
-        if (!hasUsers && !hasGroups) return null;
+        String userPart  = joinAclNames(users,  PLAIN_USER,  "user");
+        String groupPart = joinAclNames(groups, PLAIN_GROUP, "group");
 
-        String userPart  = hasUsers  ? String.join(",", users)  : "";
-        String groupPart = hasGroups ? String.join(",", groups) : "";
-
-        if (hasUsers && !hasGroups) return userPart;
+        if (userPart.isEmpty() && groupPart.isEmpty()) return null;
+        if (groupPart.isEmpty()) return userPart;
         return userPart + " " + groupPart;
+    }
+
+    /** Encodes, de-duplicates (keeping first-seen order) and comma-joins names; blank names are dropped. */
+    private static String joinAclNames(Set<String> names, Pattern plain, String kind) {
+        if (names == null || names.isEmpty()) return "";
+        return names.stream()
+                .filter(Objects::nonNull)
+                .map(n -> {
+                    String encoded = aclName(n, plain);
+                    if (!encoded.isEmpty() && !encoded.equals(n.strip()) && WARNED_ENCODED.add(kind + ":" + n)) {
+                        LOG.warn("ACL {} name '{}' is not a plain YuniKorn name and is written "
+                                + "percent-encoded as '{}'; a YuniKorn without percent-decoding "
+                                + "support will ignore it", kind, n, encoded);
+                    }
+                    return encoded;
+                })
+                .filter(n -> !n.isEmpty())
+                .distinct()
+                .collect(Collectors.joining(","));
+    }
+
+    /** Names already warned about, so each encoded name is logged once rather than on every sync. */
+    private static final Set<String> WARNED_ENCODED = ConcurrentHashMap.newKeySet();
+
+    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+
+    /**
+     * Returns the name as written into a YuniKorn ACL. The name is trimmed
+     * first, as leading or trailing whitespace would never match. The
+     * wildcard and names matching {@code plain} are kept as-is. Others are
+     * percent-encoded: the first byte and every UTF-8 byte outside
+     * {@code [A-Za-z0-9_-]} become {@code %XX}. The result always contains
+     * {@code %}, which is what makes YuniKorn decode it, and never contains
+     * the ACL separators (space, comma). A blank name returns {@code ""}.
+     */
+    static String aclName(String name, Pattern plain) {
+        name = name.strip();
+        if (name.isEmpty() || WILDCARD.equals(name) || plain.matcher(name).matches()) {
+            return name;
+        }
+        byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
+        StringBuilder out = new StringBuilder(bytes.length * 3);
+        for (int i = 0; i < bytes.length; i++) {
+            int c = bytes[i] & 0xFF;
+            boolean keep = i > 0 && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                    || (c >= '0' && c <= '9') || c == '_' || c == '-');
+            if (keep) {
+                out.append((char) c);
+            } else {
+                out.append('%').append(HEX[c >> 4]).append(HEX[c & 0xF]);
+            }
+        }
+        return out.toString();
     }
 }

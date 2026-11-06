@@ -372,6 +372,89 @@ class AclConverterTest {
     }
 
     // -----------------------------------------------------------------------
+    // Names YuniKorn can't take as-is are percent-encoded
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("Percent-encoded names")
+    class EncodedNames {
+
+        @Test
+        @DisplayName("AD groups with spaces, brackets and colons are percent-encoded")
+        void adGroups() {
+            RangerPolicy policy = builder()
+                    .name("xdp-admins")
+                    .queue("root.xdp")
+                    .policyItem(item()
+                            .users("dataplane-service-user@example.com")
+                            .groups("[DEV] Example Team : External : Access : Administrator : example.com",
+                                    "[DEV] Example Team : Internal : Access : Administrator")
+                            .admin())
+                    .build();
+
+            QueueAclEntry entry = converter.convert(List.of(policy)).get("root.xdp");
+
+            assertThat(entry.adminAcl()).isEqualTo("dataplane-service-user@example.com "
+                    + "%5BDEV%5D%20Example%20Team%20%3A%20External%20%3A%20Access%20%3A%20Administrator%20%3A%20example%2Ecom,"
+                    + "%5BDEV%5D%20Example%20Team%20%3A%20Internal%20%3A%20Access%20%3A%20Administrator");
+        }
+
+        @Test
+        @DisplayName("Users and groups use their own plain rules")
+        void userAndGroupRules() {
+            assertThat(AclConverter.formatAcl(set("team.ops", "John Smith"), set("team.ops", "devs")))
+                    .isEqualTo("%4Aohn%20Smith,team.ops devs,%74eam%2Eops");
+        }
+
+        @Test
+        @DisplayName("A non-plain name with nothing to encode still gets a '%'")
+        void forcedEncoding() {
+            assertThat(AclConverter.formatAcl(null, set("1team"))).isEqualTo(" %31team");
+        }
+
+        @Test
+        @DisplayName("The wildcard is not encoded")
+        void wildcard() {
+            assertThat(AclConverter.formatAcl(set("*"), null)).isEqualTo("*");
+            assertThat(AclConverter.formatAcl(null, set("*"))).isEqualTo(" *");
+        }
+
+        @Test
+        @DisplayName("Names are trimmed before encoding")
+        void trimmed() {
+            assertThat(AclConverter.formatAcl(set(" alice "), set("devs ", " [DEV] Admins ")))
+                    .isEqualTo("alice %5BDEV%5D%20Admins,devs");
+        }
+
+        @Test
+        @DisplayName("Blank names are dropped and an all-blank side is treated as empty")
+        void blankNames() {
+            assertThat(AclConverter.formatAcl(set(" ", "bob"), null)).isEqualTo("bob");
+            assertThat(AclConverter.formatAcl(set(" "), null)).isNull();
+            assertThat(AclConverter.formatAcl(set(" "), set("  "))).isNull();
+            assertThat(AclConverter.formatAcl(set(" "), set("devs"))).isEqualTo(" devs");
+            assertThat(AclConverter.formatAcl(set("alice"), set(" "))).isEqualTo("alice");
+        }
+
+        @Test
+        @DisplayName("Names equal after trimming are written once")
+        void duplicatesAfterTrim() {
+            assertThat(AclConverter.formatAcl(set("alice", "alice "), set("[DEV] Admins", " [DEV] Admins")))
+                    .isEqualTo("alice %5BDEV%5D%20Admins");
+        }
+
+        @Test
+        @DisplayName("Encoded names never contain separators and decode back to the original")
+        void roundTrip() throws Exception {
+            String name = "Smith, John (Contractor) & co+ü%";
+            String acl = AclConverter.formatAcl(null, set(name));
+
+            assertThat(acl.substring(1)).doesNotContain(" ", ",");
+            assertThat(java.net.URLDecoder.decode(acl.substring(1), "UTF-8")).isEqualTo(name);
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Builder helpers — keep tests readable
     // -----------------------------------------------------------------------
 
