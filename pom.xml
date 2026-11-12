@@ -301,8 +301,10 @@
                 <module>plugin-yarn</module>
                 <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
+                <module>plugin-mlflow</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>ranger-airflow-authz-agent</module>
+                <module>ranger-mlflow-agent</module>
                 <module>plugin-ozone</module>
                 <module>s3-agent</module>
                 <module>gcs-agent</module>
@@ -634,8 +636,10 @@
                 <module>plugin-yarn</module>
                 <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
+                <module>plugin-mlflow</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>ranger-airflow-authz-agent</module>
+                <module>ranger-mlflow-agent</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>
@@ -716,8 +720,10 @@
                 <module>plugin-yarn</module>
                 <module>plugin-airflow</module>
                 <module>plugin-yunikorn</module>
+                <module>plugin-mlflow</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>ranger-airflow-authz-agent</module>
+                <module>ranger-mlflow-agent</module>
                 <module>plugin-ozone</module>
                 <module>security-admin</module>
                 <module>plugin-kafka</module>

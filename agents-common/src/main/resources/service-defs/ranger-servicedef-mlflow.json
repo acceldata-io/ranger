@@ -1,0 +1,310 @@
+{
+	"name": "mlflow",
+	"displayName": "mlflow",
+	"implClass": "org.apache.ranger.services.mlflow.RangerServiceMlflow",
+	"label": "MLflow",
+	"description": "MLflow 3.16.0 native RBAC authorization managed by Apache Ranger",
+	"guid": "",
+	"options": {
+		"enableDenyAndExceptionsInPolicies": "false"
+	},
+	"resources":
+	[
+		{
+			"itemId": 1,
+			"name": "workspace",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "Workspace must be an exact MLflow workspace name (e.g. default) or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "Workspace",
+			"description": "MLflow workspace name (default when workspaces are disabled, or named workspace). Granting USE or MANAGE on a workspace applies workspace-wide membership or administration.",
+			"accessTypeRestrictions": ["use", "manage"]
+		},
+
+		{
+			"itemId": 2,
+			"name": "experiment",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "Experiment must be an exact MLflow experiment ID/name or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "Experiment",
+			"description": "MLflow experiment ID (or name resolved to ID) or '*' for all experiments in the workspace. Governs runs, metrics, artifacts, traces, datasets, issues, and review queues under the experiment.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+
+		{
+			"itemId": 3,
+			"name": "registered_model",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "Registered model must be an exact model name or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "Registered Model",
+			"description": "MLflow registered model name or '*' for all registered models in the workspace. Governs model versions, aliases, stages, and model artifacts.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+
+		{
+			"itemId": 4,
+			"name": "prompt",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "Prompt must be an exact prompt name or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "Prompt",
+			"description": "MLflow prompt name (stored in the model registry with mlflow.prompt.is_prompt=true) or '*' for all prompts in the workspace.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+
+		{
+			"itemId": 5,
+			"name": "scorer",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "Scorer must be '<experiment_id>/<url_encoded_scorer_name>' or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "Scorer",
+			"description": "MLflow evaluation scorer pattern '<experiment_id>/<url_encoded_scorer_name>' or '*' for all scorers in the workspace.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+
+		{
+			"itemId": 6,
+			"name": "gateway_secret",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "Gateway secret must be an exact secret ID (or name) or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "Gateway Secret",
+			"description": "MLflow AI Gateway secret ID or '*' for all gateway secrets in the workspace.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+
+		{
+			"itemId": 7,
+			"name": "gateway_endpoint",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "Gateway endpoint must be an exact endpoint ID (or name) or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "Gateway Endpoint",
+			"description": "MLflow AI Gateway endpoint ID or '*' for all gateway endpoints in the workspace. USE permission allows invoking the endpoint.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+
+		{
+			"itemId": 8,
+			"name": "gateway_model_definition",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "Gateway model definition must be an exact model definition ID (or name) or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "Gateway Model Definition",
+			"description": "MLflow AI Gateway model definition ID or '*' for all gateway model definitions in the workspace.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+
+		{
+			"itemId": 9,
+			"name": "mcp_server",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": false,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": { "wildCard": true, "ignoreCase": false },
+			"validationRegEx": "^(\\*|[^*?]+)$",
+			"validationMessage": "MCP server must be an exact '<namespace>/<slug>' identifier or '*'. Partial wildcards are not supported by MLflow native RBAC.",
+			"uiHint": "",
+			"label": "MCP Server",
+			"description": "MLflow MCP server name ('<namespace>/<slug>') or '*' for all MCP servers in the workspace.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		}
+	],
+
+	"accessTypes":
+	[
+		{
+			"itemId": 1,
+			"name": "read",
+			"label": "READ",
+			"category": "READ"
+		},
+
+		{
+			"itemId": 2,
+			"name": "use",
+			"label": "USE",
+			"category": "READ",
+			"impliedGrants":
+			[
+				"read"
+			]
+		},
+
+		{
+			"itemId": 3,
+			"name": "edit",
+			"label": "EDIT",
+			"category": "UPDATE",
+			"impliedGrants":
+			[
+				"read",
+				"use"
+			]
+		},
+
+		{
+			"itemId": 4,
+			"name": "manage",
+			"label": "MANAGE",
+			"category": "MANAGE",
+			"impliedGrants":
+			[
+				"read",
+				"use",
+				"edit"
+			]
+		}
+	],
+
+	"configs":
+	[
+		{
+			"itemId": 1,
+			"name": "mlflow.url",
+			"type": "string",
+			"mandatory": true,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"TextFieldWithIcon\":true, \"info\": \"MLflow 3.16.0 Tracking Server base URL (started with --app-name basic-auth), e.g. http://mlflow.example.com:5000\"}",
+			"label": "MLflow Tracking Server URL"
+		},
+
+		{
+			"itemId": 2,
+			"name": "username",
+			"type": "string",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"info\": \"MLflow admin username used for Test Connection and policy resource autocomplete via HTTP Basic Auth.\"}",
+			"label": "Username"
+		},
+
+		{
+			"itemId": 3,
+			"name": "password",
+			"type": "password",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "",
+			"label": "Password"
+		},
+
+		{
+			"itemId": 4,
+			"name": "ranger.plugin.audit.filters",
+			"type": "string",
+			"subType": "",
+			"mandatory": false,
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "",
+			"label": "Ranger Default Audit Filters",
+			"defaultValue": "[]"
+		}
+	],
+
+	"contextEnrichers":
+	[
+
+	],
+
+	"policyConditions":
+	[
+
+	]
+}
