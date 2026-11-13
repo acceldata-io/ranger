@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -50,7 +51,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * type is the one Pinot assigns to the request's action. Users and groups come from Pinot's authentication method;
  * Ranger can add its own groups ({@code ranger.plugin.pinot.use.rangerGroups}).
  *
- * <p>Configuration: only the usual Ranger plug-in files on the class path - {@code ranger-pinot-security.xml}
+ * <p>Configuration: only the usual Ranger plug-in files, from the class path and from the conf directory of the Pinot
+ * installation the plug-in is installed in (see {@link #installationConfDir}) - {@code ranger-pinot-security.xml}
  * ({@code ranger.plugin.pinot.service.name}, {@code .policy.rest.url}, {@code .policy.cache.dir},
  * {@code .policy.pollIntervalMs}, {@code .access.cluster.name} (value of the cluster resource, default {@code pinot};
  * policies normally use {@code *}), {@code .ugi.*} (Kerberos, see {@link #enableKerberos}),
@@ -100,8 +102,12 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
     @Override
     public void init(Map<String, String> settings) {
         // Everything comes from the Ranger plug-in files (ranger-pinot-security.xml, ranger-pinot-audit.xml,
-        // ranger-policymgr-ssl.xml) on the class path, written when the plug-in is enabled; Pinot only selects the mode
-        RangerPluginConfig pluginConfig = new RangerPluginConfig(SERVICE_TYPE, null, SERVICE_TYPE, null, null, null);
+        // ranger-policymgr-ssl.xml), written when the plug-in is enabled; Pinot only selects the mode
+        init(pinotConfFiles(installationConfDir()));
+    }
+
+    void init(List<File> confFiles) {
+        RangerPluginConfig pluginConfig = new RangerPluginConfig(SERVICE_TYPE, null, SERVICE_TYPE, null, null, confFiles, null);
         String             prefix       = pluginConfig.getPropertyPrefix();
         String             policyUrl    = pluginConfig.get(prefix + ".policy.rest.url");
 
@@ -127,6 +133,45 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
         auditHandler = new RangerDefaultAuditHandler(pluginConfig);
 
         LOG.info("Ranger authorization for Pinot ready: service={}, policy URL={}, cluster resource={}, decision cache={} ms", pluginConfig.getServiceName(), policyUrl, clusterName, cacheTtlMs);
+    }
+
+    static final String[] CONFIG_FILES = {"ranger-pinot-security.xml", "ranger-pinot-audit.xml", "ranger-policymgr-ssl.xml"};
+
+    /**
+     * The conf directory of the Pinot installation this plug-in is installed in: the plug-in lives in
+     * {@code <Pinot home>/lib/ranger-pinot-plugin-impl/}, the files written when the plug-in is enabled in
+     * {@code <Pinot home>/conf/}, which is not on Pinot's class path. Null when the location cannot be determined.
+     */
+    static File installationConfDir() {
+        try {
+            File jar = new File(RangerPinotAccessChecker.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            File lib = jar.getParentFile() != null ? jar.getParentFile().getParentFile() : null;
+
+            return lib != null && lib.getParentFile() != null ? new File(lib.getParentFile(), "conf") : null;
+        } catch (Exception e) {
+            LOG.debug("Cannot determine the Pinot installation directory", e);
+
+            return null;
+        }
+    }
+
+    /** The Ranger plug-in files present in the directory, in addition to those on the class path. */
+    static List<File> pinotConfFiles(File confDir) {
+        List<File> ret = new ArrayList<>();
+
+        if (confDir != null) {
+            for (String name : CONFIG_FILES) {
+                File file = new File(confDir, name);
+
+                if (file.isFile()) {
+                    ret.add(file);
+                }
+            }
+        }
+
+        LOG.info("Ranger plug-in for Pinot configuration: class path{}", ret.isEmpty() ? "" : " and " + ret);
+
+        return ret;
     }
 
     /**

@@ -124,6 +124,36 @@ public class RangerPinotAccessCheckerTest {
         new RangerPinotAccessChecker().init(Collections.<String, String>emptyMap());
     }
 
+    @Test
+    public void configFilesAreReadFromThePinotConfDirectory() throws Exception {
+        java.nio.file.Path home = java.nio.file.Files.createTempDirectory("pinot-home");
+        java.io.File      conf = new java.io.File(home.toFile(), "conf");
+
+        conf.mkdirs();
+        java.nio.file.Files.write(new java.io.File(conf, "ranger-pinot-security.xml").toPath(), "<configuration/>".getBytes(StandardCharsets.UTF_8));
+        java.nio.file.Files.write(new java.io.File(conf, "pinot-broker.conf").toPath(), "x=y".getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(Collections.singletonList(new java.io.File(conf, "ranger-pinot-security.xml")), RangerPinotAccessChecker.pinotConfFiles(conf));
+        assertEquals(Collections.emptyList(), RangerPinotAccessChecker.pinotConfFiles(null));
+    }
+
+    @Test
+    public void serviceNameIsTakenFromTheConfDirectoryFiles() throws Exception {
+        java.nio.file.Path conf = java.nio.file.Files.createTempDirectory("pinot-conf");
+        java.io.File       file = new java.io.File(conf.toFile(), "ranger-pinot-security.xml");
+
+        java.nio.file.Files.write(file.toPath(), ("<configuration><property><name>ranger.plugin.pinot.service.name</name>"
+                + "<value>prod_pinot</value></property></configuration>").getBytes(StandardCharsets.UTF_8));
+
+        try {
+            new RangerPinotAccessChecker().init(Collections.singletonList(file));
+            org.junit.Assert.fail("no policy URL configured");
+        } catch (IllegalStateException e) {
+            // the service name was found in the file; what is missing is the policy URL
+            assertTrue(e.getMessage(), e.getMessage().startsWith("No Ranger Admin URL"));
+        }
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void kerberosNeedsPrincipalAndKeytab() {
         RangerPinotAccessChecker.enableKerberos(ugi("pinot@EXAMPLE.COM", null));
