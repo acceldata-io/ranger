@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<configuration>
+  <property><name>cfgtest.x</name><value>service-specific</value></property>
+  <property><name>cfgtest.y</name><value>service-specific</value></property>
+</configuration>

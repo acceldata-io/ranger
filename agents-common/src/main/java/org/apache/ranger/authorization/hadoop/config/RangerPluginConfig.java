@@ -72,21 +72,17 @@ public class RangerPluginConfig extends RangerConfiguration {
 
         addResourcesForServiceType(serviceType);
 
+        // The additional files can hold the service name, so they are loaded before it is read
+        addResources(additionalConfigFiles);
+
         this.serviceType    = serviceType;
         this.appId          = StringUtils.isEmpty(appId) ? serviceType : appId;
         this.propertyPrefix = "ranger.plugin." + serviceType;
         this.serviceName    = StringUtils.isEmpty(serviceName) ? this.get(propertyPrefix + ".service.name") : serviceName;
 
-        addResourcesForServiceName(this.serviceType, this.serviceName);
-
-        if (additionalConfigFiles != null) {
-            for (File configFile : additionalConfigFiles) {
-                try {
-                    addResource(configFile.toURI().toURL());
-                } catch (Throwable t) {
-                    LOG.warn("failed to load configurations from {}", configFile, t);
-                }
-            }
+        if (addResourcesForServiceName(this.serviceType, this.serviceName)) {
+            // explicitly given files keep precedence over the service specific overrides
+            addResources(additionalConfigFiles);
         }
 
         String trustedProxyAddressString = this.get(propertyPrefix + ".trusted.proxy.ipaddresses");
@@ -297,16 +293,32 @@ public class RangerPluginConfig extends RangerConfiguration {
         }
     }
 
-    // load service specific config overrides, if config files are available
-    private void addResourcesForServiceName(String serviceType, String serviceName) {
+    // load service specific config overrides, if config files are available; returns true if any was loaded
+    private boolean addResourcesForServiceName(String serviceType, String serviceName) {
+        boolean ret = false;
+
         if (StringUtils.isNotBlank(serviceType) && StringUtils.isNotBlank(serviceName)) {
             String serviceAuditCfg    = "ranger-" + serviceType + "-" + serviceName + "-audit.xml";
             String serviceSecurityCfg = "ranger-" + serviceType + "-" + serviceName + "-security.xml";
             String serviceSslCfg      = "ranger-" + serviceType + "-" + serviceName + "-policymgr-ssl.xml";
 
-            addResourceIfReadable(serviceAuditCfg);
-            addResourceIfReadable(serviceSecurityCfg);
-            addResourceIfReadable(serviceSslCfg);
+            ret |= addResourceIfReadable(serviceAuditCfg);
+            ret |= addResourceIfReadable(serviceSecurityCfg);
+            ret |= addResourceIfReadable(serviceSslCfg);
+        }
+
+        return ret;
+    }
+
+    private void addResources(List<File> configFiles) {
+        if (configFiles != null) {
+            for (File configFile : configFiles) {
+                try {
+                    addResource(configFile.toURI().toURL());
+                } catch (Throwable t) {
+                    LOG.warn("failed to load configurations from {}", configFile, t);
+                }
+            }
         }
     }
 

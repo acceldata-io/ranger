@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<configuration>
+  <property><name>ranger.plugin.cfgtest.service.name</name><value>from_classpath</value></property>
+  <property><name>cfgtest.x</name><value>classpath</value></property>
+</configuration>
