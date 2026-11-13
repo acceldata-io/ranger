@@ -31,6 +31,10 @@ public class TrinoResourceManager
     private static final String TABLE = "table";
     private static final String COLUMN = "column";
 
+    // shared so that connections are reused across lookups: resource lookup runs under a 1 second
+    // budget in ranger-admin, which is not enough to build a new connection on every keystroke
+    private static final TrinoConnectionManager CONNECTION_MANAGER = new TrinoConnectionManager();
+
     private TrinoResourceManager()
     {
         // no instantiation
@@ -95,6 +99,7 @@ public class TrinoResourceManager
                     break;
                 case SCHEMA:
                     schemaName = userInput;
+                    break;
                 case TABLE:
                     tableName = userInput;
                     break;
@@ -112,72 +117,52 @@ public class TrinoResourceManager
                     LOG.debug("==> TrinoResourceManager.getTrinoResources() UserInput: \"" + userInput + "\" configs: " + configs + " catalogList: " + catalogList + " tableList: " + tableList + " columnList: " + columnList);
                 }
 
-                final TrinoClient trinoClient = new TrinoConnectionManager().getTrinoConnection(serviceName, serviceType, configs);
-                Callable<List<String>> callableObj = null;
-                final String finalCatalogName;
-                final String finalSchemaName;
-                final String finalTableName;
-                final String finalColumnName;
-                final List<String> finalCatalogList = catalogList;
-                final List<String> finalSchemaList = schemaList;
-                final List<String> finalTableList = tableList;
-                final List<String> finalColumnList = columnList;
+                if (columnName != null && !columnName.isEmpty()) {
+                    // Column names are matched by the wildcardmatcher
+                    columnName += "*";
+                }
+
+                TrinoClient trinoClient = CONNECTION_MANAGER.borrowClient(serviceName, serviceType, configs);
 
                 if (trinoClient != null) {
-                    if (catalogName != null && !catalogName.isEmpty()) {
-                        finalCatalogName = catalogName;
-                        callableObj = new Callable<List<String>>() {
-                            @Override
-                            public List<String> call()
-                                    throws Exception
-                            {
-                                return trinoClient.getCatalogList(finalCatalogName, finalCatalogList);
-                            }
-                        };
-                    }
-                    else if (schemaName != null && !schemaName.isEmpty()) {
-                        finalSchemaName = schemaName;
-                        callableObj = new Callable<List<String>>() {
-                            @Override
-                            public List<String> call()
-                                    throws Exception
-                            {
-                                return trinoClient.getSchemaList(finalSchemaName, finalCatalogList, finalSchemaList);
-                            }
-                        };
-                    }
-                    else if (tableName != null && !tableName.isEmpty()) {
-                        finalTableName = tableName;
-                        callableObj = new Callable<List<String>>() {
-                            @Override
-                            public List<String> call()
-                                    throws Exception
-                            {
-                                return trinoClient.getTableList(finalTableName, finalCatalogList, finalSchemaList, finalTableList);
-                            }
-                        };
-                    }
-                    else if (columnName != null && !columnName.isEmpty()) {
-                        // Column names are matched by the wildcardmatcher
-                        columnName += "*";
-                        finalColumnName = columnName;
-                        callableObj = new Callable<List<String>>() {
-                            @Override
-                            public List<String> call()
-                                    throws Exception
-                            {
-                                return trinoClient.getColumnList(finalColumnName, finalCatalogList, finalSchemaList, finalTableList, finalColumnList);
-                            }
-                        };
-                    }
-
-                    if (callableObj != null) {
-                        synchronized (trinoClient) {
-                            resultList = TimedEventUtil.timedTask(callableObj, 5, TimeUnit.SECONDS);
+                    try {
+                        try {
+                            resultList = lookup(trinoClient, catalogName, schemaName, tableName, columnName, catalogList, schemaList, tableList, columnList);
                         }
+                        catch (Exception e) {
+                            if (!TrinoClient.isConnectionFailure(e)) {
+                                throw e;
+                            }
+
+                            // the borrowed connection was closed by the coordinator; drop it and retry once
+                            LOG.warn("Lookup failed on the borrowed Trino connection for service [" + serviceName + "]; reconnecting and retrying once", e);
+
+                            CONNECTION_MANAGER.discardClient(serviceName, trinoClient);
+
+                            trinoClient = CONNECTION_MANAGER.borrowClient(serviceName, serviceType, configs);
+
+                            if (trinoClient == null) {
+                                throw e;
+                            }
+
+                            resultList = lookup(trinoClient, catalogName, schemaName, tableName, columnName, catalogList, schemaList, tableList, columnList);
+                        }
+
+                        CONNECTION_MANAGER.returnClient(serviceName, trinoClient);
+
+                        // cleared so the catch below cannot hand the same connection back twice
+                        trinoClient = null;
                     }
-                    else {
-                        LOG.error("Could not initiate a TrinoClient timedTask");
+                    catch (Exception e) {
+                        // a connection that failed on the retry too must not go back into the pool
+                        if (TrinoClient.isConnectionFailure(e)) {
+                            CONNECTION_MANAGER.discardClient(serviceName, trinoClient);
+                        }
+                        else {
+                            CONNECTION_MANAGER.returnClient(serviceName, trinoClient);
+                        }
+
+                        throw e;
                     }
                 }
             }
@@ -189,5 +174,70 @@ public class TrinoResourceManager
         }
 
         return resultList;
+    }
+
+    private static List<String> lookup(final TrinoClient trinoClient, final String catalogName, final String schemaName,
+            final String tableName, final String columnName, final List<String> catalogList, final List<String> schemaList,
+            final List<String> tableList, final List<String> columnList)
+            throws Exception
+    {
+        Callable<List<String>> callableObj = null;
+
+        // exactly one of the four names is set by the caller, so a non-null value identifies the level
+        // being looked up. An empty value means the policy form opened the dropdown without any typing,
+        // which the client turns into an unfiltered query rather than no query at all.
+        // An unfiltered query is the slowest case and still has to fit the 1 second lookup budget; raise
+        // ranger.servicetype.trino.resource.lookup.timeout.value.in.ms in ranger-admin-site.xml, or
+        // resource.lookup.timeout.value.in.ms on the service itself, if a deployment needs longer
+        if (catalogName != null) {
+            callableObj = new Callable<List<String>>() {
+                @Override
+                public List<String> call()
+                        throws Exception
+                {
+                    return trinoClient.getCatalogList(catalogName, catalogList);
+                }
+            };
+        }
+        else if (schemaName != null) {
+            callableObj = new Callable<List<String>>() {
+                @Override
+                public List<String> call()
+                        throws Exception
+                {
+                    return trinoClient.getSchemaList(schemaName, catalogList, schemaList);
+                }
+            };
+        }
+        else if (tableName != null) {
+            callableObj = new Callable<List<String>>() {
+                @Override
+                public List<String> call()
+                        throws Exception
+                {
+                    return trinoClient.getTableList(tableName, catalogList, schemaList, tableList);
+                }
+            };
+        }
+        else if (columnName != null) {
+            callableObj = new Callable<List<String>>() {
+                @Override
+                public List<String> call()
+                        throws Exception
+                {
+                    return trinoClient.getColumnList(columnName, catalogList, schemaList, tableList, columnList);
+                }
+            };
+        }
+
+        if (callableObj == null) {
+            LOG.error("Could not initiate a TrinoClient timedTask");
+
+            return null;
+        }
+
+        // no monitor needed: borrowClient() hands the connection out exclusively, so concurrent
+        // lookups for the same service run on separate connections instead of queueing behind one
+        return TimedEventUtil.timedTask(callableObj, 5, TimeUnit.SECONDS);
     }
 }
