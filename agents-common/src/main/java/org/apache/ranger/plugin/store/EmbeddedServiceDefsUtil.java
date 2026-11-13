@@ -49,7 +49,7 @@ public class EmbeddedServiceDefsUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedServiceDefsUtil.class);
 
 
-	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,abfs,airflow,yunikorn,polaris";
+	public static final String DEFAULT_BOOTSTRAP_SERVICEDEF_LIST = "tag,gds,hdfs,hbase,hive,kms,knox,storm,yarn,kafka,solr,atlas,nifi,nifi-registry,sqoop,kylin,elasticsearch,presto,trino,ozone,kudu,schema-registry,nestedstructure,s3,gcs,abfs,airflow,yunikorn,polaris,pinot";
 	private static final String PROPERTY_SUPPORTED_SERVICE_DEFS = "ranger.supportedcomponents";
 	private Set<String> supportedServiceDefs;
 	public static final String EMBEDDED_SERVICEDEF_TAG_NAME  = "tag";
@@ -82,6 +82,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String EMBEDDED_SERVICEDEF_AIRFLOW_NAME  = "airflow";
 	public static final String EMBEDDED_SERVICEDEF_YUNIKORN_NAME  = "yunikorn";
 	public static final String EMBEDDED_SERVICEDEF_POLARIS_NAME = "polaris";
+	public static final String EMBEDDED_SERVICEDEF_PINOT_NAME = "pinot";
 
 	public static final String PROPERTY_CREATE_EMBEDDED_SERVICE_DEFS = "ranger.service.store.create.embedded.service-defs";
 
@@ -99,6 +100,7 @@ public class EmbeddedServiceDefsUtil {
 	public static final String ATLAS_IMPL_CLASS_NAME  = "org.apache.ranger.services.atlas.RangerServiceAtlas";
 	public static final String PRESTO_IMPL_CLASS_NAME  = "org.apache.ranger.services.presto.RangerServicePresto";
 	public static final String TRINO_IMPL_CLASS_NAME  = "org.apache.ranger.services.trino.RangerServiceTrino";
+	public static final String PINOT_IMPL_CLASS_NAME  = "org.apache.ranger.services.pinot.RangerServicePinot";
 	public static final String OZONE_IMPL_CLASS_NAME  = "org.apache.ranger.services.ozone.RangerServiceOzone";
 	public static final String KUDU_IMPL_CLASS_NAME  = "org.apache.ranger.services.kudu.RangerServiceKudu";
 	public static final String GCS_IMPL_CLASS_NAME   = "org.apache.ranger.services.gcs.RangerServiceGCS";
@@ -134,6 +136,7 @@ public class EmbeddedServiceDefsUtil {
 	private RangerServiceDef airflowServiceDef;
 	private RangerServiceDef yuniKornServiceDef;
 	private RangerServiceDef polarisServiceDef;
+	private RangerServiceDef pinotServiceDef;
 	private RangerServiceDef gcsServiceDef;
 	private RangerServiceDef tagServiceDef;
 	private RangerServiceDef gdsServiceDef;
@@ -187,6 +190,7 @@ public class EmbeddedServiceDefsUtil {
 			airflowServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_AIRFLOW_NAME);
 			yuniKornServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_YUNIKORN_NAME);
 			polarisServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_POLARIS_NAME);
+			pinotServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_PINOT_NAME);
 			gcsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GCS_NAME);
 			tagServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_TAG_NAME);
 			gdsServiceDef = getOrCreateServiceDef(store, EMBEDDED_SERVICEDEF_GDS_NAME);
@@ -287,6 +291,8 @@ public class EmbeddedServiceDefsUtil {
 	public long getYuniKornServiceDefId() { return getId(yuniKornServiceDef); }
 
 	public long getPolarisServiceDefId() { return getId(polarisServiceDef); }
+
+	public long getPinotServiceDefId() { return getId(pinotServiceDef); }
 
 	public long getABFSServiceDefId() { return getId(abfsServiceDef); }
 

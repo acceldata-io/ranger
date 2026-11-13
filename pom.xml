@@ -337,6 +337,7 @@
                 <module>ranger-tools</module>
                 <module>plugin-schema-registry</module>
                 <module>plugin-trino</module>
+                <module>plugin-pinot</module>
                 <!--
                    'distro' should be the last module. If a module gets inserted after
                    ranger-elasticsearch-plugin-shim, make sure to update dependency in distro/pom.xml
@@ -596,6 +597,19 @@
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
                 <module>plugin-trino</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>ranger-pinot-plugin</id>
+            <modules>
+                <module>agents-audit</module>
+                <module>agents-common</module>
+                <module>agents-cred</module>
+                <module>agents-installer</module>
+                <module>credentialbuilder</module>
+                <module>ranger-plugin-classloader</module>
+                <module>ranger-util</module>
+                <module>plugin-pinot</module>
             </modules>
         </profile>
         <profile>

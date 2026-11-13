@@ -1,0 +1,352 @@
+{
+  "id": 210,
+  "name": "pinot",
+  "displayName": "pinot",
+  "implClass": "org.apache.ranger.services.pinot.RangerServicePinot",
+  "label": "Apache Pinot",
+  "description": "Apache Pinot",
+  "guid": "c39d5c54-4b97-455d-9bc2-7ba900f62abe",
+  "resources": [
+    {
+      "itemId": 1,
+      "name": "cluster",
+      "type": "string",
+      "level": 10,
+      "parent": "",
+      "mandatory": true,
+      "isValidLeaf": true,
+      "lookupSupported": false,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Pinot Cluster",
+      "description": "Cluster-wide operations (endpoints that name no table or database)"
+    },
+    {
+      "itemId": 2,
+      "name": "database",
+      "type": "string",
+      "level": 10,
+      "parent": "",
+      "mandatory": true,
+      "isValidLeaf": true,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Pinot Database",
+      "description": "Pinot logical database (default for tables without a database)"
+    },
+    {
+      "itemId": 3,
+      "name": "table",
+      "type": "string",
+      "level": 20,
+      "parent": "database",
+      "mandatory": true,
+      "isValidLeaf": true,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Pinot Table",
+      "description": "Pinot table, without the _OFFLINE / _REALTIME suffix"
+    }
+  ],
+  "accessTypes": [
+    {
+      "itemId": 1,
+      "name": "query",
+      "label": "Query",
+      "category": "READ"
+    },
+    {
+      "itemId": 2,
+      "name": "read_metadata",
+      "label": "Read metadata",
+      "category": "READ"
+    },
+    {
+      "itemId": 3,
+      "name": "manage_table",
+      "label": "Manage tables and schemas",
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 4,
+      "name": "manage_segments",
+      "label": "Manage segments",
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 5,
+      "name": "manage_ingestion",
+      "label": "Manage ingestion",
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 6,
+      "name": "rebalance",
+      "label": "Rebalance",
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 7,
+      "name": "manage_tasks",
+      "label": "Manage Minion tasks",
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 8,
+      "name": "manage_quotas",
+      "label": "Manage quotas",
+      "category": "MANAGE"
+    },
+    {
+      "itemId": 9,
+      "name": "manage_database",
+      "label": "Manage databases",
+      "category": "MANAGE"
+    },
+    {
+      "itemId": 10,
+      "name": "manage_queries",
+      "label": "Manage running queries",
+      "category": "MANAGE"
+    },
+    {
+      "itemId": 11,
+      "name": "manage_tenants_instances",
+      "label": "Manage tenants and instances",
+      "category": "MANAGE"
+    },
+    {
+      "itemId": 12,
+      "name": "manage_cluster_config",
+      "label": "Manage cluster configuration",
+      "category": "MANAGE"
+    },
+    {
+      "itemId": 13,
+      "name": "manage_zookeeper",
+      "label": "Manage ZooKeeper data",
+      "category": "MANAGE"
+    },
+    {
+      "itemId": 14,
+      "name": "manage_users",
+      "label": "Manage users",
+      "category": "MANAGE"
+    },
+    {
+      "itemId": 15,
+      "name": "all",
+      "label": "All",
+      "impliedGrants": [
+        "query",
+        "read_metadata",
+        "manage_table",
+        "manage_segments",
+        "manage_ingestion",
+        "rebalance",
+        "manage_tasks",
+        "manage_quotas",
+        "manage_database",
+        "manage_queries",
+        "manage_tenants_instances",
+        "manage_cluster_config",
+        "manage_zookeeper",
+        "manage_users"
+      ]
+    }
+  ],
+  "configs": [
+    {
+      "itemId": 1,
+      "name": "controller.url",
+      "type": "string",
+      "mandatory": true,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "{\"TextFieldWithIcon\":true, \"info\": \"Base URL of a Pinot controller, e.g. https://pinot-controller:9443. Several controllers: comma-separated.\"}",
+      "label": "Pinot controller URL"
+    },
+    {
+      "itemId": 2,
+      "name": "authentication.type",
+      "type": "enum",
+      "mandatory": true,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Authentication",
+      "subType": "authType",
+      "defaultValue": "basic"
+    },
+    {
+      "itemId": 3,
+      "name": "username",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Username"
+    },
+    {
+      "itemId": 4,
+      "name": "password",
+      "type": "password",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Password"
+    },
+    {
+      "itemId": 5,
+      "name": "oauth2.token.url",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "OAuth 2.0 token endpoint"
+    },
+    {
+      "itemId": 6,
+      "name": "oauth2.client.id",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "OAuth 2.0 client id"
+    },
+    {
+      "itemId": 7,
+      "name": "oauth2.client.secret",
+      "type": "password",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "OAuth 2.0 client secret"
+    },
+    {
+      "itemId": 8,
+      "name": "oauth2.scope",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "OAuth 2.0 scope"
+    },
+    {
+      "itemId": 9,
+      "name": "commonNameForCertificate",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Common Name for Certificate"
+    },
+    {
+      "itemId": 10,
+      "name": "ranger.plugin.audit.filters",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Ranger Default Audit Filters",
+      "defaultValue": "[ {'accessResult': 'DENIED', 'isAudited': true}, {'actions':['read_metadata'], 'isAudited': false} ]"
+    }
+  ],
+  "enums": [
+    {
+      "itemId": 1,
+      "name": "authType",
+      "elements": [
+        {
+          "itemId": 1,
+          "name": "none",
+          "label": "None"
+        },
+        {
+          "itemId": 2,
+          "name": "basic",
+          "label": "Basic"
+        },
+        {
+          "itemId": 3,
+          "name": "oauth2",
+          "label": "OAuth 2.0 (client credentials)"
+        }
+      ],
+      "defaultIndex": 1
+    }
+  ],
+  "contextEnrichers": [],
+  "policyConditions": [
+    {
+      "itemId": 1,
+      "name": "time-of-day",
+      "evaluator": "org.apache.ranger.plugin.conditionevaluator.RangerTimeOfDayMatcher",
+      "evaluatorOptions": {},
+      "label": "Time of day",
+      "description": "Allowed hours, e.g. 9am-5pm or 9:30am-6pm; several ranges comma-separated"
+    }
+  ],
+  "dataMaskDef": {},
+  "rowFilterDef": {
+    "accessTypes": [
+      {
+        "name": "query"
+      }
+    ],
+    "resources": [
+      {
+        "name": "database",
+        "matcherOptions": {
+          "wildCard": "true"
+        },
+        "lookupSupported": true,
+        "mandatory": true,
+        "uiHint": "{ \"singleValue\":true }"
+      },
+      {
+        "name": "table",
+        "matcherOptions": {
+          "wildCard": "true"
+        },
+        "lookupSupported": true,
+        "mandatory": true,
+        "uiHint": "{ \"singleValue\":true }"
+      }
+    ]
+  }
+}
