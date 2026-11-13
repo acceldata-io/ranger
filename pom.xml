@@ -330,6 +330,7 @@
                 <module>ranger-yarn-plugin-shim</module>
                 <module>ranger-ozone-plugin-shim</module>
                 <module>ranger-kafka-plugin-shim</module>
+                <module>ranger-pinot-plugin-shim</module>
                 <module>ranger-solr-plugin-shim</module>
                 <module>ranger-atlas-plugin-shim</module>
                 <module>ranger-kms-plugin-shim</module>
@@ -610,6 +611,7 @@
                 <module>ranger-plugin-classloader</module>
                 <module>ranger-util</module>
                 <module>plugin-pinot</module>
+                <module>ranger-pinot-plugin-shim</module>
             </modules>
         </profile>
         <profile>

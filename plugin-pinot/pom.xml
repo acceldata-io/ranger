@@ -20,7 +20,7 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ranger-pinot-plugin</artifactId>
     <name>Pinot Security Plugin</name>
-    <description>Apache Pinot service for Ranger Admin</description>
+    <description>Apache Pinot service for Ranger Admin, and the Ranger access checker that Pinot's ranger authorization mode calls</description>
     <packaging>jar</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -48,6 +48,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- PinotAccessChecker: the contract shared with Pinot, on Pinot's class path in the shim jar -->
+        <dependency>
+            <groupId>org.apache.ranger</groupId>
+            <artifactId>ranger-pinot-plugin-shim</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
 
         <!-- Test -->
         <dependency>

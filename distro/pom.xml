@@ -72,6 +72,7 @@
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-pinot.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                         <descriptor>src/main/assembly/sample-client.xml</descriptor>
                                     </descriptors>
@@ -538,6 +539,7 @@
                                         <descriptor>src/main/assembly/ranger-src.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-sqoop.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-trino.xml</descriptor>
+                                        <descriptor>src/main/assembly/plugin-pinot.xml</descriptor>
                                         <descriptor>src/main/assembly/plugin-schema-registry.xml</descriptor>
                                     </descriptors>
                                 </configuration>

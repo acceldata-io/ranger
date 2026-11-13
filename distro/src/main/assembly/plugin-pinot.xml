@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Licensed to the Apache Software Foundation (ASF) under one or more contributor 
+	license agreements. See the NOTICE file distributed with this work for additional 
+	information regarding copyright ownership. The ASF licenses this file to 
+	You under the Apache License, Version 2.0 (the "License"); you may not use 
+	this file except in compliance with the License. You may obtain a copy of 
+	the License at http://www.apache.org/licenses/LICENSE-2.0 Unless required 
+	by applicable law or agreed to in writing, software distributed under the 
+	License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS 
+	OF ANY KIND, either express or implied. See the License for the specific 
+	language governing permissions and limitations under the License. -->
+<assembly>
+	<id>pinot-plugin</id>
+	<formats>
+		<format>tar.gz</format>
+		<format>zip</format>
+	</formats>
+	<baseDirectory>${project.parent.name}-${project.version}-pinot-plugin</baseDirectory>
+	<includeBaseDirectory>true</includeBaseDirectory>
+	<moduleSets>
+		<!-- On Pinot's class path: the PinotAccessChecker contract, the loader shim and the plug-in class loader -->
+		<moduleSet>
+			<useAllReactorProjects>true</useAllReactorProjects>
+			<includes>
+				<include>org.apache.ranger:ranger-pinot-plugin-shim</include>
+				<include>org.apache.ranger:ranger-plugin-classloader</include>
+			</includes>
+			<binaries>
+				<outputDirectory>lib</outputDirectory>
+				<includeDependencies>false</includeDependencies>
+				<unpack>false</unpack>
+				<directoryMode>755</directoryMode>
+				<fileMode>644</fileMode>
+			</binaries>
+		</moduleSet>
+
+		<!-- Loaded child-first from lib/ranger-pinot-plugin-impl, never on Pinot's class path -->
+		<moduleSet>
+			<useAllReactorProjects>true</useAllReactorProjects>
+			<includes>
+				<include>org.apache.ranger:ranger-pinot-plugin</include>
+				<include>org.apache.ranger:ranger-plugins-audit</include>
+				<include>org.apache.ranger:ranger-plugins-cred</include>
+				<include>org.apache.ranger:ranger-plugins-common</include>
+			</includes>
+			<binaries>
+				<outputDirectory>lib/ranger-pinot-plugin-impl</outputDirectory>
+				<includeDependencies>true</includeDependencies>
+				<unpack>false</unpack>
+				<directoryMode>755</directoryMode>
+				<fileMode>644</fileMode>
+				<includes>
+					<include>org.apache.commons:commons-configuration2:jar:${commons.configuration.version}</include>
+					<include>org.apache.hadoop:hadoop-common:jar:${hadoop.version}</include>
+					<include>org.apache.hadoop:hadoop-common-plus:jar:${hadoop.version}</include>
+					<include>org.apache.hadoop:hadoop-auth:jar:${hadoop.version}</include>
+					<include>org.apache.hadoop:hadoop-hdfs:jar:${hadoop.version}</include>
+					<include>org.apache.hadoop:hadoop-client-runtime:jar:${hadoop.version}</include>
+					<include>org.apache.hadoop:hadoop-hdfs-client:jar:${hadoop.version}</include>
+					<include>com.google.code.gson:gson</include>
+					<include>org.eclipse.jetty:jetty-client:jar:${jetty-client.version}</include>
+					<include>commons-collections:commons-collections</include>
+					<include>com.sun.jersey:jersey-bundle</include>
+					<include>commons-logging:commons-logging</include>
+					<include>commons-lang:commons-lang</include>
+					<include>org.apache.commons:commons-lang3</include>
+					<include>org.apache.commons:commons-compress</include>
+					<include>commons-io:commons-io</include>
+					<include>org.apache.httpcomponents:httpclient:jar:${httpcomponents.httpclient.version}</include>
+					<include>org.apache.httpcomponents:httpcore:jar:${httpcomponents.httpcore.version}</include>
+					<include>org.apache.httpcomponents:httpmime:jar:${httpcomponents.httpmime.version}</include>
+					<include>com.google.protobuf:protobuf-java:jar:${protobuf-java.version}</include>
+					<include>org.noggit:noggit:jar:${noggit.version}</include>
+					<include>com.fasterxml.jackson.core:jackson-annotations:jar:${fasterxml.jackson.annotations.version}</include>
+					<include>com.fasterxml.jackson.core:jackson-core:jar:${fasterxml.jackson.version}</include>
+					<include>com.fasterxml.jackson.core:jackson-databind:jar:${fasterxml.jackson.version}</include>
+                                        <include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:jar:${fasterxml.jackson.version}</include>
+					<include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:jar:${fasterxml.jackson.version}</include>
+					<include>org.apache.solr:solr-solrj:jar:${solr.version}</include>
+					<!-- ZooKeeper client for the Solr audit destination; Kafka 4 does not ship it in libs/ -->
+					<include>org.apache.zookeeper:zookeeper:jar:${zookeeper.version}</include>
+					<include>org.apache.zookeeper:zookeeper-jute:jar:${zookeeper.version}</include>
+					<include>commons-codec:commons-codec</include>
+					<include>org.codehaus.woodstox:stax2-api</include>
+					<include>com.fasterxml.woodstox:woodstox-core</include>
+					<include>com.kstruct:gethostname4j:jar:${kstruct.gethostname4j.version}</include>
+					<include>net.java.dev.jna:jna:jar:${jna.version}</include>
+					<include>net.java.dev.jna:jna-platform:jar:${jna-platform.version}</include>
+					<include>org.elasticsearch:elasticsearch</include>
+					<include>org.elasticsearch:elasticsearch-core</include>
+					<include>org.elasticsearch:elasticsearch-x-content</include>
+					<include>org.elasticsearch.client:elasticsearch-rest-client</include>
+					<include>org.elasticsearch.client:elasticsearch-rest-high-level-client</include>
+					<include>org.elasticsearch.plugin:rank-eval-client</include>
+					<include>org.elasticsearch.plugin:lang-mustache-client</include>
+					<include>org.apache.httpcomponents:httpcore-nio:jar:${httpcomponents.httpcore.version}</include>
+					<include>org.apache.httpcomponents:httpasyncclient:jar:${httpcomponents.httpasyncclient.version}</include>
+					<include>org.apache.lucene:lucene-core</include>
+					<include>joda-time:joda-time</include>
+					<include>com.carrotsearch:hppc</include>
+					<include>org.apache.hive:hive-storage-api:jar:${hive.storage-api.version}</include>
+					<include>org.apache.orc:orc-core:jar:${orc.version}</include>
+					<include>org.apache.orc:orc-shims:jar:${orc.version}</include>
+					<include>io.airlift:aircompressor:jar:${aircompressor.version}</include>
+                                        <include>org.apache.hadoop.thirdparty:hadoop-shaded-guava:jar:${hadoop-shaded-guava.version}</include>
+				</includes>
+			</binaries>
+		</moduleSet>
+	</moduleSets>
+
+	<fileSets>
+		<!-- Templates of ranger-pinot-security.xml, ranger-pinot-audit.xml, ranger-policymgr-ssl.xml -->
+		<fileSet>
+			<outputDirectory>install/conf.templates/enable</outputDirectory>
+			<directory>../plugin-pinot/conf</directory>
+			<fileMode>644</fileMode>
+		</fileSet>
+		<!-- version file -->
+		<fileSet>
+			<outputDirectory></outputDirectory>
+			<directory>${project.build.outputDirectory}</directory>
+			<includes>
+				<include>version</include>
+			</includes>
+			<fileMode>444</fileMode>
+		</fileSet>
+	</fileSets>
+</assembly>
