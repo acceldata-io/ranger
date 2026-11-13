@@ -39,8 +39,9 @@ public interface PinotAccessChecker {
     String RESOURCE_TABLE    = "TABLE";
 
     /**
-     * @param settings Pinot's {@code pinot.authz.ranger.*} settings without the prefix, e.g. {@code config.dir},
-     *                 {@code service.name}, {@code cluster.name}, {@code cache.ttl.ms}
+     * @param settings Pinot's {@code pinot.authz.ranger.*} settings without the prefix; the Ranger plug-in for Pinot
+     *                 needs none (its configuration is ranger-pinot-security.xml and the other plug-in files on the
+     *                 class path)
      */
     void init(Map<String, String> settings);
 

@@ -120,11 +120,37 @@ public class RangerPinotAccessCheckerTest {
     }
 
     @Test(expected = IllegalStateException.class)
-    public void initRefusesAConfigDirWithoutRangerFiles() {
-        Map<String, String> settings = new HashMap<>();
+    public void initNeedsTheRangerFilesOnTheClassPath() {
+        new RangerPinotAccessChecker().init(Collections.<String, String>emptyMap());
+    }
 
-        settings.put(RangerPinotAccessChecker.CONFIG_DIR, System.getProperty("java.io.tmpdir") + "/no-such-ranger-conf");
-        new RangerPinotAccessChecker().init(settings);
+    @Test(expected = IllegalArgumentException.class)
+    public void kerberosNeedsPrincipalAndKeytab() {
+        RangerPinotAccessChecker.enableKerberos(ugi("pinot@EXAMPLE.COM", null));
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void kerberosRefusesAMissingKeytab() {
+        RangerPinotAccessChecker.enableKerberos(ugi("pinot@EXAMPLE.COM", "/no/such/pinot.keytab"));
+    }
+
+    @Test
+    public void noUgiSettingsMeansNoKerberos() {
+        RangerPinotAccessChecker.enableKerberos(new org.apache.hadoop.conf.Configuration(false));
+    }
+
+    private static org.apache.hadoop.conf.Configuration ugi(String principal, String keytab) {
+        org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration(false);
+
+        conf.set("ranger.plugin.pinot.ugi.initialize", "true");
+        conf.set("ranger.plugin.pinot.ugi.login.type", "keytab");
+        conf.set("ranger.plugin.pinot.ugi.keytab.principal", principal);
+
+        if (keytab != null) {
+            conf.set("ranger.plugin.pinot.ugi.keytab.file", keytab);
+        }
+
+        return conf;
     }
 
     // ---------------------------------------------------------------------------------------------------------------

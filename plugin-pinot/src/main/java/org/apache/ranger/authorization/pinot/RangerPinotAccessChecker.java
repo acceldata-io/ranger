@@ -19,6 +19,9 @@
 package org.apache.ranger.authorization.pinot;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.ranger.authorization.hadoop.config.RangerPluginConfig;
 import org.apache.ranger.plugin.audit.RangerDefaultAuditHandler;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequestImpl;
@@ -31,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -43,18 +45,19 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Decides Pinot requests with the policies of a Ranger service of type {@code pinot}, and supplies Ranger row filters.
  *
- * <p>Resources: {@code cluster} for requests that name no table or database (value: the {@code cluster.name} setting,
- * default {@code pinot}; policies normally use {@code *}), {@code database} for database requests, {@code database} +
+ * <p>Resources: {@code cluster} for requests that name no table or database, {@code database} for database requests, {@code database} +
  * {@code table} for table requests (raw table name, {@code default} database when the table has none). The access
  * type is the one Pinot assigns to the request's action. Users and groups come from Pinot's authentication method;
  * Ranger can add its own groups ({@code ranger.plugin.pinot.use.rangerGroups}).
  *
- * <p>Configuration: the usual Ranger plug-in files {@code ranger-pinot-security.xml}, {@code ranger-pinot-audit.xml}
- * and {@code ranger-policymgr-ssl.xml}, from the class path and from the {@code config.dir} setting. Settings (Pinot's
- * {@code pinot.authz.ranger.*}): {@code config.dir}, {@code service.name} (default:
- * {@code ranger.plugin.pinot.service.name} from the files), {@code cluster.name}, {@code cache.ttl.ms} (how long a
- * decision is reused for the same user, groups, resource and access type; default 5000, 0 disables; reused decisions
- * are not audited again), {@code cache.max.entries} (default 100000).
+ * <p>Configuration: only the usual Ranger plug-in files on the class path - {@code ranger-pinot-security.xml}
+ * ({@code ranger.plugin.pinot.service.name}, {@code .policy.rest.url}, {@code .policy.cache.dir},
+ * {@code .policy.pollIntervalMs}, {@code .access.cluster.name} (value of the cluster resource, default {@code pinot};
+ * policies normally use {@code *}), {@code .ugi.*} (Kerberos, see {@link #enableKerberos}),
+ * {@code .decision.cache.ttl.ms} (how long a decision is reused for the same user, groups, resource and access type;
+ * default 5000, 0 disables; reused decisions are not audited again), {@code .decision.cache.max.entries} (default
+ * 100000)), {@code ranger-pinot-audit.xml} and {@code ranger-policymgr-ssl.xml}, written when the plug-in is enabled
+ * for Pinot. Pinot passes no settings.
  *
  * <p>Fails closed: until policies are downloaded (and with no policy cache from an earlier run) every request is
  * denied. When Ranger Admin is unreachable the plug-in keeps enforcing the policies it has, from memory or from its
@@ -70,13 +73,9 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
     public static final String ACCESS_QUERY      = "query";
     public static final String DEFAULT_DATABASE  = "default";
 
-    public static final String CONFIG_DIR        = "config.dir";
-    public static final String SERVICE_NAME      = "service.name";
-    public static final String CLUSTER_NAME      = "cluster.name";
-    public static final String CACHE_TTL_MS      = "cache.ttl.ms";
-    public static final String CACHE_MAX_ENTRIES = "cache.max.entries";
-
-    static final String[] CONFIG_FILES = {"ranger-pinot-security.xml", "ranger-pinot-audit.xml", "ranger-policymgr-ssl.xml"};
+    /** Suffixes of the decision cache settings under ranger.plugin.pinot (ranger-pinot-security.xml). */
+    public static final String DECISION_CACHE_TTL_MS      = ".decision.cache.ttl.ms";
+    public static final String DECISION_CACHE_MAX_ENTRIES = ".decision.cache.max.entries";
 
     private RangerBasePlugin            plugin;
     private RangerAccessResultProcessor auditHandler;
@@ -100,37 +99,25 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
 
     @Override
     public void init(Map<String, String> settings) {
-        clusterName     = StringUtils.defaultIfBlank(settings.get(CLUSTER_NAME), "pinot").trim();
-        cacheTtlMs      = number(settings, CACHE_TTL_MS, 5000L);
-        cacheMaxEntries = (int) number(settings, CACHE_MAX_ENTRIES, 100_000L);
-
-        List<File> configFiles = new ArrayList<>();
-        String     configDir   = StringUtils.trimToNull(settings.get(CONFIG_DIR));
-
-        if (configDir != null) {
-            for (String name : CONFIG_FILES) {
-                File file = new File(configDir, name);
-
-                if (file.isFile()) {
-                    configFiles.add(file);
-                }
-            }
-
-            if (configFiles.isEmpty()) {
-                throw new IllegalStateException("No Ranger plug-in configuration (" + StringUtils.join(CONFIG_FILES, ", ") + ") in " + configDir);
-            }
-        }
-
-        RangerPluginConfig pluginConfig = new RangerPluginConfig(SERVICE_TYPE, StringUtils.trimToNull(settings.get(SERVICE_NAME)), SERVICE_TYPE, null, null, configFiles, null);
-        String             policyUrl    = pluginConfig.get(pluginConfig.getPropertyPrefix() + ".policy.rest.url");
+        // Everything comes from the Ranger plug-in files (ranger-pinot-security.xml, ranger-pinot-audit.xml,
+        // ranger-policymgr-ssl.xml) on the class path, written when the plug-in is enabled; Pinot only selects the mode
+        RangerPluginConfig pluginConfig = new RangerPluginConfig(SERVICE_TYPE, null, SERVICE_TYPE, null, null, null);
+        String             prefix       = pluginConfig.getPropertyPrefix();
+        String             policyUrl    = pluginConfig.get(prefix + ".policy.rest.url");
 
         if (StringUtils.isBlank(pluginConfig.getServiceName())) {
-            throw new IllegalStateException("No Ranger service name: set ranger.plugin.pinot.service.name in ranger-pinot-security.xml or pinot.authz.ranger." + SERVICE_NAME);
+            throw new IllegalStateException("No Ranger service name: ranger-pinot-security.xml with " + prefix + ".service.name is not on the class path");
         }
 
         if (StringUtils.isBlank(policyUrl)) {
-            throw new IllegalStateException("No Ranger Admin URL: set ranger.plugin.pinot.policy.rest.url in ranger-pinot-security.xml");
+            throw new IllegalStateException("No Ranger Admin URL: set " + prefix + ".policy.rest.url in ranger-pinot-security.xml");
         }
+
+        clusterName     = StringUtils.defaultIfBlank(pluginConfig.getClusterName(), "pinot").trim();
+        cacheTtlMs      = pluginConfig.getLong(prefix + DECISION_CACHE_TTL_MS, 5000L);
+        cacheMaxEntries = pluginConfig.getInt(prefix + DECISION_CACHE_MAX_ENTRIES, 100_000);
+
+        enableKerberos(pluginConfig);
 
         RangerBasePlugin basePlugin = new RangerBasePlugin(pluginConfig);
 
@@ -140,6 +127,36 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
         auditHandler = new RangerDefaultAuditHandler(pluginConfig);
 
         LOG.info("Ranger authorization for Pinot ready: service={}, policy URL={}, cluster resource={}, decision cache={} ms", pluginConfig.getServiceName(), policyUrl, clusterName, cacheTtlMs);
+    }
+
+    /**
+     * On a Kerberos cluster Ranger Admin refuses unauthenticated policy downloads. The standard Ranger settings
+     * {@code ranger.plugin.pinot.ugi.initialize=true}, {@code .ugi.login.type=keytab}, {@code .ugi.keytab.principal}
+     * and {@code .ugi.keytab.file} make the base plug-in log in from the keytab; that login only takes effect when
+     * Hadoop security is on, which Pinot (unlike Hadoop services) has no core-site.xml for, so it is switched on here.
+     * This only affects the plug-in's own Hadoop classes, which its class loader keeps apart from Pinot's.
+     */
+    static void enableKerberos(Configuration pluginConfig) {
+        String prefix = "ranger.plugin." + SERVICE_TYPE + ".ugi";
+
+        if (!pluginConfig.getBoolean(prefix + ".initialize", false) || !"keytab".equalsIgnoreCase(pluginConfig.get(prefix + ".login.type"))) {
+            return;
+        }
+
+        String keytab = StringUtils.trimToNull(pluginConfig.get(prefix + ".keytab.file"));
+
+        if (keytab == null || StringUtils.isBlank(pluginConfig.get(prefix + ".keytab.principal"))) {
+            throw new IllegalArgumentException("Set " + prefix + ".keytab.principal and " + prefix + ".keytab.file in ranger-pinot-security.xml");
+        }
+
+        if (!new File(keytab).canRead()) {
+            throw new IllegalStateException("Kerberos keytab " + keytab + " is missing or not readable by the Pinot user");
+        }
+
+        Configuration conf = new Configuration();
+
+        conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+        UserGroupInformation.setConfiguration(conf);
     }
 
     @Override
@@ -236,19 +253,6 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
         return user + '\u0000' + sorted + '\u0000' + resource.getAsString() + '\u0000' + accessType;
     }
 
-    private static long number(Map<String, String> settings, String key, long defaultValue) {
-        String value = StringUtils.trimToNull(settings.get(key));
-
-        if (value == null) {
-            return defaultValue;
-        }
-
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("pinot.authz.ranger." + key + " must be a number: " + value);
-        }
-    }
 
     private static final class CachedDecision {
         final Map.Entry<Boolean, String> decision;

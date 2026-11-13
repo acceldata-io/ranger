@@ -80,4 +80,37 @@
       S3 Plugin RangerRestClient read Timeout in Milli Seconds
     </description>
   </property>
+  <property>
+    <name>ranger.plugin.pinot.decision.cache.ttl.ms</name>
+    <value>5000</value>
+    <description>
+      How long a decision is reused for the same user, groups, resource and access type (0 disables). Reused
+      decisions are not audited again.
+    </description>
+  </property>
+
+  <property>
+    <name>ranger.plugin.pinot.ugi.initialize</name>
+    <value>false</value>
+    <description>
+      Kerberos clusters: true, so that the plug-in logs in from the keytab below and downloads policies with SPNEGO
+      (Ranger Admin refuses unauthenticated downloads). Set by Ambari when Kerberos is enabled.
+    </description>
+  </property>
+
+  <property>
+    <name>ranger.plugin.pinot.ugi.login.type</name>
+    <value>keytab</value>
+  </property>
+
+  <property>
+    <name>ranger.plugin.pinot.ugi.keytab.principal</name>
+    <value></value>
+    <description>Pinot's Kerberos principal; its short name must be in the service's policy.download.auth.users.</description>
+  </property>
+
+  <property>
+    <name>ranger.plugin.pinot.ugi.keytab.file</name>
+    <value></value>
+  </property>
 </configuration>
