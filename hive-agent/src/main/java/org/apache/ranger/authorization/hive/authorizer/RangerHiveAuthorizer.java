@@ -1250,74 +1250,20 @@ public class RangerHiveAuthorizer extends RangerHiveAuthorizerBase {
 		return ret;
 	}
 
-	@Override
-	public List<HivePrivilegeObject> applyRowFilterAndColumnMasking(HiveAuthzContext queryContext, List<HivePrivilegeObject> hiveObjs) throws SemanticException {
-		List<HivePrivilegeObject> ret = new ArrayList<HivePrivilegeObject>();
+    @Override
+    public List<String> getAllRoles() throws HiveAuthzPluginException, HiveAccessControlException {
+        LOG.debug("==> RangerHiveAuthorizer.getAllRoles()");
 
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("==> applyRowFilterAndColumnMasking(" + queryContext + ", objCount=" + hiveObjs.size() + ")");
-		}
+        List<String>           ret          = new ArrayList<>();
+        RangerHiveAuditHandler auditHandler = new RangerHiveAuditHandler(hivePlugin.getConfig());
+        List<String>           userNames    = null;
+        boolean                result       = false;
 
-		RangerPerfTracer perf = null;
+        if (hivePlugin == null) {
+            throw new HiveAuthzPluginException("RangerHiveAuthorizer.getAllRoles(): HivePlugin initialization failed...");
+        }
 
-		if(RangerPerfTracer.isPerfTraceEnabled(PERF_HIVEAUTH_REQUEST_LOG)) {
-			perf = RangerPerfTracer.getPerfTracer(PERF_HIVEAUTH_REQUEST_LOG, "RangerHiveAuthorizer.applyRowFilterAndColumnMasking()");
-		}
-
-		if(CollectionUtils.isNotEmpty(hiveObjs)) {
-			IMetaStoreClient    metaStoreClient = getMetaStoreClient();
-			Map<String, String> objOwners       = new HashMap<>();
-
-			for (HivePrivilegeObject hiveObj : hiveObjs) {
-				HivePrivilegeObjectType hiveObjType = hiveObj.getType();
-
-				if(hiveObjType == null) {
-					hiveObjType = HivePrivilegeObjectType.TABLE_OR_VIEW;
-				}
-
-				if(LOG.isDebugEnabled()) {
-					LOG.debug("applyRowFilterAndColumnMasking(hiveObjType=" + hiveObjType + ")");
-				}
-
-				boolean needToTransform = false;
-
-				if (hiveObjType == HivePrivilegeObjectType.TABLE_OR_VIEW) {
-					String database = hiveObj.getDbname();
-					String table    = hiveObj.getObjectName();
-
-					String rowFilterExpr = getRowFilterExpression(queryContext, hiveObj, metaStoreClient, objOwners);
-
-					if (StringUtils.isNotBlank(rowFilterExpr)) {
-						if(LOG.isDebugEnabled()) {
-							LOG.debug("rowFilter(database=" + database + ", table=" + table + "): " + rowFilterExpr);
-						}
-
-						hiveObj.setRowFilterExpression(rowFilterExpr);
-						needToTransform = true;
-					}
-
-					if (CollectionUtils.isNotEmpty(hiveObj.getColumns())) {
-						List<String> columnTransformers = new ArrayList<String>();
-
-						for (String column : hiveObj.getColumns()) {
-							boolean isColumnTransformed = addCellValueTransformerAndCheckIfTransformed(queryContext, hiveObj, column, columnTransformers, metaStoreClient, objOwners);
-
-							if(LOG.isDebugEnabled()) {
-								LOG.debug("addCellValueTransformerAndCheckIfTransformed(database=" + database + ", table=" + table + ", column=" + column + "): " + isColumnTransformed);
-							}
-
-							needToTransform = needToTransform || isColumnTransformed;
-						}
-
-						hiveObj.setCellValueTransformers(columnTransformers);
-					}
-				}
-
-				if (needToTransform) {
-					ret.add(hiveObj);
-				}
-			}
-		}
+        UserGroupInformation ugi = getCurrentUserGroupInfo();
 
         if (ugi == null) {
             throw new HiveAccessControlException("RangerHiveAuthorizer.getAllRoles(): User information not available...");
