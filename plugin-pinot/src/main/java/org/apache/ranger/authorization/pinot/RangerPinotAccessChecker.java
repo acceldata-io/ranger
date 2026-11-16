@@ -211,7 +211,7 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
         }
 
         RangerAccessResourceImpl resource = resource(resourceType, database, table);
-        String                   key      = cacheTtlMs > 0 ? cacheKey(user, groups, resource, accessType) : null;
+        String                   key      = cacheTtlMs > 0 ? cacheKey(user, groups, resourceType, database, table, accessType) : null;
 
         if (key != null) {
             CachedDecision cached = cache.get(key);
@@ -292,10 +292,22 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
         return new AbstractMap.SimpleImmutableEntry<>(allowed, reason);
     }
 
-    private static String cacheKey(String user, Set<String> groups, RangerAccessResourceImpl resource, String accessType) {
+    // From the request's own values: RangerAccessResourceImpl.getAsString() is null until the policy engine has set
+    // the service definition on the resource, i.e. before the first evaluation, which would make every resource share
+    // one key
+    private String cacheKey(String user, Set<String> groups, String resourceType, String database, String table, String accessType) {
         Set<String> sorted = groups != null ? new TreeSet<>(groups) : Collections.<String>emptySet();
+        String      target;
 
-        return user + '\u0000' + sorted + '\u0000' + resource.getAsString() + '\u0000' + accessType;
+        if (RESOURCE_TABLE.equals(resourceType)) {
+            target = "table:" + StringUtils.defaultIfBlank(database, DEFAULT_DATABASE) + '\u0000' + table;
+        } else if (RESOURCE_DATABASE.equals(resourceType)) {
+            target = "database:" + StringUtils.defaultIfBlank(database, DEFAULT_DATABASE);
+        } else {
+            target = "cluster:" + clusterName;
+        }
+
+        return user + '\u0000' + sorted + '\u0000' + target + '\u0000' + accessType;
     }
 
 

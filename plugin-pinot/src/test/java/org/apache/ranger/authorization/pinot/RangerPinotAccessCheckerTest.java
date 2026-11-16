@@ -119,6 +119,25 @@ public class RangerPinotAccessCheckerTest {
         assertEquals("different groups or access type: evaluated again", 3, audit.count.get());
     }
 
+    @Test
+    public void cachedDecisionsAreKeptPerResource() {
+        RangerPinotAccessChecker checker = checker(policies(), 60_000, new Counting());
+
+        // alice (analysts) may query default.orders but not default.customers; bob may query every table of sales
+        assertTrue(table(checker, "alice", groups("analysts"), "default", "orders", "query"));
+        assertFalse("not the cached decision of another table", table(checker, "alice", groups("analysts"), "default", "customers", "query"));
+        assertTrue(table(checker, "bob", groups(), "sales", "orders", "query"));
+        assertTrue(table(checker, "bob", groups(), "sales", "customers", "query"));
+        assertFalse("other database", table(checker, "bob", groups(), "default", "orders", "query"));
+        // a database request is matched by a table=* policy of that database, but not by one of another database
+        assertTrue(checker.checkAccess("bob", groups(), PinotAccessChecker.RESOURCE_DATABASE, "sales", null, "query", "a").getKey());
+        assertFalse("database request is not the table decision", checker.checkAccess("bob", groups(), PinotAccessChecker.RESOURCE_DATABASE, "default", null, "query", "a").getKey());
+        assertFalse("cluster request is not the table decision", checker.checkAccess("bob", groups(), PinotAccessChecker.RESOURCE_CLUSTER, null, null, "query", "a").getKey());
+        // and the same answers again from the cache
+        assertTrue(table(checker, "alice", groups("analysts"), "default", "orders", "query"));
+        assertFalse(table(checker, "alice", groups("analysts"), "default", "customers", "query"));
+    }
+
     @Test(expected = IllegalStateException.class)
     public void initNeedsTheRangerFilesOnTheClassPath() {
         new RangerPinotAccessChecker().init(Collections.<String, String>emptyMap());
