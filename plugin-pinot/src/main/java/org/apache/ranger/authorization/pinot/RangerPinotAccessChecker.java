@@ -73,6 +73,8 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
     public static final String RESOURCE_DB       = "database";
     public static final String RESOURCE_TBL      = "table";
     public static final String ACCESS_QUERY      = "query";
+    /** The action of row filter audits, as in the Hive plug-in. */
+    public static final String ACTION_ROW_FILTER = "ROW_FILTER";
     public static final String DEFAULT_DATABASE  = "default";
 
     /** Suffixes of the decision cache settings under ranger.plugin.pinot (ranger-pinot-security.xml). */
@@ -244,9 +246,15 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
     @Override
     public List<String> getRowFilters(String user, Set<String> groups, String database, String table) {
         RangerAccessResourceImpl resource = resource(RESOURCE_TABLE, database, table);
-        RangerAccessResult       result   = plugin.evalRowFilterPolicies(request(user, groups, resource, ACCESS_QUERY, ACCESS_QUERY), auditHandler);
+        // Audited only when a row filter applies, like Hive: without one the result reads "not allowed", which an
+        // audit would show as a denied query although the access check allowed it
+        RangerAccessResult       result   = plugin.evalRowFilterPolicies(request(user, groups, resource, ACCESS_QUERY, ACTION_ROW_FILTER), null);
 
         if (result != null && result.isRowFilterEnabled() && StringUtils.isNotBlank(result.getFilterExpr())) {
+            if (auditHandler != null) {
+                auditHandler.processResult(result);
+            }
+
             return Collections.singletonList(result.getFilterExpr());
         }
 

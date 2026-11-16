@@ -45,6 +45,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
@@ -95,6 +96,18 @@ public class RangerPinotAccessCheckerTest {
         assertEquals(Collections.singletonList("region = 'south'"), checker.getRowFilters("alice", groups("analysts"), "default", "orders"));
         assertEquals(Collections.emptyList(), checker.getRowFilters("bob", groups(), "default", "orders"));
         assertEquals(Collections.emptyList(), checker.getRowFilters("alice", groups("analysts"), "default", "customers"));
+    }
+
+    @Test
+    public void rowFilterIsAuditedOnlyWhenAFilterApplies() {
+        Counting                 audit   = new Counting();
+        RangerPinotAccessChecker checker = checker(policies(), 0, audit);
+
+        checker.getRowFilters("bob", groups(), "default", "orders");
+        assertEquals("no row filter applies: nothing to audit, and not a denial", Collections.emptyList(), audit.actions);
+
+        checker.getRowFilters("alice", groups("analysts"), "default", "orders");
+        assertEquals(Collections.singletonList(RangerPinotAccessChecker.ACTION_ROW_FILTER), audit.actions);
     }
 
     @Test
@@ -286,16 +299,20 @@ public class RangerPinotAccessCheckerTest {
 
     /** Counts the decisions that reached Ranger (each is audited). */
     static final class Counting implements RangerAccessResultProcessor {
-        final AtomicInteger count = new AtomicInteger();
+        final AtomicInteger count   = new AtomicInteger();
+        final List<String>  actions = new CopyOnWriteArrayList<>();
 
         @Override
         public void processResult(RangerAccessResult result) {
             count.incrementAndGet();
+            actions.add(result.getAccessRequest().getAction());
         }
 
         @Override
         public void processResults(Collection<RangerAccessResult> results) {
-            count.addAndGet(results.size());
+            for (RangerAccessResult result : results) {
+                processResult(result);
+            }
         }
     }
 }
