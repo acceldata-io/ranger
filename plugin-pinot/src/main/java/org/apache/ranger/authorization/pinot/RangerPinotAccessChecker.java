@@ -219,6 +219,7 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
             CachedDecision cached = cache.get(key);
 
             if (cached != null && cached.expiresAt > System.currentTimeMillis()) {
+                audit(cached.result, request(user, groups, resource(resourceType, database, table), accessType, action));
                 return cached.decision;
             }
         }
@@ -237,7 +238,7 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
                 cache.clear();
             }
 
-            cache.put(key, new CachedDecision(ret, System.currentTimeMillis() + cacheTtlMs));
+            cache.put(key, new CachedDecision(ret, result, System.currentTimeMillis() + cacheTtlMs));
         }
 
         return ret;
@@ -319,12 +320,29 @@ public class RangerPinotAccessChecker implements PinotAccessChecker {
     }
 
 
+    // A decision taken from the cache is audited like an evaluated one: the cached result (decision, policy, audit
+    // flags) for the new request (time, user, action). Without it the audit would only show one decision per cache
+    // entry and lifetime.
+    private void audit(RangerAccessResult cached, RangerAccessRequestImpl request) {
+        if (auditHandler == null || cached == null) {
+            return;
+        }
+
+        RangerAccessResult replay = new RangerAccessResult(cached.getPolicyType(), cached.getServiceName(), cached.getServiceDef(), request);
+
+        replay.setAccessResultFrom(cached);
+        replay.setAuditResultFrom(cached);
+        auditHandler.processResult(replay);
+    }
+
     private static final class CachedDecision {
         final Map.Entry<Boolean, String> decision;
+        final RangerAccessResult         result;
         final long                       expiresAt;
 
-        CachedDecision(Map.Entry<Boolean, String> decision, long expiresAt) {
+        CachedDecision(Map.Entry<Boolean, String> decision, RangerAccessResult result, long expiresAt) {
             this.decision  = decision;
+            this.result    = result;
             this.expiresAt = expiresAt;
         }
     }

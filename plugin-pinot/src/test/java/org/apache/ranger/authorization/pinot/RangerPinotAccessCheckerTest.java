@@ -27,6 +27,7 @@ import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyItemRowFilterInfo
 import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyResource;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerRowFilterPolicyItem;
 import org.apache.ranger.plugin.model.RangerServiceDef;
+import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerAccessResult;
 import org.apache.ranger.plugin.policyengine.RangerAccessResultProcessor;
 import org.apache.ranger.plugin.service.RangerBasePlugin;
@@ -99,6 +100,21 @@ public class RangerPinotAccessCheckerTest {
     }
 
     @Test
+    public void everyCachedDecisionIsAudited() {
+        Counting                 audit   = new Counting();
+        RangerPinotAccessChecker checker = checker(policies(), 60_000, audit);
+
+        for (int i = 0; i < 3; i++) {
+            assertTrue(table(checker, "alice", groups("analysts"), "default", "orders", "query"));
+            assertFalse(table(checker, "alice", groups("analysts"), "default", "customers", "query"));
+        }
+
+        // Two evaluations, four from the cache: six decisions, six audit events, each for its own request
+        assertEquals("every decision is audited, cached or not", 6, audit.count.get());
+        assertEquals(Arrays.asList("action", "action", "action", "action", "action", "action"), audit.actions);
+    }
+
+    @Test
     public void rowFilterIsAuditedOnlyWhenAFilterApplies() {
         Counting                 audit   = new Counting();
         RangerPinotAccessChecker checker = checker(policies(), 0, audit);
@@ -121,15 +137,17 @@ public class RangerPinotAccessCheckerTest {
     @Test
     public void decisionsAreCachedPerUserGroupsResourceAndAccess() {
         Counting                 audit   = new Counting();
-        RangerPinotAccessChecker checker = checker(policies(), 60_000, audit);
+        CountingPlugin           plugin  = plugin(policies());
+        RangerPinotAccessChecker checker = new RangerPinotAccessChecker(plugin, audit, "pinot", 60_000);
 
         table(checker, "alice", groups("analysts"), "default", "orders", "query");
         table(checker, "alice", groups("analysts"), "default", "orders", "query");
-        assertEquals("second identical request answered from the cache", 1, audit.count.get());
+        assertEquals("second identical request answered from the cache", 1, plugin.evaluations.get());
 
         table(checker, "alice", groups("analysts", "other"), "default", "orders", "query");
         table(checker, "alice", groups("analysts"), "default", "orders", "read_metadata");
-        assertEquals("different groups or access type: evaluated again", 3, audit.count.get());
+        assertEquals("different groups or access type: evaluated again", 3, plugin.evaluations.get());
+        assertEquals("every decision audited, from the cache too", 4, audit.count.get());
     }
 
     @Test
@@ -232,6 +250,10 @@ public class RangerPinotAccessCheckerTest {
     }
 
     private static RangerPinotAccessChecker checker(List<RangerPolicy> policies, long cacheTtlMs, RangerAccessResultProcessor audit) {
+        return new RangerPinotAccessChecker(plugin(policies), audit, "pinot", cacheTtlMs);
+    }
+
+    private static CountingPlugin plugin(List<RangerPolicy> policies) {
         ServicePolicies servicePolicies = new ServicePolicies();
 
         servicePolicies.setServiceName(SERVICE);
@@ -239,12 +261,26 @@ public class RangerPinotAccessCheckerTest {
         servicePolicies.setPolicies(policies);
         servicePolicies.setPolicyVersion(1L);
 
-        RangerPluginConfig config = new RangerPluginConfig("pinot", SERVICE, "pinot", null, null, null);
-        RangerBasePlugin   plugin = new RangerBasePlugin(config);
+        CountingPlugin plugin = new CountingPlugin(new RangerPluginConfig("pinot", SERVICE, "pinot", null, null, null));
 
         plugin.setPolicies(servicePolicies); // policies as if downloaded; no Ranger Admin, no refresher
 
-        return new RangerPinotAccessChecker(plugin, audit, "pinot", cacheTtlMs);
+        return plugin;
+    }
+
+    /** Counts the access evaluations of the policy engine (decisions not taken from the cache). */
+    static final class CountingPlugin extends RangerBasePlugin {
+        final AtomicInteger evaluations = new AtomicInteger();
+
+        CountingPlugin(RangerPluginConfig config) {
+            super(config);
+        }
+
+        @Override
+        public RangerAccessResult isAccessAllowed(RangerAccessRequest request, RangerAccessResultProcessor processor) {
+            evaluations.incrementAndGet();
+            return super.isAccessAllowed(request, processor);
+        }
     }
 
     private static List<RangerPolicy> policies() {
