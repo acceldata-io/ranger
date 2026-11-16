@@ -21,6 +21,7 @@ package org.apache.ranger.services.pinot.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
+import org.apache.ranger.plugin.util.PasswordUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -92,7 +93,8 @@ public class PinotAdminClient {
         this.controllers  = Collections.unmodifiableList(list);
         this.authType     = StringUtils.defaultIfBlank(configs.get(CONFIG_AUTHENTICATION_TYPE), "basic").trim().toLowerCase();
         this.username     = StringUtils.trimToNull(configs.get(CONFIG_USERNAME));
-        this.password     = configs.get(CONFIG_PASSWORD);
+        // Ranger Admin stores the service's "password" setting encrypted; a plain value is used as given
+        this.password     = configs.get(CONFIG_PASSWORD) != null ? PasswordUtils.getDecryptPassword(configs.get(CONFIG_PASSWORD)) : null;
         this.tokenUrl     = StringUtils.trimToNull(configs.get(CONFIG_OAUTH2_TOKEN_URL));
         this.clientId     = StringUtils.trimToNull(configs.get(CONFIG_OAUTH2_CLIENT_ID));
         this.clientSecret = configs.get(CONFIG_OAUTH2_CLIENT_SECRET);

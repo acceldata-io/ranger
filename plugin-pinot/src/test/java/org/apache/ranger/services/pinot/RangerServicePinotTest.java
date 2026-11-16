@@ -25,6 +25,7 @@ import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
+import org.apache.ranger.plugin.util.PasswordUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -114,6 +115,13 @@ public class RangerServicePinotTest {
     public void testConnectionWithBasicCredentials() throws Exception {
         assertEquals(Boolean.TRUE, service(basic("secret")).validateConfig().get("connectivityStatus"));
         assertEquals("credentials on the table listing (health is public)", Collections.singletonList(BASIC), authorizations);
+    }
+
+    @Test
+    public void testConnectionWithThePasswordAsRangerAdminStoresIt() throws Exception {
+        // Ranger Admin encrypts the "password" setting of a service before it hands the settings to the service
+        assertEquals(Boolean.TRUE, service(basic(PasswordUtils.encryptPassword("secret"))).validateConfig().get("connectivityStatus"));
+        assertEquals(Collections.singletonList(BASIC), authorizations);
     }
 
     @Test
