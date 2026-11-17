@@ -19,9 +19,12 @@
 
 package org.apache.ranger.usergroupsync;
 
+import java.io.File;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.ranger.unixusersync.config.UserGroupSyncConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.ranger.unixusersync.config.UserGroupSyncConfig;
 
 public class UserGroupSync implements Runnable {
 
@@ -29,6 +32,15 @@ public class UserGroupSync implements Runnable {
 
 	private UserGroupSink ugSink;
 	private UserGroupSource ugSource;
+
+	/**
+	 * Second-truncated baseline. {@code File.lastModified()} is 1-second resolution on most
+	 * filesystems, so a millisecond timestamp in the same second looks newer than a fresh touch.
+	 */
+	private long lastForceSyncTriggerProcessedAt = floorToSecond(System.currentTimeMillis());
+
+	/** mtime already acted on. A second touch in that same second is not a new event. */
+	private long lastForceSyncTriggerMtime = Long.MIN_VALUE;
 
 	public static void main(String[] args) {
 		UserGroupSync userGroupSync = new UserGroupSync();
@@ -57,6 +69,8 @@ public class UserGroupSync implements Runnable {
 						syncUserGroup();
 						LOG.info("End: initial load of user/group from source==>sink");
 
+						lastForceSyncTriggerProcessedAt = floorToSecond(System.currentTimeMillis());
+						lastForceSyncTriggerMtime = Long.MIN_VALUE;
 						initPending = false;
 						LOG.info("Done initializing user/group source and sink");
 					}else {
@@ -83,7 +97,7 @@ public class UserGroupSync implements Runnable {
 					if (LOG.isDebugEnabled()){
 						LOG.debug("Sleeping for [" + sleepTimeBetweenCycleInMillis + "] milliSeconds");
 					}
-					Thread.sleep(sleepTimeBetweenCycleInMillis);
+					sleepBetweenSyncCycles(sleepTimeBetweenCycleInMillis);
 				} catch (InterruptedException e) {
 					LOG.error("Failed to wait for [" + sleepTimeBetweenCycleInMillis + "] milliseconds before attempting to synchronize UserGroup information", e);
 				}
@@ -108,6 +122,10 @@ public class UserGroupSync implements Runnable {
 		}
 	}
 
+	private static long floorToSecond(long epochMillis) {
+		return epochMillis / 1000L * 1000L;
+	}
+
 	private void syncUserGroup() throws Throwable {
 		UserGroupSyncConfig config = UserGroupSyncConfig.getInstance();
 
@@ -115,6 +133,30 @@ public class UserGroupSync implements Runnable {
 			ugSource.updateSink(ugSink);
 		}
 
+	}
+
+	private void sleepBetweenSyncCycles(long sleepTimeBetweenCycleInMillis) throws InterruptedException {
+		UserGroupSyncConfig cfg = UserGroupSyncConfig.getInstance();
+		String triggerFile = cfg.getForceSyncTriggerFile();
+		if (StringUtils.isBlank(triggerFile) || sleepTimeBetweenCycleInMillis <= 0) {
+			Thread.sleep(sleepTimeBetweenCycleInMillis);
+			return;
+		}
+		long remaining = sleepTimeBetweenCycleInMillis;
+		long chunk = Math.min(10_000L, Math.max(1_000L, sleepTimeBetweenCycleInMillis));
+		File f = new File(triggerFile);
+		while (remaining > 0) {
+			long thisSleep = Math.min(chunk, remaining);
+			Thread.sleep(thisSleep);
+			remaining -= thisSleep;
+			long modifiedAt = f.lastModified();
+			if (f.exists() && modifiedAt >= lastForceSyncTriggerProcessedAt && modifiedAt != lastForceSyncTriggerMtime) {
+				lastForceSyncTriggerMtime = modifiedAt;
+				lastForceSyncTriggerProcessedAt = modifiedAt;
+				LOG.info("Force sync trigger file was updated; resuming user/group sync early.");
+				return;
+			}
+		}
 	}
 
 }

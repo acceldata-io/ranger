@@ -178,7 +178,8 @@ def getPropertiesConfigMap(configFileName):
     config.seek(0, os.SEEK_SET)
     fcp = ConfigParser()
     fcp.optionxform = str
-    fcp.readfp(config)
+    _read_cfg = getattr(fcp, "read_file", fcp.readfp)
+    _read_cfg(config)
     for k, v in fcp.items('dummysection'):
         ret[k] = v
     return ret
@@ -192,7 +193,8 @@ def getPropertiesKeyList(configFileName):
     config.seek(0, os.SEEK_SET)
     fcp = ConfigParser()
     fcp.optionxform = str
-    fcp.readfp(config)
+    _read_cfg = getattr(fcp, "read_file", fcp.readfp)
+    _read_cfg(config)
     for k, v in fcp.items('dummysection'):
         ret.append(k)
     return ret
