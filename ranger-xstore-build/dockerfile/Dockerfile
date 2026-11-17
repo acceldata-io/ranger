@@ -51,6 +51,19 @@ RUN groupadd ranger && \
 ENTRYPOINT [ "/bin/bash" ]
 
 ######################################################################
+# Usersync native helpers, compiled for the target platform
+######################################################################
+# The usersync tarball's native/*.uexe come from the (amd64) CI build pod; rebuild them per target arch
+# with the same inputs as the native-maven-plugin (no extra compiler flags, -lcrypt / -lpam).
+FROM ${SRC_CONTAINER_IMAGE} AS ranger-native
+COPY unixauthnative/src/main/c/credValidator.c unixauthpam/src/main/c/pamCredValidator.c /src/
+RUN set -eux; \
+    apt-get update -y; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gcc libc6-dev libcrypt-dev libpam0g-dev; \
+    gcc -o /src/credValidator.uexe /src/credValidator.c -lcrypt; \
+    gcc -o /src/pamCredValidator.uexe /src/pamCredValidator.c -lpam
+
+######################################################################
 # Ranger-Admin image...
 ######################################################################
 FROM ranger-base AS ranger
@@ -71,13 +84,16 @@ RUN chmod +x ${RANGER_SCRIPTS}/*.sh ${RANGER_SCRIPTS}/*.py
 
 # awk (not `head -1`) reads the whole tar listing: under `pipefail` an early-exiting
 # reader kills tar with SIGPIPE and the pipeline returns 141.
-RUN set -eux; \
+RUN --mount=type=bind,from=ranger-native,source=/src,target=/tmp/ranger-native set -eux; \
     RANGER_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-admin.tar.gz | awk -F/ 'NR==1 { print $1 }')"; \
     tar xvfz /home/ranger/dist/ranger-admin.tar.gz --directory="${RANGER_HOME}"; \
     ln -s "${RANGER_HOME}/${RANGER_TOP_DIR}" "${RANGER_HOME}/admin"; \
     USERSYNC_TOP_DIR="$(tar tzf /home/ranger/dist/ranger-usersync.tar.gz | awk -F/ 'NR==1 { print $1 }')"; \
     tar xvfz /home/ranger/dist/ranger-usersync.tar.gz --directory="${RANGER_HOME}"; \
     ln -s "${RANGER_HOME}/${USERSYNC_TOP_DIR}" "${RANGER_HOME}/usersync"; \
+    for f in credValidator.uexe pamCredValidator.uexe; do \
+      if [ -f "${RANGER_HOME}/usersync/native/${f}" ]; then install -m 750 "/tmp/ranger-native/${f}" "${RANGER_HOME}/usersync/native/${f}"; fi; \
+    done; \
     echo "${RANGER_TOP_DIR}" | sed -e 's/^ranger-//' -e 's/-admin$//' > /home/ranger/dist/version; \
     rm -f /home/ranger/dist/ranger-admin.tar.gz; \
     rm -f /home/ranger/dist/ranger-usersync.tar.gz; \
