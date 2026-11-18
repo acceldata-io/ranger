@@ -1,0 +1,145 @@
+{
+  "name": "clickhouse",
+  "displayName": "clickhouse",
+  "label": "ClickHouse",
+  "description": "Apache Ranger service definition for ClickHouse",
+  "implClass": "org.apache.ranger.services.clickhouse.RangerServiceClickHouse",
+  "options": {
+    "enableDenyAndExceptionsInPolicies": "true"
+  },
+  "resources": [
+    {
+      "itemId": 1,
+      "name": "database",
+      "type": "string",
+      "level": 10,
+      "mandatory": true,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": { "wildCard":true, "ignoreCase":true },
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "ClickHouse Database",
+      "description": "ClickHouse database",
+      "isValidLeaf": true
+    },
+    {
+      "itemId": 2,
+      "name": "table",
+      "type": "string",
+      "level": 20,
+      "parent": "database",
+      "mandatory": true,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": { "wildCard":true, "ignoreCase":true },
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "ClickHouse Table",
+      "description": "ClickHouse table",
+      "isValidLeaf": true
+    },
+    {
+      "itemId": 3,
+      "name": "column",
+      "type": "string",
+      "level": 30,
+      "parent": "table",
+      "mandatory": true,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": { "wildCard":true, "ignoreCase":true },
+      "validationRegEx":"",
+      "validationMessage": "",
+      "uiHint":"",
+      "label": "ClickHouse Column",
+      "description": "ClickHouse column"
+    }
+  ],
+  "accessTypes": [
+    {
+      "itemId": 1,
+      "name": "select",
+      "label": "Select",
+      "impliedGrants": [],
+      "category": "READ"
+    },
+    {
+      "itemId": 2,
+      "name": "insert",
+      "label": "Insert",
+      "impliedGrants": [],
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 3,
+      "name": "update",
+      "label": "Update",
+      "impliedGrants": [],
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 4,
+      "name": "delete",
+      "label": "Delete",
+      "impliedGrants": [],
+      "category": "DELETE"
+    },
+    {
+      "itemId": 5,
+      "name": "alter",
+      "label": "Alter",
+      "impliedGrants": [],
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 6,
+      "name": "create",
+      "label": "Create",
+      "impliedGrants": [],
+      "category": "CREATE"
+    },
+    {
+      "itemId": 7,
+      "name": "drop",
+      "label": "Drop",
+      "impliedGrants": [],
+      "category": "DELETE"
+    },
+    {
+      "itemId": 8,
+      "name": "show",
+      "label": "Show",
+      "impliedGrants": [],
+      "category": "READ"
+    },
+    {
+      "itemId": 9,
+      "name": "all",
+      "label": "All",
+      "impliedGrants": [
+        "select",
+        "insert",
+        "update",
+        "delete",
+        "alter",
+        "create",
+        "drop",
+        "show"
+      ],
+      "category": "MANAGE"
+    }
+  ],
+  "configs": [],
+  "enums": [],
+  "contextEnrichers": [],
+  "policyConditions": []
+}
