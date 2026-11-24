@@ -102,6 +102,44 @@ ENV_HADOOP_CONF_FILE = "ranger-usersync-env-hadoopconfdir.sh"
 ENV_PID_FILE = 'ranger-usersync-env-piddir.sh'
 ENV_CONF_FILE = 'ranger-usersync-env-confdir.sh'
 
+# --- non-root support (e.g. OpenShift restricted-v2: arbitrary UID, group 0) -------------------------
+# As root nothing changes: chown/chmod errors are raised exactly as before. As a non-root user, chown is
+# never permitted and chmod only on files the process owns; the image already makes these paths group-0
+# writable, so such steps are skipped with a single warning instead of aborting setup half-way (which left
+# e.g. rangerusersync.jceks missing).
+_nonroot_warned = False
+
+
+def _is_root():
+    return os.geteuid() == 0
+
+
+def _warn_nonroot(op, path):
+    global _nonroot_warned
+    if not _nonroot_warned:
+        print("WARNING: running as non-root UID %d: skipping %s(%s) and similar ownership/permission changes "
+              "(further messages suppressed)" % (os.geteuid(), op, path))
+        _nonroot_warned = True
+
+
+def safe_chown(path, uid, gid):
+    try:
+        os.chown(path, uid, gid)
+    except PermissionError:
+        if _is_root():
+            raise
+        _warn_nonroot("chown", path)
+
+
+def safe_chmod(path, mode):
+    try:
+        os.chmod(path, mode)
+    except PermissionError:
+        if _is_root():
+            raise
+        _warn_nonroot("chmod", path)
+
+
 def populate_global_dict():
     global globalDict
     read_config_file = open(join(RANGER_USERSYNC_HOME, 'install.properties'))
@@ -178,7 +216,8 @@ def getPropertiesConfigMap(configFileName):
     config.seek(0, os.SEEK_SET)
     fcp = ConfigParser()
     fcp.optionxform = str
-    fcp.readfp(config)
+    _read_cfg = getattr(fcp, "read_file", fcp.readfp)
+    _read_cfg(config)
     for k, v in fcp.items('dummysection'):
         ret[k] = v
     return ret
@@ -192,7 +231,8 @@ def getPropertiesKeyList(configFileName):
     config.seek(0, os.SEEK_SET)
     fcp = ConfigParser()
     fcp.optionxform = str
-    fcp.readfp(config)
+    _read_cfg = getattr(fcp, "read_file", fcp.readfp)
+    _read_cfg(config)
     for k, v in fcp.items('dummysection'):
         ret.append(k)
     return ret
@@ -322,6 +362,16 @@ def createGroup(groupname):
 
 
 def initializeInitD(ownerName):
+    try:
+        _initializeInitD(ownerName)
+    except PermissionError:
+        # init.d / rc*.d / /usr/bin registration needs root and is not used in containers
+        if _is_root():
+            raise
+        _warn_nonroot("init.d registration", initdDirName)
+
+
+def _initializeInitD(ownerName):
     if (os.path.isdir(initdDirName)):
         fn = join(RANGER_USERSYNC_HOME, initdProgramName)
         initdFn = join(initdDirName, initdProgramName)
@@ -336,7 +386,7 @@ def initializeInitD(ownerName):
             f = open(initdFn, 'w')
             f.write(newdata)
             f.close()
-        os.chmod(initdFn, 0o550)
+        safe_chmod(initdFn, 0o550)
         rcDirList = ["/etc/rc2.d", "/etc/rc3.d", "/etc/rc.d/rc2.d", "/etc/rc.d/rc3.d"]
         for rcDir in rcDirList:
             if (os.path.isdir(rcDir)):
@@ -426,7 +476,7 @@ def main():
     str = "export JAVA_HOME=%s\n" % os.environ['JAVA_HOME']
     jhf.write(str)
     jhf.close()
-    os.chmod(java_home_setter_fn, 0o750)
+    safe_chmod(java_home_setter_fn, 0o750)
 
     if (not os.path.isdir(localConfFolderName)):
         os.symlink(confFolderName, localConfFolderName)
@@ -498,12 +548,12 @@ def main():
     except KeyError as e:
         ownerId = createUser(ownerName, groupName)
 
-    os.chown(logFolderName, ownerId, groupId)
-    os.chown(ugsyncLogFolderName, ownerId, groupId)
-    os.chown(rangerBaseDirName, ownerId, groupId)
-    os.chown(usersyncBaseDirFullName, ownerId, groupId)
-    os.chown(pid_dir_path, ownerId, groupId)
-    os.chmod(pid_dir_path, 0o755)
+    safe_chown(logFolderName, ownerId, groupId)
+    safe_chown(ugsyncLogFolderName, ownerId, groupId)
+    safe_chown(rangerBaseDirName, ownerId, groupId)
+    safe_chown(usersyncBaseDirFullName, ownerId, groupId)
+    safe_chown(pid_dir_path, ownerId, groupId)
+    safe_chmod(pid_dir_path, 0o755)
     initializeInitD(ownerName)
 
     #
@@ -519,7 +569,7 @@ def main():
         else:
             updatePropertyInJCKSFile(cryptPath, aliasName, " ")
 
-    os.chown(cryptPath, ownerId, groupId)
+    safe_chown(cryptPath, ownerId, groupId)
 
     if ('ranger.usersync.policymgr.keystore' not in mergeProps):
         mergeProps['ranger.usersync.policymgr.keystore'] = cryptPath
@@ -540,7 +590,7 @@ def main():
     pmgrPasswd = mergeProps['ranger.usersync.policymgr.password']
 
     updatePropertyInJCKSFile(usersyncKSPath, pmgrAlias, pmgrPasswd)
-    os.chown(ugsyncCryptPath, ownerId, groupId)
+    safe_chown(ugsyncCryptPath, ownerId, groupId)
 
     writeXMLUsingProperties(fn, mergeProps, outfn)
 
@@ -551,8 +601,8 @@ def main():
         f = open(usersync_conf_full_path, "w")
         f.write("<configuration></configuration>")
         f.close()
-        os.chown(usersync_conf_full_path, ownerId, groupId)
-        os.chmod(usersync_conf_full_path, 0o750)
+        safe_chown(usersync_conf_full_path, ownerId, groupId)
+        safe_chmod(usersync_conf_full_path, 0o750)
     else:
         if os.path.islink(usersync_conf_full_path):
             os.remove(usersync_conf_full_path)
@@ -561,21 +611,21 @@ def main():
 
     for dir in fixPermList:
         for root, dirs, files in os.walk(dir):
-            os.chown(root, ownerId, groupId)
-            os.chmod(root, 0o755)
+            safe_chown(root, ownerId, groupId)
+            safe_chmod(root, 0o755)
             for obj in dirs:
                 dn = join(root, obj)
-                os.chown(dn, ownerId, groupId)
-                os.chmod(dn, 0o755)
+                safe_chown(dn, ownerId, groupId)
+                safe_chmod(dn, 0o755)
             for obj in files:
                 fn = join(root, obj)
-                os.chown(fn, ownerId, groupId)
-                os.chmod(fn, 0o750)
+                safe_chown(fn, ownerId, groupId)
+                safe_chmod(fn, 0o750)
 
     if isfile(nativeAuthProgramName):
         try:
-                os.chown(nativeAuthProgramName, rootOwnerId, groupId)
-                os.chmod(nativeAuthProgramName, 0o750)
+                safe_chown(nativeAuthProgramName, rootOwnerId, groupId)
+                safe_chmod(nativeAuthProgramName, 0o750)
         except PermissionError:
                 print("WARNING: chmod(4550), chown(%s:%s) failed for Unix Authentication Program (%s) " % ("root", groupName, nativeAuthProgramName))
     else:
@@ -584,8 +634,8 @@ def main():
 
     if isfile(pamAuthProgramName):
         try:
-                os.chown(pamAuthProgramName, rootOwnerId, groupId)
-                os.chmod(pamAuthProgramName, 0o750)
+                safe_chown(pamAuthProgramName, rootOwnerId, groupId)
+                safe_chmod(pamAuthProgramName, 0o750)
         except PermissionError:
                 print("WARNING: chmod(0o750), chown(%s:%s) failed for Unix Authentication Program (%s) " % ("root", groupName, pamAuthProgramName))
     else:
@@ -596,14 +646,14 @@ def main():
     write_env_files("RANGER_USERSYNC_HADOOP_CONF_DIR", hadoop_conf, ENV_HADOOP_CONF_FILE);
     write_env_files("USERSYNC_PID_DIR_PATH", pid_dir_path, ENV_PID_FILE);
     write_env_files("USERSYNC_CONF_DIR", confFolderName, ENV_CONF_FILE);
-    os.chown(join(confBaseDirName, ENV_LOGDIR_FILE), ownerId, groupId)
-    os.chmod(join(confBaseDirName, ENV_LOGDIR_FILE), 0o755)
-    os.chown(join(confBaseDirName, ENV_HADOOP_CONF_FILE), ownerId, groupId)
-    os.chmod(join(confBaseDirName, ENV_HADOOP_CONF_FILE), 0o755)
-    os.chown(join(confBaseDirName, ENV_PID_FILE), ownerId, groupId)
-    os.chmod(join(confBaseDirName, ENV_PID_FILE), 0o755)
-    os.chown(join(confBaseDirName, ENV_CONF_FILE), ownerId, groupId)
-    os.chmod(join(confBaseDirName, ENV_CONF_FILE), 0o755)
+    safe_chown(join(confBaseDirName, ENV_LOGDIR_FILE), ownerId, groupId)
+    safe_chmod(join(confBaseDirName, ENV_LOGDIR_FILE), 0o755)
+    safe_chown(join(confBaseDirName, ENV_HADOOP_CONF_FILE), ownerId, groupId)
+    safe_chmod(join(confBaseDirName, ENV_HADOOP_CONF_FILE), 0o755)
+    safe_chown(join(confBaseDirName, ENV_PID_FILE), ownerId, groupId)
+    safe_chmod(join(confBaseDirName, ENV_PID_FILE), 0o755)
+    safe_chown(join(confBaseDirName, ENV_CONF_FILE), ownerId, groupId)
+    safe_chmod(join(confBaseDirName, ENV_CONF_FILE), 0o755)
 
     f = open(join(confBaseDirName, ENV_PID_FILE), "a+")
     f.write("\nexport {0}={1}".format("UNIX_USERSYNC_USER", unix_user))
