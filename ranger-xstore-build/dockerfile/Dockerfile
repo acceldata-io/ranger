@@ -118,6 +118,19 @@ RUN curl -s -f -L -o /usr/share/java/postgresql.jar https://sonatype.nexus.accel
     curl -s -f -L -o /usr/share/java/mysql-connector.jar https://sonatype.nexus.acceldata.tech/repository/maven-public/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar && \
     curl -s -f -L -o ${RANGER_HOME}/admin/ews/webapp/WEB-INF/lib/log4jdbc-1.2.jar https://sonatype.nexus.acceldata.tech/repository/maven-public/com/googlecode/log4jdbc/log4jdbc/1.2/log4jdbc-1.2.jar
 
+# Arbitrary-UID support (e.g. OpenShift restricted-v2): the container may run as a random UID with
+# group 0 instead of the ranger user. Give group 0 the same access as the owner on everything the
+# entrypoint and setup scripts execute or write. Ownership stays ranger:ranger, so running as the
+# ranger user (e.g. runAsUser 56096 on EKS) behaves exactly as before.
+RUN set -eux; \
+    for p in /home/ranger ${RANGER_HOME} /var/run/ranger /var/log/ranger /etc/ranger /etc/init.d/ranger-usersync; do \
+      chgrp -R 0 "$p"; \
+      chmod -R g=u "$p"; \
+    done
+
+# A random UID has no passwd entry and would get HOME=/ (not writable). Same value the ranger user has.
+ENV HOME=/home/ranger
+
 
 ARG OCI_AUTHORS="Acceldata Inc."
 ARG OCI_VENDOR="Acceldata Inc."
