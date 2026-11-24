@@ -300,6 +300,7 @@
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
                 <module>plugin-airflow</module>
+                <module>plugin-mlflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>ranger-airflow-authz-agent</module>
@@ -449,6 +450,19 @@
                   isolate from.
                 -->
                 <module>ranger-airflow-authz-agent</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>ranger-mlflow-plugin</id>
+            <modules>
+                <module>agents-audit</module>
+                <module>agents-common</module>
+                <module>agents-cred</module>
+                <module>agents-installer</module>
+                <module>credentialbuilder</module>
+                <module>ranger-plugin-classloader</module>
+                <module>ranger-util</module>
+                <module>plugin-mlflow</module>
             </modules>
         </profile>
         <profile>
@@ -633,6 +647,7 @@
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
                 <module>plugin-airflow</module>
+                <module>plugin-mlflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>ranger-airflow-authz-agent</module>
@@ -715,6 +730,7 @@
                 <module>knox-agent</module>
                 <module>plugin-yarn</module>
                 <module>plugin-airflow</module>
+                <module>plugin-mlflow</module>
                 <module>plugin-yunikorn</module>
                 <module>ranger-yunikorn-agent</module>
                 <module>ranger-airflow-authz-agent</module>

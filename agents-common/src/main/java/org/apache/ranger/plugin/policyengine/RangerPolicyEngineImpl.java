@@ -587,6 +587,12 @@ public class RangerPolicyEngineImpl implements RangerPolicyEngine {
 		this.serviceConfig    = new ServiceConfig(other.serviceConfig);
 	}
 
+	public RangerPolicyEngineImpl(final PolicyEngine policyEngine, Map<String, String> serviceConfigMap) {
+		this.policyEngine     = policyEngine;
+		this.requestProcessor = new RangerDefaultRequestProcessor(policyEngine);
+		this.serviceConfig    = new ServiceConfig(serviceConfigMap);
+	}
+
 	private RangerAccessResult zoneAwareAccessEvaluationWithNoAudit(RangerAccessRequest request, int policyType) {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("==> RangerPolicyEngineImpl.zoneAwareAccessEvaluationWithNoAudit(" + request + ", policyType =" + policyType + ")");

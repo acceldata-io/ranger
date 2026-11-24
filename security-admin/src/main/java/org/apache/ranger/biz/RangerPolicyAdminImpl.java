@@ -32,8 +32,11 @@ import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequestImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequestProcessor;
 import org.apache.ranger.plugin.policyengine.RangerAccessResource;
+import org.apache.ranger.plugin.policyengine.RangerAccessResult;
+import org.apache.ranger.plugin.policyengine.RangerAccessResultProcessor;
 import org.apache.ranger.plugin.policyengine.RangerPluginContext;
 import org.apache.ranger.plugin.policyengine.RangerPolicyEngine;
+import org.apache.ranger.plugin.policyengine.RangerPolicyEngineImpl;
 import org.apache.ranger.plugin.policyengine.RangerPolicyRepository;
 import org.apache.ranger.plugin.policyengine.RangerTagAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerTagResource;
@@ -69,6 +72,7 @@ public class RangerPolicyAdminImpl implements RangerPolicyAdmin {
 
     private final PolicyEngine                 policyEngine;
     private final RangerAccessRequestProcessor requestProcessor;
+    private final RangerPolicyEngine           runtimePolicyEngine;
     private final static Map<String, Object>          wildcardEvalContext = new HashMap<String, Object>() {
         @Override
         public Object get(Object key) { return RangerAbstractResourceMatcher.WILDCARD_ASTERISK; }
@@ -98,13 +102,25 @@ public class RangerPolicyAdminImpl implements RangerPolicyAdmin {
     }
 
     RangerPolicyAdminImpl(ServicePolicies servicePolicies, RangerPluginContext pluginContext, RangerRoles roles) {
-        this.policyEngine     = new PolicyEngine(servicePolicies, pluginContext, roles, ServiceDBStore.SUPPORTS_IN_PLACE_POLICY_UPDATES);
-        this.requestProcessor = new RangerDefaultRequestProcessor(policyEngine);
+        this.policyEngine        = new PolicyEngine(servicePolicies, pluginContext, roles, ServiceDBStore.SUPPORTS_IN_PLACE_POLICY_UPDATES);
+        this.requestProcessor    = new RangerDefaultRequestProcessor(policyEngine);
+        this.runtimePolicyEngine = new RangerPolicyEngineImpl(this.policyEngine, servicePolicies != null ? servicePolicies.getServiceConfig() : null);
     }
 
     private RangerPolicyAdminImpl(final PolicyEngine policyEngine) {
-        this.policyEngine     = policyEngine;
-        this.requestProcessor = new RangerDefaultRequestProcessor(policyEngine);
+        this.policyEngine        = policyEngine;
+        this.requestProcessor    = new RangerDefaultRequestProcessor(policyEngine);
+        this.runtimePolicyEngine = new RangerPolicyEngineImpl(this.policyEngine, (Map<String, String>) null);
+    }
+
+    @Override
+    public RangerAccessResult evaluateAccess(RangerAccessRequest request, RangerAccessResultProcessor resultProcessor) {
+        return runtimePolicyEngine.evaluatePolicies(request, RangerPolicy.POLICY_TYPE_ACCESS, resultProcessor);
+    }
+
+    @Override
+    public Collection<RangerAccessResult> evaluateAccess(Collection<RangerAccessRequest> requests, RangerAccessResultProcessor resultProcessor) {
+        return runtimePolicyEngine.evaluatePolicies(requests, RangerPolicy.POLICY_TYPE_ACCESS, resultProcessor);
     }
 
     @Override

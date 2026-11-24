@@ -27,7 +27,10 @@ import java.util.Set;
 import org.apache.ranger.plugin.model.RangerPolicy;
 import org.apache.ranger.plugin.model.RangerPolicy.RangerPolicyResource;
 import org.apache.ranger.plugin.model.RangerServiceDef;
+import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerAccessResource;
+import org.apache.ranger.plugin.policyengine.RangerAccessResult;
+import org.apache.ranger.plugin.policyengine.RangerAccessResultProcessor;
 import org.apache.ranger.plugin.store.ServiceStore;
 import org.apache.ranger.plugin.util.GrantRevokeRequest;
 import org.apache.ranger.plugin.util.RangerRoles;
@@ -69,5 +72,13 @@ public interface RangerPolicyAdmin {
     List<RangerPolicy> getAllowedUnzonedPolicies(String user, Set<String> userGroups, String accessType);
 
     void setServiceStore(ServiceStore svcStore);
+
+    default RangerAccessResult evaluateAccess(RangerAccessRequest request, RangerAccessResultProcessor resultProcessor) {
+        return null;
+    }
+
+    default Collection<RangerAccessResult> evaluateAccess(Collection<RangerAccessRequest> requests, RangerAccessResultProcessor resultProcessor) {
+        return null;
+    }
 
 }

@@ -50,11 +50,13 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.ranger.audit.model.AuthzAuditEvent;
 import org.apache.ranger.admin.client.datatype.RESTResponse;
 import org.apache.ranger.authorization.hadoop.config.RangerAdminConfig;
 import org.apache.ranger.authorization.utils.StringUtil;
 import org.apache.ranger.biz.AssetMgr;
 import org.apache.ranger.biz.PolicyRefUpdater;
+import org.apache.ranger.biz.RangerAdminAccessAuditLogger;
 import org.apache.ranger.biz.RangerPolicyAdmin;
 import org.apache.ranger.biz.RangerBizUtil;
 import org.apache.ranger.biz.RangerPolicyAdminCacheForEngineOptions;
@@ -71,6 +73,7 @@ import org.apache.ranger.common.GUIDUtil;
 import org.apache.ranger.common.MessageEnums;
 import org.apache.ranger.common.PropertiesUtil;
 import org.apache.ranger.common.RESTErrorUtil;
+import org.apache.ranger.common.RangerUserStoreCache;
 import org.apache.ranger.common.RangerConstants;
 import org.apache.ranger.common.RangerSearchUtil;
 import org.apache.ranger.common.RangerValidatorFactory;
@@ -97,8 +100,11 @@ import org.apache.ranger.plugin.model.validation.RangerServiceDefHelper;
 import org.apache.ranger.plugin.model.validation.RangerServiceDefValidator;
 import org.apache.ranger.plugin.model.validation.RangerServiceValidator;
 import org.apache.ranger.plugin.model.validation.RangerValidator.Action;
+import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
+import org.apache.ranger.plugin.policyengine.RangerAccessRequestImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResource;
 import org.apache.ranger.plugin.policyengine.RangerAccessResourceImpl;
+import org.apache.ranger.plugin.policyengine.RangerAccessResult;
 import org.apache.ranger.plugin.policyengine.RangerPolicyEngineOptions;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.apache.ranger.plugin.store.EmbeddedServiceDefsUtil;
@@ -108,6 +114,7 @@ import org.apache.ranger.plugin.util.GrantRevokeRequest;
 import org.apache.ranger.plugin.util.JsonUtilsV2;
 import org.apache.ranger.plugin.util.RangerAccessRequestUtil;
 import org.apache.ranger.plugin.util.RangerPerfTracer;
+import org.apache.ranger.plugin.util.RangerUserStore;
 import org.apache.ranger.plugin.util.RangerPurgeResult;
 import org.apache.ranger.plugin.util.SearchFilter;
 import org.apache.ranger.plugin.util.ServicePolicies;
@@ -242,6 +249,11 @@ public class ServiceREST {
 
 	@Autowired
 	TagDBStore tagStore;
+
+	@Autowired
+	protected RangerAdminAccessAuditLogger accessAuditLogger;
+
+	private volatile RangerPolicyEngineOptions accessCheckEngineOptions;
 
 	@Autowired
 	RangerTransactionSynchronizationAdapter rangerTransactionSynchronizationAdapter;
@@ -4724,6 +4736,391 @@ public class ServiceREST {
 		}
 
 		return ret;
+	}
+
+	@POST
+	@Path("/access/check/{serviceName}")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json" })
+	public RangerAccessCheckResponse checkAccess(@PathParam("serviceName") String serviceName,
+	                                           RangerAccessCheckRequest accessCheckRequest,
+	                                           @Context HttpServletRequest request) {
+		return checkAccessInternal(serviceName, accessCheckRequest, request);
+	}
+
+	@POST
+	@Path("/secure/access/check/{serviceName}")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json" })
+	public RangerAccessCheckResponse checkSecureAccess(@PathParam("serviceName") String serviceName,
+	                                                 RangerAccessCheckRequest accessCheckRequest,
+	                                                 @Context HttpServletRequest request) {
+		return checkAccessInternal(serviceName, accessCheckRequest, request);
+	}
+
+	@GET
+	@Path("/access/policy-version/{serviceName}")
+	@Produces({ "application/json" })
+	public Map<String, Object> getAccessPolicyVersion(@PathParam("serviceName") String serviceName,
+	                                         @Context HttpServletRequest request) {
+		return getAccessPolicyVersionInternal(serviceName, request);
+	}
+
+	@GET
+	@Path("/secure/access/policy-version/{serviceName}")
+	@Produces({ "application/json" })
+	public Map<String, Object> getSecureAccessPolicyVersion(@PathParam("serviceName") String serviceName,
+	                                               @Context HttpServletRequest request) {
+		return getAccessPolicyVersionInternal(serviceName, request);
+	}
+
+	private RangerAccessCheckResponse checkAccessInternal(String serviceName,
+	                                                    RangerAccessCheckRequest accessCheckRequest,
+	                                                    HttpServletRequest request) {
+		RangerPerfTracer perf = null;
+		try {
+			if (RangerPerfTracer.isPerfTraceEnabled(PERF_LOG)) {
+				perf = RangerPerfTracer.getPerfTracer(PERF_LOG, "ServiceREST.checkAccess(serviceName=" + serviceName + ")");
+			}
+			authorizeAccessCheckCaller(serviceName, request);
+			String remoteIp = request != null ? request.getRemoteAddr() : null;
+			return evaluateAccessChecks(serviceName, accessCheckRequest, remoteIp);
+		} catch (WebApplicationException excp) {
+			throw excp;
+		} catch (Throwable excp) {
+			LOG.error("checkAccess(" + serviceName + ") failed", excp);
+			throw restErrorUtil.createRESTException(excp.getMessage());
+		} finally {
+			RangerPerfTracer.log(perf);
+		}
+	}
+
+	private Map<String, Object> getAccessPolicyVersionInternal(String serviceName, HttpServletRequest request) {
+		try {
+			authorizeAccessCheckCaller(serviceName, request);
+			RangerPolicyAdmin policyAdmin = getAccessCheckPolicyAdmin(serviceName);
+
+			Map<String, Object> ret = new LinkedHashMap<>();
+			ret.put("serviceName", serviceName);
+			ret.put("policyVersion", policyAdmin.getPolicyVersion());
+			ret.put("roleVersion", policyAdmin.getRoleVersion());
+			ret.put("userStoreVersion", resolveAccessCheckUserStoreVersion());
+			return ret;
+		} catch (WebApplicationException excp) {
+			throw excp;
+		} catch (Throwable excp) {
+			LOG.error("getAccessPolicyVersion(" + serviceName + ") failed", excp);
+			throw restErrorUtil.createRESTException(excp.getMessage());
+		}
+	}
+
+	protected void authorizeAccessCheckCaller(String serviceName, HttpServletRequest request) throws Exception {
+		bizUtil.blockAuditorRoleUser();
+		if (!serviceUtil.isValidService(serviceName, request)) {
+			throw restErrorUtil.createRESTException(
+					HttpServletResponse.SC_BAD_REQUEST,
+					"Invalid service: " + serviceName,
+					true);
+		}
+		RangerService rangerService = svcStore.getServiceByName(serviceName);
+		if (rangerService == null) {
+			throw restErrorUtil.createRESTException(
+					HttpServletResponse.SC_NOT_FOUND,
+					"Service not found: " + serviceName,
+					true);
+		}
+		String loggedInUser = bizUtil.getCurrentUserLoginId();
+		XXService xService = daoManager.getXXService().findByName(serviceName);
+		XXServiceDef xServiceDef = xService != null ? daoManager.getXXServiceDef().getById(xService.getType()) : null;
+
+		boolean isAllowed;
+		if (xServiceDef != null && StringUtils.equals(xServiceDef.getImplclassname(), EmbeddedServiceDefsUtil.KMS_IMPL_CLASS_NAME)) {
+			isAllowed = bizUtil.isKeyAdmin() || bizUtil.isUserAllowed(rangerService, Allowed_User_List_For_Download);
+		} else {
+			isAllowed = bizUtil.isAdmin()
+					|| bizUtil.isUserServiceAdmin(rangerService, loggedInUser)
+					|| bizUtil.isUserAllowed(rangerService, Allowed_User_List_For_Download);
+		}
+
+		if (!isAllowed) {
+			throw restErrorUtil.createRESTException(
+					HttpServletResponse.SC_FORBIDDEN,
+					"User '" + loggedInUser + "' is not authorized to invoke access check endpoints for service '" + serviceName + "'",
+					true);
+		}
+	}
+
+	private static final int MAX_ACCESS_CHECK_ITEMS = 5_000;
+
+	/**
+	 * Evaluates one or more access requests against the in-memory policy engine of the given service.
+	 * A single item is a plain access check; multiple items are evaluated under one engine lock.
+	 * Results are returned in the same order as the request items.
+	 */
+	RangerAccessCheckResponse evaluateAccessChecks(String serviceName, RangerAccessCheckRequest accessCheckReq, String fallbackClientIp) {
+		validateAccessCheckRequest(accessCheckReq);
+
+		String user = accessCheckReq.getUser();
+
+		RangerPolicyAdmin policyAdmin   = getAccessCheckPolicyAdmin(serviceName);
+		RangerServiceDef  serviceDef    = policyAdmin.getServiceDef();
+		long              policyVersion = policyAdmin.getPolicyVersion();
+
+		Set<String> effectiveGroups = resolveAccessCheckUserGroups(user, accessCheckReq.getUserGroups());
+		String      clientIp        = StringUtils.defaultIfBlank(accessCheckReq.getClientIPAddress(), fallbackClientIp);
+		String      accessType      = accessCheckReq.getAccessType().trim();
+		String      action          = StringUtils.defaultIfBlank(accessCheckReq.getAction(), accessType);
+		Date        now             = new Date();
+		boolean     isBatch         = accessCheckReq.getItems().size() > 1;
+		boolean     auditEnabled    = (accessCheckReq.getAudit() == null || accessCheckReq.getAudit().booleanValue()) && isAccessCheckAuditEnabled();
+
+		List<RangerAccessRequest> requests = new ArrayList<>(accessCheckReq.getItems().size());
+		for (RangerAccessCheckRequest.Item item : accessCheckReq.getItems()) {
+			RangerAccessResourceImpl resource = buildAccessCheckResource(serviceDef, item.getResource(), item.getOwnerUser());
+			RangerAccessRequestImpl  req      = new RangerAccessRequestImpl(resource, accessType, user, effectiveGroups, null);
+			req.setAction(action);
+			req.setAccessTime(now);
+			req.setClientIPAddress(clientIp);
+			req.setRequestData(item.getRequestData());
+			requests.add(req);
+		}
+
+		Collection<RangerAccessResult> evalResults = policyAdmin.evaluateAccess(requests, null);
+		List<RangerAccessResult>       results     = evalResults != null ? new ArrayList<>(evalResults) : new ArrayList<RangerAccessResult>();
+
+		List<RangerAccessCheckResponse.Result> out                = new ArrayList<>(requests.size());
+		List<RangerAccessCheckResponse.Result> pendingBatchAudit  = new ArrayList<>();
+		RangerAccessResult             sample             = null;
+		int                            allowedCount       = 0;
+
+		for (int i = 0; i < requests.size(); i++) {
+			RangerAccessResult r       = i < results.size() ? results.get(i) : null;
+			boolean            allowed = r != null && r.getIsAllowed();
+			RangerAccessCheckResponse.Result res = new RangerAccessCheckResponse.Result(accessCheckReq.getItems().get(i).getId(),
+					allowed, r != null ? r.getPolicyId() : -1L, false, r != null ? r.getReason() : null);
+			out.add(res);
+
+			if (r == null) {
+				continue;
+			}
+			if (sample == null) {
+				sample = r;
+			}
+			if (allowed) {
+				allowedCount++;
+			}
+			if (auditEnabled && r.getIsAudited()) {
+				if (isBatch) {
+					pendingBatchAudit.add(res);
+				} else {
+					res.setAudited(accessAuditLogger.log(buildAccessCheckAuditEvent(serviceName, serviceDef, requests.get(i), r, policyVersion)));
+				}
+			}
+		}
+
+		// Batch: a single summary audit event for the whole batch, so bulk list filtering does not flood the audit store
+		if (!pendingBatchAudit.isEmpty()) {
+			boolean emitted = accessAuditLogger.log(buildAccessCheckBatchSummaryEvent(serviceName, serviceDef, requests.get(0),
+					policyVersion, requests.size(), allowedCount, sample));
+			for (RangerAccessCheckResponse.Result res : pendingBatchAudit) {
+				res.setAudited(emitted);
+			}
+		}
+
+		return new RangerAccessCheckResponse(policyVersion, out);
+	}
+
+	private void validateAccessCheckRequest(RangerAccessCheckRequest req) {
+		if (req == null) {
+			throw restErrorUtil.createRESTException("Access check request body is required", MessageEnums.INVALID_INPUT_DATA);
+		}
+		if (StringUtils.isBlank(req.getUser())) {
+			throw restErrorUtil.createRESTException("Access check request requires non-empty 'user'", MessageEnums.INVALID_INPUT_DATA);
+		}
+		if (StringUtils.isBlank(req.getAccessType())) {
+			throw restErrorUtil.createRESTException("Access check request requires non-empty 'accessType'", MessageEnums.INVALID_INPUT_DATA);
+		}
+		if (CollectionUtils.isEmpty(req.getItems())) {
+			throw restErrorUtil.createRESTException("Access check request requires non-empty 'items'", MessageEnums.INVALID_INPUT_DATA);
+		}
+		if (req.getItems().size() > MAX_ACCESS_CHECK_ITEMS) {
+			throw restErrorUtil.createRESTException("Access check request exceeds maximum of " + MAX_ACCESS_CHECK_ITEMS + " items", MessageEnums.INVALID_INPUT_DATA);
+		}
+		for (RangerAccessCheckRequest.Item item : req.getItems()) {
+			if (item == null || MapUtils.isEmpty(item.getResource())) {
+				throw restErrorUtil.createRESTException("Every access check item requires a non-empty 'resource'", MessageEnums.INVALID_INPUT_DATA);
+			}
+		}
+	}
+
+	protected RangerPolicyAdmin getAccessCheckPolicyAdmin(String serviceName) {
+		if (accessCheckEngineOptions == null) {
+			accessCheckEngineOptions = buildAccessCheckEngineOptions(RangerAdminConfig.getInstance());
+		}
+		RangerPolicyAdmin policyAdmin = RangerPolicyAdminCacheForEngineOptions.getInstance()
+				.getServicePoliciesAdmin(serviceName, svcStore, zoneStore, roleDBStore, accessCheckEngineOptions);
+		if (policyAdmin == null) {
+			throw restErrorUtil.createRESTException(
+					"Policy engine unavailable for service '" + serviceName + "'", MessageEnums.DATA_NOT_FOUND);
+		}
+		return policyAdmin;
+	}
+
+	boolean isAccessCheckAuditEnabled() {
+		return RangerAdminConfig.getInstance().getBoolean("ranger.admin.access.check.audit.enabled", true);
+	}
+
+	Set<String> resolveAccessCheckUserGroups(String user, Set<String> requestGroups) {
+		Set<String> groups = new HashSet<>();
+		if (CollectionUtils.isNotEmpty(requestGroups)) {
+			groups.addAll(requestGroups);
+		}
+		if (StringUtils.isBlank(user)) {
+			return groups;
+		}
+
+		try {
+			RangerUserStore userStore = resolveAccessCheckUserStore();
+			if (userStore != null && userStore.getUserGroupMapping() != null) {
+				Set<String> storeGroups = userStore.getUserGroupMapping().get(user);
+				if (CollectionUtils.isNotEmpty(storeGroups)) {
+					groups.addAll(storeGroups);
+					return groups;
+				}
+			}
+		} catch (Exception e) {
+			LOG.debug("UserStore lookup failed for user [{}]; falling back to DAO", user, e);
+		}
+
+		if (daoManager != null && daoManager.getXXGroupUser() != null) {
+			try {
+				Set<String> dbGroups = daoManager.getXXGroupUser().findGroupNamesByUserName(user);
+				if (CollectionUtils.isNotEmpty(dbGroups)) {
+					groups.addAll(dbGroups);
+				}
+			} catch (Exception e) {
+				LOG.debug("DAO group lookup failed for user [{}]", user, e);
+			}
+		}
+		return groups;
+	}
+
+	protected RangerUserStore resolveAccessCheckUserStore() throws Exception {
+		if (userMgr != null) {
+			return RangerUserStoreCache.getInstance().getLatestRangerUserStoreOrCached(userMgr);
+		}
+		return RangerUserStoreCache.getInstance().getRangerUserStore();
+	}
+
+	protected long resolveAccessCheckUserStoreVersion() {
+		try {
+			if (userMgr != null) {
+				Long v = userMgr.getUserStoreVersion();
+				if (v != null) {
+					return v.longValue();
+				}
+			}
+			RangerUserStore cached = RangerUserStoreCache.getInstance().getRangerUserStore();
+			if (cached != null && cached.getUserStoreVersion() != null) {
+				return cached.getUserStoreVersion().longValue();
+			}
+		} catch (Exception e) {
+			LOG.debug("Unable to fetch userStoreVersion", e);
+		}
+		return -1L;
+	}
+
+	static RangerPolicyEngineOptions buildAccessCheckEngineOptions(RangerAdminConfig config) {
+		RangerPolicyEngineOptions opts = new RangerPolicyEngineOptions();
+		opts.configureRangerAdminForPolicySearch(config, "ranger.admin");
+		opts.disableContextEnrichers                   = config.getBoolean("ranger.admin.access.check.policyengine.option.disable.context.enrichers", false);
+		opts.disableCustomConditions                   = config.getBoolean("ranger.admin.access.check.policyengine.option.disable.custom.conditions", false);
+		opts.disableTagPolicyEvaluation                = config.getBoolean("ranger.admin.access.check.policyengine.option.disable.tagpolicy.evaluation", false);
+		opts.disableRoleResolution                     = config.getBoolean("ranger.admin.access.check.policyengine.option.disable.role.resolution", false);
+		opts.enableTagEnricherWithLocalRefresher       = true;
+		opts.enableUserStoreEnricherWithLocalRefresher = true;
+		return opts;
+	}
+
+	static RangerAccessResourceImpl buildAccessCheckResource(RangerServiceDef serviceDef, Map<String, String> resourceMap, String ownerUser) {
+		Map<String, Object> elements = new LinkedHashMap<>();
+		if (resourceMap != null) {
+			for (Map.Entry<String, String> entry : resourceMap.entrySet()) {
+				if (StringUtils.isNotBlank(entry.getKey()) && entry.getValue() != null) {
+					elements.put(entry.getKey().trim(), entry.getValue());
+				}
+			}
+		}
+		RangerAccessResourceImpl resource = new RangerAccessResourceImpl(elements, ownerUser);
+		if (serviceDef != null) {
+			resource.setServiceDef(serviceDef);
+		}
+		return resource;
+	}
+
+	static AuthzAuditEvent buildAccessCheckAuditEvent(String serviceName, RangerServiceDef serviceDef, RangerAccessRequest req,
+	                                          RangerAccessResult result, long policyVersion) {
+		AuthzAuditEvent evt = new AuthzAuditEvent();
+		evt.setRepositoryName(serviceName);
+		evt.setRepositoryType(serviceDef != null && serviceDef.getId() != null ? serviceDef.getId().intValue() : 0);
+		evt.setUser(req.getUser());
+		evt.setAccessType(req.getAccessType());
+		evt.setAction(req.getAction());
+		evt.setClientIP(req.getClientIPAddress());
+		evt.setEventTime(req.getAccessTime() != null ? req.getAccessTime() : new Date());
+		evt.setRequestData(req.getRequestData());
+		evt.setAccessResult((short) (result != null && result.getIsAllowed() ? 1 : 0));
+		evt.setPolicyId(result != null ? result.getPolicyId() : -1L);
+		evt.setPolicyVersion(policyVersion);
+		evt.setResultReason(result != null ? result.getReason() : null);
+		evt.setZoneName(result != null ? result.getZoneName() : null);
+		evt.setResourceType(resolveAccessCheckLeafResourceType(serviceDef, req));
+		evt.setResourcePath(req.getResource() != null ? req.getResource().getAsString() : "");
+		return evt;
+	}
+
+	static AuthzAuditEvent buildAccessCheckBatchSummaryEvent(String serviceName, RangerServiceDef serviceDef, RangerAccessRequest first,
+	                                                 long policyVersion, int evaluated, int allowed, RangerAccessResult sample) {
+		AuthzAuditEvent summary = new AuthzAuditEvent();
+		summary.setRepositoryName(serviceName);
+		summary.setRepositoryType(serviceDef != null && serviceDef.getId() != null ? serviceDef.getId().intValue() : 0);
+		summary.setUser(first.getUser());
+		summary.setAccessType(first.getAccessType());
+		summary.setAction(first.getAction());
+		summary.setClientIP(first.getClientIPAddress());
+		summary.setEventTime(first.getAccessTime() != null ? first.getAccessTime() : new Date());
+		summary.setAccessResult((short) (allowed > 0 ? 1 : 0));
+		summary.setPolicyId(sample != null ? sample.getPolicyId() : -1L);
+		summary.setPolicyVersion(policyVersion);
+		summary.setResourceType(serviceDef != null ? serviceDef.getName() : "resource");
+		summary.setResourcePath("batch-evaluate(" + evaluated + ")");
+		summary.setRequestData("evaluated=" + evaluated + ",allowed=" + allowed);
+		summary.setEventCount(1L);
+		return summary;
+	}
+
+	static String resolveAccessCheckLeafResourceType(RangerServiceDef serviceDef, RangerAccessRequest req) {
+		if (req == null || req.getResource() == null || CollectionUtils.isEmpty(req.getResource().getKeys())) {
+			return "";
+		}
+		Set<String> keys = req.getResource().getKeys();
+		if (serviceDef != null && CollectionUtils.isNotEmpty(serviceDef.getResources())) {
+			String deepestName  = null;
+			int    deepestLevel = Integer.MIN_VALUE;
+			for (RangerServiceDef.RangerResourceDef resDef : serviceDef.getResources()) {
+				if (resDef != null && keys.contains(resDef.getName())) {
+					int lvl = resDef.getLevel() != null ? resDef.getLevel().intValue() : 0;
+					if (lvl >= deepestLevel) {
+						deepestLevel = lvl;
+						deepestName  = resDef.getName();
+					}
+				}
+			}
+			if (deepestName != null) {
+				return deepestName;
+			}
+		}
+		return keys.iterator().next();
 	}
 }
 

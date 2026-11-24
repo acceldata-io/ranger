@@ -1,0 +1,378 @@
+{
+	"name": "mlflow",
+	"displayName": "MLflow",
+	"implClass": "org.apache.ranger.services.mlflow.RangerServiceMlflow",
+	"label": "MLflow",
+	"description": "MLflow 3.16.0+ Tracking, Model Registry, Prompt Registry, AI Gateway, and MCP Server Authorization",
+	"guid": "7f9a3e54-8b2d-4c19-a6f1-9d4c2e1b8a05",
+	"options": {
+		"enableDenyAndExceptionsInPolicies": "true"
+	},
+	"resources": [
+		{
+			"itemId": 1,
+			"name": "workspace",
+			"type": "string",
+			"level": 10,
+			"parent": "",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "Workspace",
+			"description": "MLflow workspace name ('default' when workspaces are disabled). Wildcards supported.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+		{
+			"itemId": 2,
+			"name": "experiment",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "Experiment",
+			"description": "MLflow experiment name (resolved from experiment_id). Prefix/suffix wildcards supported, e.g. /prod/* or team-a-*.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+		{
+			"itemId": 3,
+			"name": "registered_model",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "Registered Model",
+			"description": "MLflow registered model name. Wildcards supported, e.g. prod-*.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+		{
+			"itemId": 4,
+			"name": "prompt",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "Prompt",
+			"description": "MLflow prompt name (mlflow.prompt.is_prompt=true). Wildcards supported.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+		{
+			"itemId": 5,
+			"name": "scorer",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "Scorer",
+			"description": "MLflow evaluation scorer (<experiment_name>/<scorer_name>). Wildcards supported.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+		{
+			"itemId": 6,
+			"name": "gateway_endpoint",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "AI Gateway Endpoint",
+			"description": "MLflow AI Gateway endpoint name. Grant 'use' to allow invoking LLM chat/completions/embeddings.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+		{
+			"itemId": 7,
+			"name": "gateway_secret",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "AI Gateway Secret",
+			"description": "MLflow AI Gateway secret name. Grant 'use' to allow binding to model definitions without exposing secret metadata.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+		{
+			"itemId": 8,
+			"name": "gateway_model_definition",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "AI Gateway Model Definition",
+			"description": "MLflow AI Gateway model definition name. Grant 'use' to allow attaching to gateway endpoints.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		},
+		{
+			"itemId": 9,
+			"name": "mcp_server",
+			"type": "string",
+			"level": 20,
+			"parent": "workspace",
+			"isValidLeaf": true,
+			"mandatory": true,
+			"lookupSupported": true,
+			"recursiveSupported": false,
+			"excludesSupported": true,
+			"matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+			"matcherOptions": {
+				"wildCard": true,
+				"ignoreCase": false
+			},
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"singleValue\":false}",
+			"label": "MCP Server",
+			"description": "MLflow MCP server (<namespace>/<slug>). Wildcards supported, e.g. analytics/*.",
+			"accessTypeRestrictions": ["read", "use", "edit", "manage"]
+		}
+	],
+	"accessTypes": [
+		{
+			"itemId": 1,
+			"name": "read",
+			"label": "Read",
+			"category": "READ"
+		},
+		{
+			"itemId": 2,
+			"name": "use",
+			"label": "Use",
+			"category": "READ",
+			"impliedGrants": ["read"]
+		},
+		{
+			"itemId": 3,
+			"name": "edit",
+			"label": "Edit",
+			"category": "UPDATE",
+			"impliedGrants": ["read", "use"]
+		},
+		{
+			"itemId": 4,
+			"name": "manage",
+			"label": "Manage",
+			"category": "MANAGE",
+			"impliedGrants": ["read", "use", "edit"]
+		}
+	],
+	"configs": [
+		{
+			"itemId": 1,
+			"name": "mlflow.url",
+			"type": "string",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"TextFieldWithIcon\":true, \"info\": \"MLflow Tracking Server or Knox Gateway base URL(s), comma-separated for HA (e.g. https://mlflow-host:5000 or https://knox-host:8443/gateway/default/mlflow). Used for Test Connection and policy autocomplete.\"}",
+			"label": "MLflow Server URL"
+		},
+		{
+			"itemId": 2,
+			"name": "mlflow.auth.type",
+			"type": "enum",
+			"subType": "mlflowAuthType",
+			"mandatory": false,
+			"defaultValue": "basic",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"info\": \"Authentication mode used by Ranger Admin when connecting to MLflow for resource autocomplete and Test Connection (basic, kerberos, or knox).\"}",
+			"label": "MLflow Lookup Auth Type"
+		},
+		{
+			"itemId": 3,
+			"name": "username",
+			"type": "string",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"info\": \"MLflow lookup service account username (used for Basic/LDAP or Knox Basic lookup, and seeded with lookup read access in default policies).\"}",
+			"label": "Lookup Username"
+		},
+		{
+			"itemId": 4,
+			"name": "password",
+			"type": "password",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "",
+			"label": "Lookup Password"
+		},
+		{
+			"itemId": 5,
+			"name": "mlflow.kerberos.principal",
+			"type": "string",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"info\": \"Kerberos principal (e.g. mlflow/_HOST@EXAMPLE.COM) used for SPNEGO authentication when mlflow.auth.type=kerberos.\"}",
+			"label": "Kerberos Principal"
+		},
+		{
+			"itemId": 6,
+			"name": "mlflow.kerberos.keytab",
+			"type": "string",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"info\": \"Path to Kerberos keytab file on Ranger Admin host when mlflow.auth.type=kerberos.\"}",
+			"label": "Kerberos Keytab"
+		},
+		{
+			"itemId": 7,
+			"name": "mlflow.knox.token",
+			"type": "password",
+			"mandatory": false,
+			"defaultValue": "",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"info\": \"Optional Knox JWT/Bearer token when mlflow.auth.type=knox (leave blank to use Lookup Username/Password over Knox Basic Auth).\"}",
+			"label": "Knox Bearer Token"
+		},
+		{
+			"itemId": 8,
+			"name": "policy.download.auth.users",
+			"type": "string",
+			"mandatory": false,
+			"defaultValue": "mlflow",
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "{\"info\": \"Comma-separated list of service accounts allowed to invoke Ranger Admin PDP evaluation endpoints for this MLflow service.\"}",
+			"label": "PDP / Policy Download Auth Users"
+		},
+		{
+			"itemId": 9,
+			"name": "ranger.plugin.audit.filters",
+			"type": "string",
+			"subType": "",
+			"mandatory": false,
+			"validationRegEx": "",
+			"validationMessage": "",
+			"uiHint": "",
+			"label": "Ranger Default Audit Filters",
+			"defaultValue": "[]"
+		}
+	],
+	"enums": [
+		{
+			"itemId": 1,
+			"name": "mlflowAuthType",
+			"elements": [
+				{
+					"itemId": 1,
+					"name": "basic",
+					"label": "HTTP Basic / LDAP"
+				},
+				{
+					"itemId": 2,
+					"name": "kerberos",
+					"label": "Kerberos / SPNEGO"
+				},
+				{
+					"itemId": 3,
+					"name": "knox",
+					"label": "Apache Knox"
+				}
+			],
+			"defaultIndex": 0
+		}
+	],
+	"contextEnrichers": [],
+	"policyConditions": []
+}
