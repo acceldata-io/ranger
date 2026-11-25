@@ -44,9 +44,11 @@ import java.util.concurrent.TimeUnit;
  * own calls do, with the settings Ambari copies from Pinot's configuration.
  *
  * Pinot's token-source code and its few dependencies ship in the "pinot-auth" directory next to this plug-in's jar,
- * outside the plug-in's class path, and are loaded in their own class loader. Pinot needs Java 17: on an older Java
- * runtime the token is fetched by a child process run with Pinot's Java ("java.home" setting), the settings passed on
- * its standard input so that secrets never appear on a command line.
+ * outside the plug-in's class path, and are loaded in their own class loader. The token is fetched by a child process
+ * run with Pinot's Java ("java.home" setting), the settings passed on its standard input so that secrets never appear
+ * on a command line, when that cannot work inside Ranger Admin's JVM: Pinot needs Java 17, and settings Ranger Admin
+ * applies to the whole JVM can break Java's defaults Pinot's HTTP client relies on (e.g. javax.net.ssl.trustStore
+ * naming a missing file: no default SSL context, even for an http URL).
  */
 final class PinotServiceTokens {
     static final String ENTRY_CLASS      = "org.apache.pinot.plugin.auth.oauth2.ServiceTokens";
@@ -86,10 +88,26 @@ final class PinotServiceTokens {
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
 
+            // Ranger Admin's JVM, not the provider, refused (security or SSL setup): a JVM of its own has Java's defaults
+            if (StringUtils.isNotBlank(javaHome) && isJvmEnvironmentProblem(cause)) {
+                return fetchInChildProcess(dir, settings, javaHome.trim(), source);
+            }
+
             throw new IOException("Pinot service token (source " + source + "): " + cause.getMessage(), cause);
         } catch (ReflectiveOperationException | LinkageError e) {
             throw new IOException("Pinot service token (source " + source + "): cannot run Pinot's token sources from " + dir.getAbsolutePath() + ": " + e, e);
         }
+    }
+
+    /** A failure of the JVM's security or SSL setup (e.g. no default SSL context), anywhere in the cause chain. */
+    static boolean isJvmEnvironmentProblem(Throwable error) {
+        for (Throwable t = error; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (t instanceof java.security.GeneralSecurityException || t instanceof LinkageError) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     static File jarsDir() {

@@ -198,4 +198,35 @@ public class PinotServiceTokensTest {
             assertTrue(e.getMessage(), e.getMessage().contains("no Java at /no/such/java"));
         }
     }
+
+    @Test
+    public void brokenSslDefaultsOfRangerAdminFallBackToPinotsJava() throws IOException {
+        Map<String, String> configs = javaSource("s3cret");
+
+        System.setProperty("test.broken.ssl.defaults", "true");
+
+        try {
+            // Without Pinot's Java home: the reason is reported
+            try {
+                new PinotAdminClient(configs).testConnection();
+                fail("connected with broken SSL defaults and no Java home");
+            } catch (IOException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("NoSuchAlgorithmException"));
+            }
+
+            // With it: a JVM of its own fetches the token
+            configs.put(PinotAdminClient.CONFIG_OAUTH2_SOURCE_JAVA_HOME, System.getProperty("java.home"));
+            new PinotAdminClient(configs).testConnection();
+
+            assertEquals("Bearer tok-1", authorizations.get(authorizations.size() - 1));
+        } finally {
+            System.clearProperty("test.broken.ssl.defaults");
+        }
+    }
+
+    @Test
+    public void providerRefusalsAreNotRetried() {
+        assertFalse(PinotServiceTokens.isJvmEnvironmentProblem(new IllegalStateException("Token source java: token endpoint answered 401")));
+        assertTrue(PinotServiceTokens.isJvmEnvironmentProblem(new IllegalStateException(new java.security.KeyStoreException("missing"))));
+    }
 }

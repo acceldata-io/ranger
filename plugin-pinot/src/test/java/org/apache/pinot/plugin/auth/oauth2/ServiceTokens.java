@@ -38,6 +38,11 @@ public final class ServiceTokens {
             throw new IllegalArgumentException("Token source " + settings.get("source") + ": unsupported source");
         }
 
+        // Like Pinot's HTTP client in a JVM whose SSL defaults are broken: set only in the test's own JVM
+        if (Boolean.getBoolean("test.broken.ssl.defaults")) {
+            throw new IllegalStateException(new java.io.IOException(new java.security.NoSuchAlgorithmException("Error constructing implementation (algorithm: Default)")));
+        }
+
         if (!"com.example.IdmTokenSource".equals(settings.get("class")) || !"s3cret".equals(settings.get("client.secret"))) {
             throw new IllegalStateException("Token source java: token endpoint answered 401");
         }
