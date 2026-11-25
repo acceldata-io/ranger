@@ -284,6 +284,37 @@
       "uiHint": "",
       "label": "Ranger Default Audit Filters",
       "defaultValue": "[ {'accessResult': 'DENIED', 'isAudited': true}, {'actions':['read_metadata'], 'isAudited': false} ]"
+    },
+    {
+      "itemId": 11,
+      "name": "oauth2.source",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "{\"TextFieldWithIcon\":true, \"info\": \"Pinot's service token source: client_credentials (default), http, google_service_account or java. Filled by Ambari from Pinot's configuration.\"}",
+      "label": "OAuth 2.0 token source",
+      "defaultValue": "client_credentials"
+    },
+    {
+      "itemId": 12,
+      "name": "oauth2.source.properties",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "{\"TextFieldWithIcon\":true, \"info\": \"Settings of the token source, one key=value per line, as in Pinot (e.g. class and jar.dir of a java source). Filled by Ambari.\"}",
+      "label": "OAuth 2.0 token source settings"
+    },
+    {
+      "itemId": 13,
+      "name": "oauth2.source.java.home",
+      "type": "string",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "{\"TextFieldWithIcon\":true, \"info\": \"Java 17+ used for Pinot's token sources when Ranger Admin runs on an older Java. Filled by Ambari.\"}",
+      "label": "Java home for Pinot's token sources"
     }
   ],
   "enums": [

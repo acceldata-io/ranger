@@ -24,6 +24,18 @@
     <packaging>jar</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Pinot's token sources run by Ranger Admin for Test Connection and lookup (pinot-auth directory next to
+             the plug-in): Pinot's artifacts of the same release and the dependencies their token sources use -->
+        <pinot.version>1.5.1.${odp.release.version}</pinot.version>
+        <pinot.auth.accessors-smart.version>2.6.0</pinot.auth.accessors-smart.version>
+        <pinot.auth.commons-configuration2.version>2.15.0</pinot.auth.commons-configuration2.version>
+        <pinot.auth.commons-lang3.version>3.20.0</pinot.auth.commons-lang3.version>
+        <pinot.auth.commons-text.version>1.15.0</pinot.auth.commons-text.version>
+        <pinot.auth.json-path.version>2.10.0</pinot.auth.json-path.version>
+        <pinot.auth.json-smart.version>2.6.0</pinot.auth.json-smart.version>
+        <pinot.auth.log4j.version>2.26.0</pinot.auth.log4j.version>
+        <pinot.auth.nimbus-jose-jwt.version>10.8</pinot.auth.nimbus-jose-jwt.version>
+        <pinot.auth.slf4j.version>2.0.17</pinot.auth.slf4j.version>
     </properties>
     <parent>
         <groupId>org.apache.ranger</groupId>
@@ -147,4 +159,93 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <!-- Pinot's token-source jars for Ranger Admin (PinotServiceTokens), outside the plug-in's class path:
+                     exactly these, no transitive dependencies -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>pinot-auth</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/pinot-auth</outputDirectory>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.apache.pinot</groupId>
+                                    <artifactId>pinot-auth-oauth2</artifactId>
+                                    <version>${pinot.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.pinot</groupId>
+                                    <artifactId>pinot-auth-spi</artifactId>
+                                    <version>${pinot.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.pinot</groupId>
+                                    <artifactId>pinot-spi</artifactId>
+                                    <version>${pinot.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>net.minidev</groupId>
+                                    <artifactId>accessors-smart</artifactId>
+                                    <version>${pinot.auth.accessors-smart.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.commons</groupId>
+                                    <artifactId>commons-configuration2</artifactId>
+                                    <version>${pinot.auth.commons-configuration2.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.commons</groupId>
+                                    <artifactId>commons-lang3</artifactId>
+                                    <version>${pinot.auth.commons-lang3.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.commons</groupId>
+                                    <artifactId>commons-text</artifactId>
+                                    <version>${pinot.auth.commons-text.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.jayway.jsonpath</groupId>
+                                    <artifactId>json-path</artifactId>
+                                    <version>${pinot.auth.json-path.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>net.minidev</groupId>
+                                    <artifactId>json-smart</artifactId>
+                                    <version>${pinot.auth.json-smart.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.logging.log4j</groupId>
+                                    <artifactId>log4j-api</artifactId>
+                                    <version>${pinot.auth.log4j.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.nimbusds</groupId>
+                                    <artifactId>nimbus-jose-jwt</artifactId>
+                                    <version>${pinot.auth.nimbus-jose-jwt.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.slf4j</groupId>
+                                    <artifactId>slf4j-api</artifactId>
+                                    <version>${pinot.auth.slf4j.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.slf4j</groupId>
+                                    <artifactId>jcl-over-slf4j</artifactId>
+                                    <version>${pinot.auth.slf4j.version}</version>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

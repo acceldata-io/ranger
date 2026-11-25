@@ -679,6 +679,13 @@
 
   <fileSets>
     <fileSet>
+      <!-- Pinot's token sources, run by the Pinot service's lookup client in their own class loader -->
+      <outputDirectory>ews/webapp/WEB-INF/classes/ranger-plugins/pinot/pinot-auth</outputDirectory>
+      <directory>${project.parent.basedir}/plugin-pinot/target/pinot-auth</directory>
+      <directoryMode>755</directoryMode>
+      <fileMode>644</fileMode>
+    </fileSet>
+    <fileSet>
       <outputDirectory>ews</outputDirectory>
       <directory>${project.parent.basedir}/embeddedwebserver/scripts</directory>
       <fileMode>544</fileMode>

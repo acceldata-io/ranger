@@ -34,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -53,6 +54,12 @@ public class PinotAdminClient {
     public static final String CONFIG_OAUTH2_CLIENT_ID     = "oauth2.client.id";
     public static final String CONFIG_OAUTH2_CLIENT_SECRET = "oauth2.client.secret";
     public static final String CONFIG_OAUTH2_SCOPE         = "oauth2.scope";
+    // Pinot's service token source (client_credentials by default) and its own settings, one key=value per line:
+    // any source other than client_credentials runs Pinot's token-source code (PinotServiceTokens)
+    public static final String CONFIG_OAUTH2_SOURCE           = "oauth2.source";
+    public static final String CONFIG_OAUTH2_SOURCE_SETTINGS  = "oauth2.source.properties";
+    public static final String CONFIG_OAUTH2_SOURCE_JAVA_HOME = "oauth2.source.java.home";
+    static final String        SOURCE_CLIENT_CREDENTIALS      = "client_credentials";
 
     static final int  TIMEOUT_MS  = 10_000;
     static final int  MAX_ANSWER  = 4 * 1024 * 1024;
@@ -67,6 +74,9 @@ public class PinotAdminClient {
     private final String       clientId;
     private final String       clientSecret;
     private final String       scope;
+    private final String       source;
+    private final Map<String, String> sourceSettings;
+    private final String       javaHome;
     private       String       authorization;
 
     public PinotAdminClient(Map<String, String> configs) {
@@ -99,6 +109,9 @@ public class PinotAdminClient {
         this.clientId     = StringUtils.trimToNull(configs.get(CONFIG_OAUTH2_CLIENT_ID));
         this.clientSecret = configs.get(CONFIG_OAUTH2_CLIENT_SECRET);
         this.scope        = StringUtils.trimToNull(configs.get(CONFIG_OAUTH2_SCOPE));
+        this.source       = StringUtils.defaultIfBlank(configs.get(CONFIG_OAUTH2_SOURCE), SOURCE_CLIENT_CREDENTIALS).trim();
+        this.javaHome     = StringUtils.trimToNull(configs.get(CONFIG_OAUTH2_SOURCE_JAVA_HOME));
+        this.sourceSettings = sourceSettings(configs);
 
         switch (authType) {
             case "none":
@@ -109,6 +122,10 @@ public class PinotAdminClient {
                 }
                 break;
             case "oauth2":
+                if (!SOURCE_CLIENT_CREDENTIALS.equals(source)) {
+                    break; // Pinot's token source checks its own settings, with Pinot's messages
+                }
+
                 if (tokenUrl == null || clientId == null || StringUtils.isEmpty(clientSecret)) {
                     throw new IllegalArgumentException("'" + CONFIG_OAUTH2_TOKEN_URL + "', '" + CONFIG_OAUTH2_CLIENT_ID + "' and '" + CONFIG_OAUTH2_CLIENT_SECRET + "' are required for OAuth 2.0");
                 }
@@ -189,11 +206,43 @@ public class PinotAdminClient {
                 return "Basic " + Base64.getEncoder().encodeToString(pair.getBytes(StandardCharsets.UTF_8));
             case "oauth2":
                 if (authorization == null) {
-                    authorization = "Bearer " + fetchToken();
+                    authorization = "Bearer " + (SOURCE_CLIENT_CREDENTIALS.equals(source) ? fetchToken() : PinotServiceTokens.fetch(sourceSettings, javaHome));
                 }
                 return authorization;
             default:
                 return null;
+        }
+    }
+
+    /** The settings of Pinot's token source, as Pinot's service token namespace has them (without its prefix). */
+    static Map<String, String> sourceSettings(Map<String, String> configs) {
+        Map<String, String> ret = new LinkedHashMap<>();
+
+        for (String line : StringUtils.defaultString(configs.get(CONFIG_OAUTH2_SOURCE_SETTINGS)).split("\\r?\\n")) {
+            line = line.trim();
+
+            int eq = line.indexOf('=');
+
+            if (!line.isEmpty() && !line.startsWith("#") && eq > 0) {
+                ret.put(line.substring(0, eq).trim(), line.substring(eq + 1).trim());
+            }
+        }
+
+        ret.put("source", StringUtils.defaultIfBlank(configs.get(CONFIG_OAUTH2_SOURCE), SOURCE_CLIENT_CREDENTIALS).trim());
+        putIfNotBlank(ret, "token.url", configs.get(CONFIG_OAUTH2_TOKEN_URL));
+        putIfNotBlank(ret, "client.id", configs.get(CONFIG_OAUTH2_CLIENT_ID));
+        putIfNotBlank(ret, "scope", configs.get(CONFIG_OAUTH2_SCOPE));
+
+        if (StringUtils.isNotEmpty(configs.get(CONFIG_OAUTH2_CLIENT_SECRET))) {
+            ret.put("client.secret", configs.get(CONFIG_OAUTH2_CLIENT_SECRET));
+        }
+
+        return ret;
+    }
+
+    private static void putIfNotBlank(Map<String, String> map, String key, String value) {
+        if (StringUtils.isNotBlank(value)) {
+            map.put(key, value.trim());
         }
     }
 
