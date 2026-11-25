@@ -1,0 +1,89 @@
+name: Validate PR Commit Messages
+
+on:
+  pull_request:
+    branches:
+      - gaurdrail-test
+
+jobs:
+  validate-commits:
+    name: Check Commit Message Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - << 'EOF'
+          import os, re, subprocess, sys
+
+          BASE_SHA = os.environ["BASE_SHA"]
+          HEAD_SHA = os.environ["HEAD_SHA"]
+
+          INTERNAL_PATTERN = re.compile(
+              r"^(ODP|OCR|OSV)-\d+ - (BUG|IMPROVEMENT|FEATURE|CVE|BUILD|DOC|BACKPORT) - (?P<desc>.+)$"
+          )
+          APACHE_CHERRYPICK_PATTERN = re.compile(
+              r"^(?!ODP-|OCR-|OSV-)[A-Z][A-Z0-9_]+-\d+[\s:.-]+(?P<desc>.+)$"
+          )
+          AUTOMATED_PATTERN = re.compile(
+              r"^\[Automated\] Changed version from '[^']+' to '[^']+'\s*$"
+          )
+          BANNED_DESCRIPTIONS = re.compile(
+              r"^(fix(ed|ing)?\s+(cves?|build(\s+issue)?|bugs?|issues?)|backport(\s+commits?)?|update\s+dependencies|wip|misc)\.?$",
+              re.IGNORECASE,
+          )
+
+          commits = subprocess.check_output(
+              ["git", "rev-list", "--no-merges", f"{BASE_SHA}..{HEAD_SHA}"], text=True
+          ).splitlines()
+
+          has_failures = False
+          for sha in [c.strip() for c in commits if c.strip()]:
+              msg = subprocess.check_output(
+                  ["git", "log", "-n", "1", "--format=%B", sha], text=True
+              ).strip()
+              lines = msg.splitlines()
+              subject = lines[0].strip()
+              errors = []
+
+              if AUTOMATED_PATTERN.match(subject):
+                  pass
+              elif m := INTERNAL_PATTERN.match(subject):
+                  desc = m.group("desc").strip()
+                  if len(desc) < 10 or BANNED_DESCRIPTIONS.match(desc):
+                      errors.append(f"Description '{desc}' is too short or abstract.")
+              elif m := APACHE_CHERRYPICK_PATTERN.match(subject):
+                  desc = m.group("desc").strip()
+                  if len(desc) < 10 or BANNED_DESCRIPTIONS.match(desc):
+                      errors.append(f"Upstream description '{desc}' is too short or abstract.")
+              else:
+                  errors.append(
+                      "Subject must match '<ODP|OCR|OSV>-<NUM> - <IssueType> - <description>' "
+                      "(or valid Apache JIRA cherry-pick / [Automated] version bump)."
+                  )
+
+              if len(lines) > 1:
+                  if lines[1].strip() != "":
+                      errors.append("Line 2 must be blank between subject and body.")
+                  for idx, line in enumerate(lines[2:], start=3):
+                      if not line.startswith(("http://", "https://", "(cherry picked from")) and len(line) > 100:
+                          errors.append(f"Body line {idx} exceeds 100 characters ({len(line)} chars).")
+
+              if errors:
+                  has_failures = True
+                  print(f"\n❌ Commit {sha[:8]} failed: {subject}")
+                  for e in errors:
+                      print(f"   - {e}")
+              else:
+                  print(f"✅ Commit {sha[:8]} passed: {subject}")
+
+          if has_failures:
+              sys.exit(1)
+          EOF
