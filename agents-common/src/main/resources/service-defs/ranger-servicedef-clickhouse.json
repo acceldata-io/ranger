@@ -3,6 +3,7 @@
   "displayName": "clickhouse",
   "label": "ClickHouse",
   "description": "Apache Ranger service definition for ClickHouse",
+  "guid": "clickhouse-service-def",
   "implClass": "org.apache.ranger.services.clickhouse.RangerServiceClickHouse",
   "options": {
     "enableDenyAndExceptionsInPolicies": "true"
@@ -13,17 +14,21 @@
       "name": "database",
       "type": "string",
       "level": 10,
+      "parent": "",
       "mandatory": true,
       "lookupSupported": true,
       "recursiveSupported": false,
       "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
-      "matcherOptions": { "wildCard":true, "ignoreCase":true },
-      "validationRegEx":"",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": true
+      },
+      "validationRegEx": "",
       "validationMessage": "",
-      "uiHint":"",
+      "uiHint": "",
       "label": "ClickHouse Database",
-      "description": "ClickHouse database",
+      "description": "ClickHouse Database",
       "isValidLeaf": true
     },
     {
@@ -37,12 +42,15 @@
       "recursiveSupported": false,
       "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
-      "matcherOptions": { "wildCard":true, "ignoreCase":true },
-      "validationRegEx":"",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": true
+      },
+      "validationRegEx": "",
       "validationMessage": "",
-      "uiHint":"",
+      "uiHint": "",
       "label": "ClickHouse Table",
-      "description": "ClickHouse table",
+      "description": "ClickHouse Table (includes views, dictionaries)",
       "isValidLeaf": true
     },
     {
@@ -56,89 +64,218 @@
       "recursiveSupported": false,
       "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
-      "matcherOptions": { "wildCard":true, "ignoreCase":true },
-      "validationRegEx":"",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": true
+      },
+      "validationRegEx": "",
       "validationMessage": "",
-      "uiHint":"",
+      "uiHint": "",
       "label": "ClickHouse Column",
-      "description": "ClickHouse column"
+      "description": "ClickHouse Column",
+      "isValidLeaf": true
+    },
+    {
+      "itemId": 4,
+      "name": "storage-type",
+      "type": "string",
+      "level": 10,
+      "parent": "",
+      "mandatory": true,
+      "lookupSupported": false,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": true
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "External Storage Type",
+      "description": "External data storage type (FILE, URL, S3, HDFS, MYSQL, etc.)",
+      "isValidLeaf": true
+    },
+    {
+      "itemId": 5,
+      "name": "named_collection",
+      "type": "string",
+      "level": 10,
+      "parent": "",
+      "mandatory": true,
+      "lookupSupported": false,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": true
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Named Collection",
+      "description": "ClickHouse Named Collection",
+      "isValidLeaf": true
+    },
+    {
+      "itemId": 6,
+      "name": "table_engine",
+      "type": "string",
+      "level": 10,
+      "parent": "",
+      "mandatory": true,
+      "lookupSupported": false,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": true
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Table Engine",
+      "description": "ClickHouse Table Engine (MergeTree, Kafka, etc.)",
+      "isValidLeaf": true
+    },
+    {
+      "itemId": 7,
+      "name": "global",
+      "type": "string",
+      "level": 10,
+      "parent": "",
+      "mandatory": true,
+      "lookupSupported": false,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": false,
+        "ignoreCase": true
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Global Resource",
+      "description": "Global server resources (SYSTEM, KILL, access management, etc.). Use '*' only.",
+      "isValidLeaf": true
     }
   ],
   "accessTypes": [
     {
       "itemId": 1,
-      "name": "select",
-      "label": "Select",
-      "impliedGrants": [],
+      "name": "show",
+      "label": "Show",
       "category": "READ"
     },
     {
       "itemId": 2,
-      "name": "insert",
-      "label": "Insert",
-      "impliedGrants": [],
-      "category": "UPDATE"
+      "name": "select",
+      "label": "Select",
+      "category": "READ"
     },
     {
       "itemId": 3,
-      "name": "update",
-      "label": "Update",
-      "impliedGrants": [],
+      "name": "insert",
+      "label": "Insert",
       "category": "UPDATE"
     },
     {
       "itemId": 4,
-      "name": "delete",
-      "label": "Delete",
-      "impliedGrants": [],
-      "category": "DELETE"
-    },
-    {
-      "itemId": 5,
-      "name": "alter",
-      "label": "Alter",
-      "impliedGrants": [],
+      "name": "update",
+      "label": "Update",
       "category": "UPDATE"
     },
     {
-      "itemId": 6,
-      "name": "create",
-      "label": "Create",
-      "impliedGrants": [],
-      "category": "CREATE"
-    },
-    {
-      "itemId": 7,
-      "name": "drop",
-      "label": "Drop",
-      "impliedGrants": [],
+      "itemId": 5,
+      "name": "delete",
+      "label": "Delete",
       "category": "DELETE"
     },
     {
+      "itemId": 6,
+      "name": "alter",
+      "label": "Alter",
+      "category": "UPDATE"
+    },
+    {
+      "itemId": 7,
+      "name": "create",
+      "label": "Create",
+      "category": "CREATE"
+    },
+    {
       "itemId": 8,
-      "name": "show",
-      "label": "Show",
-      "impliedGrants": [],
-      "category": "READ"
+      "name": "drop",
+      "label": "Drop",
+      "category": "DELETE"
     },
     {
       "itemId": 9,
-      "name": "all",
-      "label": "All",
-      "impliedGrants": [
-        "select",
-        "insert",
-        "update",
-        "delete",
-        "alter",
-        "create",
-        "drop",
-        "show"
-      ],
+      "name": "source",
+      "label": "Source",
+      "category": "READ"
+    },
+    {
+      "itemId": 10,
+      "name": "cluster",
+      "label": "Cluster",
+      "category": "MANAGE"
+    },
+    {
+      "itemId": 11,
+      "name": "serviceadmin",
+      "label": "Service Admin",
       "category": "MANAGE"
     }
   ],
-  "configs": [],
+  "configs": [
+    {
+      "itemId": 1,
+      "name": "username",
+      "type": "string",
+      "mandatory": true,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Username"
+    },
+    {
+      "itemId": 2,
+      "name": "password",
+      "type": "password",
+      "mandatory": true,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Password"
+    },
+    {
+      "itemId": 3,
+      "name": "jdbc.driverClassName",
+      "type": "string",
+      "mandatory": true,
+      "defaultValue": "com.clickhouse.jdbc.ClickHouseDriver",
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "JDBC Driver Class Name"
+    },
+    {
+      "itemId": 4,
+      "name": "jdbc.url",
+      "type": "string",
+      "mandatory": true,
+      "defaultValue": "jdbc:clickhouse://localhost:8123/default",
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "JDBC URL"
+    }
+  ],
   "enums": [],
   "contextEnrichers": [],
   "policyConditions": []
